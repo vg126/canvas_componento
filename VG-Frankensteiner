@@ -1,0 +1,3770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VG-Frankeinsteiner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    
+    <style>
+        /* ============================================
+           ROOT VARIABLES & THEME
+           ============================================ */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f7;
+            --bg-hover: rgba(93, 92, 222, 0.08);
+            --bg-selected: rgba(93, 92, 222, 0.15);
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --border-hover: #d0d0d0;
+            --accent: #5D5CDE;
+            --accent-hover: #4a49c5;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .dark {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-hover: rgba(93, 92, 222, 0.2);
+            --bg-selected: rgba(93, 92, 222, 0.3);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #334155;
+            --border-hover: #475569;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        /* ============================================
+           ACCORDION STYLES - COMPLETELY REBUILT
+           ============================================ */
+
+        .accordion-container {
+            position: relative;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
+            min-width: 200px;
+        }
+
+        .accordion-container:hover {
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-md);
+        }
+
+        .accordion-container.expanded {
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent);
+        }
+
+        /* Header Section - Fixed the overlay issue */
+        .accordion-header {
+            position: relative;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            cursor: pointer;
+            user-select: none;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .accordion-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .accordion-container.expanded .accordion-header {
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        /* Display Mode - When collapsed */
+        .accordion-display {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+        }
+
+        .accordion-container.expanded .accordion-display {
+            display: none;
+        }
+
+        /* Search Mode - When expanded */
+        .accordion-search-wrapper {
+            flex: 1;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .accordion-container.expanded .accordion-search-wrapper {
+            display: flex;
+        }
+
+        .accordion-search-icon {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .accordion-search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            padding: 2px;
+            font-family: inherit;
+        }
+
+        .accordion-search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Chevron */
+        .accordion-chevron {
+            color: var(--text-secondary);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .accordion-container.expanded .accordion-chevron {
+            transform: rotate(180deg);
+        }
+
+        /* Content Wrapper */
+        .accordion-content-wrapper {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg-primary);
+        }
+
+        .accordion-container.expanded .accordion-content-wrapper {
+            max-height: 320px;
+        }
+
+        .accordion-content {
+            max-height: 320px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+
+        .accordion-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .accordion-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .accordion-content::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .accordion-content::-webkit-scrollbar-thumb:hover {
+            background: var(--border-hover);
+        }
+
+        /* Section Styles */
+        .accordion-section {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .accordion-section:last-child {
+            border-bottom: none;
+        }
+
+        .accordion-section-header {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            font-size: 12px;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            transition: background 0.2s ease;
+            user-select: none;
+        }
+
+        .accordion-section-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .accordion-section-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .accordion-section-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: normal;
+        }
+
+        .accordion-section-chevron {
+            font-size: 10px;
+            color: var(--text-secondary);
+            transition: transform 0.2s ease;
+        }
+
+        .accordion-section.expanded .accordion-section-chevron {
+            transform: rotate(90deg);
+        }
+
+        .accordion-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease;
+        }
+
+        .accordion-section.expanded .accordion-section-content {
+            max-height: 500px;
+        }
+
+        /* Subsection Styles */
+        .accordion-subsection {
+            padding-left: 8px;
+            border-left: 2px solid var(--border);
+            margin-left: 8px;
+        }
+
+        .accordion-subsection-header {
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            margin: 2px 0;
+            border-radius: 4px;
+        }
+
+        /* Item Styles */
+        .accordion-item {
+            padding: 7px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+            position: relative;
+            border-radius: 4px;
+            margin: 2px 4px;
+        }
+
+        .accordion-item:hover {
+            background: var(--bg-hover);
+            padding-left: 16px;
+        }
+
+        .accordion-item.selected {
+            background: var(--bg-selected);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .accordion-item.selected::before {
+            content: "✓";
+            position: absolute;
+            left: 4px;
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .accordion-item.highlighted {
+            background: var(--bg-hover);
+            box-shadow: inset 0 0 0 1px var(--accent);
+        }
+
+        /* Empty State */
+        .accordion-empty {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        /* Loading State */
+        .accordion-loading {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-secondary);
+        }
+
+        .accordion-loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: accordion-spin 0.8s linear infinite;
+        }
+
+        @keyframes accordion-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Flag Controls Styling */
+        .flag-container {
+            margin-top: 8px;
+            padding: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .flag-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: capitalize;
+        }
+
+        .flag-slider {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .flag-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .flag-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .accordion-container {
+                min-width: 150px;
+            }
+            
+            .accordion-container.expanded .accordion-content-wrapper {
+                max-height: 250px;
+            }
+            
+            .accordion-content {
+                max-height: 250px;
+            }
+        }
+    </style>
+    <script>
+        // Dark mode detection
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // OpusGator Model Database Integration
+        const MODEL_DATABASE = {
+            "Favorites": [
+                "@GPT-5", "@GPT-4.1", "@o3-pro", "@o1", "@Gemini-2.5-Pro",
+                "@Claude-Opus-4-Reasoning", "@Claude-Opus-4.1", "@Claude-Opus-4-Search",
+                "@Claude-Sonnet-4-Search", "@Grok-4", "@Mistral-Large-2"
+            ],
+            "Web Search": [
+                "@Claude-Opus-4-Search", "@Claude-Sonnet-4-Search", "@Claude-Sonnet-3.7-Search",
+                "@Gemini-2.5-Flash", "@Gemini-2.5-Pro", "@Grok-4",
+                "@Perplexity-Sonar", "@Perplexity-Sonar-Rsn-Pro",
+                "@GPT-4o-Search", "@Linkup-Deep-Search", "@Linkup-Standard",
+                "@Bagoodex-Web-Search"
+            ],
+            "GPT": {
+                "GPT-5 Series": ["@GPT-5-Chat", "@GPT-5", "@GPT-5-mini", "@GPT-5-nano"],
+                "GPT-4 Series": [
+                    "@GPT-4.1", "@GPT-4o-Search", "@GPT-4-Classic", "@GPT-4-Classic-0314",
+                    "@GPT-4-Turbo", "@GPT-4.1-mini", "@GPT-4.1-nano", "@GPT-4o",
+                    "@GPT-4o-mini", "@GPT-4o-mini-Search", "@GPT-4o-Aug", "@ChatGPT-4o-Latest"
+                ],
+                "GPT-3.5 Series": ["@GPT-3.5-Turbo", "@GPT-3.5-Turbo-Instruct", "@GPT-3.5-Turbo-Raw"],
+                "o-Series": ["@o1", "@o3", "@o3-pro", "@o1-mini", "@o3-mini", "@o3-mini-high", "@o4-mini", "@o3-Pro"]
+            },
+            "GPT - Open Weight": {
+                "120B Models": ["@GPT-OSS-120B-T", "@GPT-OSS-120B", "@GPT-OSS-120B-CS", "@OpenAI-GPT-OSS-120B"],
+                "20B Models": ["@GPT-OSS-20B-T", "@GPT-OSS-20B", "@OpenAI-GPT-OSS-20B"]
+            },
+            "Google": {
+                "Gemini 2.5": [
+                    "@Gemini-2.5-Pro", "@Gemini-2.5-Flash", "@Gemini-2.5-Flash-Lite",
+                    "@Gemini-2.5-Flash-Lite-Preview", "@Gemini-2.5-Flash-Image"
+                ],
+                "Gemini 2.0": ["@Gemini-2.0-Flash", "@Gemini-2.0-Flash-Lite", "@Gemini-2.0-Flash-Preview"],
+                "Gemini 1.5": ["@Gemini-1.5-Pro", "@Gemini-1.5-Pro-Search", "@Gemini-1.5-Flash", "@Gemini-1.5-Flash-Search"],
+                "Gemma": ["@Gemma-3-27B", "@Gemma-2-27b-T"]
+            },
+            "Claude": {
+                "Opus": [
+                    "@Claude-Opus-4.1", "@Claude-Opus-4", "@Claude-Opus-4-Reasoning",
+                    "@Claude-Opus-4-Search", "@Claude-Opus-3"
+                ],
+                "Sonnet": [
+                    "@Claude-Sonnet-4", "@Claude-Sonnet-4-Reasoning", "@Claude-Sonnet-4-Search",
+                    "@Claude-Sonnet-3.5", "@Claude-Sonnet-3.5-June", "@Claude-Sonnet-3.5-Search",
+                    "@Claude-Sonnet-3.7", "@Claude-Sonnet-3.7-Reasoning", "@Claude-Sonnet-3.7-Search"
+                ],
+                "Haiku": ["@Claude-Haiku-3.5", "@Claude-Haiku-3", "@Claude-Haiku-3.5-Search"]
+            },
+            "Grok": ["@Grok-4", "@Grok-3", "@Grok-3-Mini", "@Grok-Code-Fast-1", "@Grok-2"],
+            "Llama 4": [
+                "@Llama-4-Scout-B10", "@Llama-4-Maverick", "@Llama-4-Scout-T",
+                "@Llama-4-Scout-CS", "@Llama-4-Scout", "@Llama-4-Maverick-T", "@Llama-4-Maverick-B10"
+            ],
+            "Llama 3.X": {
+                "405B Models": ["@Llama-3.1-405B", "@Llama-3.1-405B-T", "@Llama-3.1-405B-FW", "@Llama-3.1-405B-FP16"],
+                "70B Models": [
+                    "@Llama-3-70b-Groq", "@Llama-3.3-70B", "@Llama-3.1-Nemotron",
+                    "@Llama-3.3-70B-DI", "@Llama-3.3-70B-CS", "@Llama-3.3-70B-Vers",
+                    "@Llama-3-70B-FP16", "@Llama-3-70B-T", "@Llama-3.1-70B",
+                    "@Llama-3.1-70B-FP16", "@Llama-3.1-70B-FW", "@Llama-3.1-70B-T",
+                    "@Llama-3.3-70B-FW", "@Llama-3.3-70B-N"
+                ],
+                "8B Models": [
+                    "@Llama-3-8B-T", "@Llama-3-8b-Groq", "@Llama-3.1-8B",
+                    "@Llama-3.1-8B-CS", "@Llama-3.1-8B-DI", "@Llama-3.1-8B-FP16",
+                    "@Llama-3.1-8B-FW", "@Llama-3.1-8B-T-128k"
+                ]
+            },
+            "Qwen": {
+                "480B": ["@Qwen3-480B-Coder-CS", "@Qwen3-Coder-480B-T", "@Qwen3-Coder-480B-N"],
+                "235B": [
+                    "@Qwen-3-235B-2507-T", "@Qwen3-235B-2507-FW", "@Qwen3-235B-2507-CS",
+                    "@Qwen3-235B-A22B", "@Qwen3-235B-A22B-DI", "@Qwen3-235B-A22B-N", "@Qwen3-235B-Think-CS"
+                ],
+                "72B": ["@Qwen-72B-T", "@Qwen2-72B-Instruct-T", "@Qwen2.5-VL-72B-T", "@Qwen-2.5-72B-T"],
+                "32B": [
+                    "@Qwen3-30B-A3B-Instruct", "@Qwen2.5-Coder-32B", "@Qwen2.5-Coder-32B-T",
+                    "@Qwen3-32B-CS", "@Qwen3-Coder-30B-A3B"
+                ],
+                "Others": ["@Qwen-2.5-7B-T", "@Qwen-2.5-VL-32b", "@Qwen3-Coder"]
+            },
+            "DeepSeek": {
+                "R1 Series": [
+                    "@DeepSeek-R1", "@DeepSeek-R1-FW", "@DeepSeek-R1-DI", "@DeepSeek-R1-N",
+                    "@DeepSeek-R1-Distill", "@DeepSeek-R1-Turbo-DI"
+                ],
+                "V3 Series": [
+                    "@DeepSeek-V3.1", "@DeepSeek-V3.1-Chat", "@DeepSeek-V3.1-N",
+                    "@Deepseek-V3-FW", "@DeepSeek-V3", "@DeepSeek-V3-DI", "@DeepSeek-V3-Turbo-DI"
+                ],
+                "Specialized": ["@DeepSeek-Prover-V2", "@DeepClaude"]
+            },
+            "Mistral": {
+                "Large": ["@Mistral-Large-2"],
+                "Medium": ["@Mistral-Medium-3", "@Mistral-Medium", "@Magistral-Medium-2506-Thinking"],
+                "Small": [
+                    "@Mistral-Small-3.2", "@Mistral-Small-3.1", "@Mistral-Small-3",
+                    "@Mistral-7B-v0.3-DI", "@Mistral-7B-v0.3-T"
+                ],
+                "Specialized": ["@Mistral-NeMo", "@Mixtral8x22b-Inst-FW"]
+            },
+            "Perplexity": [
+                "@Perplexity-R1-1776", "@Perplexity-Sonar", "@Perplexity-Sonar-Pro",
+                "@Perplexity-Sonar-Rsn", "@Perplexity-Sonar-Rsn-Pro"
+            ],
+            "Others": [
+                "@Aya-Expanse-32B", "@Aya-Vision", "@Command-R", "@Command-R-Plus",
+                "@GLM-4.5", "@GLM-4.5-Air", "@GLM-4.5-Air-T", "@GLM-4.5-FW", "@GLM-4.5-Versatile",
+                "@GPT-Researcher", "@Inception-Mercury", "@Inception-Mercury-Coder",
+                "@Hermes-3-70B", "@Kimi-K2", "@Kimi-K2-0905-T", "@Kimi-K2-Instruct", "@Kimi-K2-T",
+                "@MiniMax-M1", "@Phi-4-DI", "@QwQ-32B-B10", "@QwQ-32B-Preview-T", "@QwQ-32B-T",
+                "@Reka-Core", "@Reka-Flash", "@Reka-Research", "@Tako", "@Solar-Pro-2"
+            ]
+        };
+
+        // Model Flags Database
+        const MODEL_FLAGS = {
+            "@Claude-Opus-4": { thinking_budget: { type: "slider", min: 0, max: 30768, default: "default" }},
+            "@Claude-Opus-4-Reasoning": { thinking_budget: { type: "slider", min: 0, max: 30768, default: "default" }},
+            "@Claude-Opus-4-Search": { thinking_budget: { type: "slider", min: 0, max: 126000, default: "default" }},
+            "@Claude-Opus-4.1": { thinking_budget: { type: "slider", min: 0, max: 31999, default: "default" }},
+            "@Claude-Sonnet-3.7": { thinking_budget: { type: "slider", min: 0, max: 16384, default: "default" }},
+            "@Claude-Sonnet-3.7-Reasoning": { thinking_budget: { type: "slider", min: 0, max: 126000, default: "default" }},
+            "@Claude-Sonnet-3.7-Search": { thinking_budget: { type: "slider", min: 0, max: 126000, default: "default" }},
+            "@Claude-Sonnet-4": { thinking_budget: { type: "slider", min: 0, max: 30768, default: "default" }},
+            "@Claude-Sonnet-4-Reasoning": { thinking_budget: { type: "slider", min: 0, max: 61440, default: "default" }},
+            "@Claude-Sonnet-4-Search": { thinking_budget: { type: "slider", min: 0, max: 126000, default: "default" }},
+            "@Gemini-2.5-Flash": { 
+                thinking_budget: { type: "slider_stepped", steps: [0, 4096, 8192, 12288, 16384, 20480, 24576], default: "default" }
+            },
+            "@Gemini-2.5-Flash-Lite": { 
+                thinking_budget: { type: "slider_stepped", steps: [0, 4096, 8192, 12288, 16384, 20480, 24576], default: "default" }
+            },
+            "@Gemini-2.5-Pro": { 
+                thinking_budget: { type: "slider_stepped", steps: [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768], default: "default" }
+            },
+            "@GPT-5": { reasoning_effort: { type: "slider_stepped", steps: ["minimal", "low", "medium", "high"], default: "default" }},
+            "@GPT-5-mini": { reasoning_effort: { type: "slider_stepped", steps: ["minimal", "low", "medium", "high"], default: "default" }},
+            "@GPT-5-nano": { reasoning_effort: { type: "slider_stepped", steps: ["minimal", "low", "medium", "high"], default: "default" }},
+            "@o1": { reasoning_effort: { type: "slider_stepped", steps: ["low", "medium", "high"], default: "default" }},
+            "@o3": { reasoning_effort: { type: "slider_stepped", steps: ["low", "medium", "high"], default: "default" }},
+            "@o3-mini": { reasoning_effort: { type: "slider_stepped", steps: ["low", "medium", "high"], default: "default" }},
+            "@o3-pro": { reasoning_effort: { type: "slider_stepped", steps: ["low", "medium", "high"], default: "default" }},
+            "@o4-mini": { reasoning_effort: { type: "slider_stepped", steps: ["low", "medium", "high"], default: "default" }},
+            "@Grok-3-Mini": { reasoning_effort: { type: "slider_stepped", steps: ["low", "high"], default: "default" }},
+            "@Tako": { specificity: { type: "slider", min: 0, max: 100, default: "default" }},
+            "@Linkup-Deep-Search": {
+                advanced_settings: {
+                    type: "advanced",
+                    fields: {
+                        domain_filter_mode: { type: "select", options: ["none", "Include", "Exclude"], default: "none" },
+                        include_domains: { type: "text", placeholder: "e.g. github.com", depends_on: "domain_filter_mode", depends_value: "Include" },
+                        exclude_domains: { type: "text", placeholder: "e.g. reddit.com", depends_on: "domain_filter_mode", depends_value: "Exclude" },
+                        prioritize_domains: { type: "text", placeholder: "e.g. stackoverflow.com" },
+                        from_date: { type: "text", placeholder: "YYYY-MM-DD" },
+                        to_date: { type: "text", placeholder: "YYYY-MM-DD" },
+                        include_images: { type: "checkbox", default: false },
+                        image_count: { type: "text", placeholder: "Number (e.g. 5)" }
+                    }
+                }
+            },
+            "@Linkup-Standard": {
+                thinking_budget: { type: "slider", min: 0, max: 32768, default: "default" },
+                advanced_settings: {
+                    type: "advanced",
+                    fields: {
+                        domain_filter_mode: { type: "select", options: ["none", "Include", "Exclude"], default: "none" },
+                        include_domains: { type: "text", placeholder: "e.g. github.com", depends_on: "domain_filter_mode", depends_value: "Include" },
+                        exclude_domains: { type: "text", placeholder: "e.g. reddit.com", depends_on: "domain_filter_mode", depends_value: "Exclude" },
+                        prioritize_domains: { type: "text", placeholder: "e.g. stackoverflow.com" },
+                        from_date: { type: "text", placeholder: "YYYY-MM-DD" },
+                        to_date: { type: "text", placeholder: "YYYY-MM-DD" },
+                        include_images: { type: "checkbox", default: false },
+                        image_count: { type: "text", placeholder: "Number (e.g. 5)" }
+                    }
+                }
+            },
+            "@Bagoodex-Web-Search": {
+                advanced_settings: {
+                    type: "advanced",
+                    fields: {
+                        domain_filter: { type: "text", placeholder: "e.g. legal-tools.org" },
+                        exclude_words: { type: "text", placeholder: "e.g. bemba" },
+                        search_images: { type: "checkbox", default: false },
+                        search_knowledge: { type: "checkbox", default: false },
+                        search_location: { type: "checkbox", default: false },
+                        search_videos: { type: "checkbox", default: false },
+                        search_weather: { type: "checkbox", default: false }
+                    }
+                }
+            }
+        };
+
+        /* ============================================
+           IMPROVED ACCORDION MANAGER CLASS
+           ============================================ */
+
+        class AccordionManager {
+            constructor(options = {}) {
+                this.options = {
+                    searchDebounceMs: 150,
+                    animationDuration: 300,
+                    ...options
+                };
+                
+                this.accordions = new Map();
+                this.expandedSections = new Map();
+                this.searchDebounceTimers = new Map();
+            }
+
+            createAccordion(containerId, data, config = {}) {
+                const accordion = {
+                    id: containerId,
+                    data: data,
+                    filteredData: data,
+                    isExpanded: false,
+                    selectedItem: null,
+                    searchTerm: '',
+                    callbacks: {
+                        onSelect: config.onSelect || (() => {}),
+                        onSearch: config.onSearch || (() => {}),
+                        onExpand: config.onExpand || (() => {}),
+                        onCollapse: config.onCollapse || (() => {})
+                    }
+                };
+
+                this.accordions.set(containerId, accordion);
+                this.initializeAccordionDOM(containerId);
+                return accordion;
+            }
+
+            initializeAccordionDOM(accordionId) {
+                const container = document.getElementById(accordionId);
+                if (!container) return;
+
+                // Build the accordion structure
+                container.innerHTML = `
+                    <div class="accordion-header" onclick="accordionManager.toggleAccordion('${accordionId}')">
+                        <div class="accordion-display">
+                            <span class="accordion-model-text">Select Model</span>
+                        </div>
+                        <div class="accordion-search-wrapper">
+                            <span class="accordion-search-icon">🔍</span>
+                            <input class="accordion-search-input" 
+                                   type="text"
+                                   placeholder="Search models..." 
+                                   onclick="event.stopPropagation()"
+                                   oninput="accordionManager.handleSearch('${accordionId}', this.value)" />
+                        </div>
+                        <span class="accordion-chevron">▼</span>
+                    </div>
+                    <div class="accordion-content-wrapper">
+                        <div class="accordion-content"></div>
+                    </div>
+                `;
+
+                // Set initial selected model if provided
+                const accordion = this.accordions.get(accordionId);
+                if (accordion && accordion.selectedItem) {
+                    this.updateSelectedDisplay(accordionId);
+                }
+            }
+
+            toggleAccordion(accordionId, forceState = null) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                const container = document.getElementById(accordionId);
+                if (!container) return;
+
+                const wasExpanded = accordion.isExpanded;
+                accordion.isExpanded = forceState !== null ? forceState : !accordion.isExpanded;
+
+                // Close other accordions if opening this one
+                if (accordion.isExpanded && !wasExpanded) {
+                    this.accordions.forEach((other, otherId) => {
+                        if (otherId !== accordionId && other.isExpanded) {
+                            this.toggleAccordion(otherId, false);
+                        }
+                    });
+                }
+
+                // Update DOM state
+                if (accordion.isExpanded) {
+                    container.classList.add('expanded');
+                    
+                    // Focus search input
+                    setTimeout(() => {
+                        const searchInput = container.querySelector('.accordion-search-input');
+                        if (searchInput) {
+                            searchInput.focus();
+                        }
+                    }, 100);
+
+                    // Render content if needed
+                    const contentEl = container.querySelector('.accordion-content');
+                    if (contentEl && !contentEl.innerHTML.trim()) {
+                        this.renderAccordionContent(accordionId);
+                    }
+
+                    accordion.callbacks.onExpand(accordionId);
+                } else {
+                    container.classList.remove('expanded');
+                    
+                    // Clear search
+                    const searchInput = container.querySelector('.accordion-search-input');
+                    if (searchInput) {
+                        searchInput.value = '';
+                        accordion.searchTerm = '';
+                        accordion.filteredData = accordion.data;
+                    }
+
+                    accordion.callbacks.onCollapse(accordionId);
+                }
+            }
+
+            handleSearch(accordionId, searchTerm) {
+                // Clear existing debounce timer
+                if (this.searchDebounceTimers.has(accordionId)) {
+                    clearTimeout(this.searchDebounceTimers.get(accordionId));
+                }
+
+                // Set new debounce timer
+                const timer = setTimeout(() => {
+                    this.setSearchTerm(accordionId, searchTerm);
+                }, this.options.searchDebounceMs);
+
+                this.searchDebounceTimers.set(accordionId, timer);
+            }
+
+            setSearchTerm(accordionId, searchTerm) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                accordion.searchTerm = searchTerm.toLowerCase();
+                accordion.filteredData = this.filterAccordionData(accordion.data, accordion.searchTerm);
+                
+                this.renderAccordionContent(accordionId);
+                accordion.callbacks.onSearch(searchTerm, accordion.filteredData);
+            }
+
+            renderAccordionContent(accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                const container = document.getElementById(accordionId);
+                const contentEl = container?.querySelector('.accordion-content');
+                if (!contentEl) return;
+
+                let html = '';
+                let hasContent = false;
+
+                Object.entries(accordion.filteredData).forEach(([category, items]) => {
+                    const categoryContent = this.renderCategory(category, items, accordionId);
+                    if (categoryContent) {
+                        html += categoryContent;
+                        hasContent = true;
+                    }
+                });
+
+                if (!hasContent) {
+                    html = '<div class="accordion-empty">No models found</div>';
+                }
+
+                contentEl.innerHTML = html;
+
+                // Auto-expand sections when searching
+                if (accordion.searchTerm) {
+                    this.autoExpandSearchResults(accordionId);
+                }
+            }
+
+            renderCategory(category, items, accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                const sectionKey = `${accordionId}-${category}`;
+                const isExpanded = this.expandedSections.get(sectionKey) || accordion.searchTerm;
+
+                // Get filtered items
+                const filteredItems = this.getFilteredItems(items, accordion.searchTerm);
+                if (filteredItems.length === 0 && accordion.searchTerm) return '';
+
+                let html = `
+                    <div class="accordion-section ${isExpanded ? 'expanded' : ''}" data-category="${category}">
+                        <div class="accordion-section-header" onclick="accordionManager.toggleSection('${accordionId}', '${category}')">
+                            <div class="accordion-section-info">
+                                <span>${category}</span>
+                                <span class="accordion-section-count">(${filteredItems.length})</span>
+                            </div>
+                            <span class="accordion-section-chevron">▶</span>
+                        </div>
+                        <div class="accordion-section-content">
+                `;
+
+                if (Array.isArray(items)) {
+                    // Simple array
+                    filteredItems.forEach(item => {
+                        html += this.renderItem(item, accordionId);
+                    });
+                } else {
+                    // Nested structure
+                    Object.entries(items).forEach(([subcategory, subitems]) => {
+                        const filteredSubitems = this.filterItems(subitems, accordion.searchTerm);
+                        if (filteredSubitems.length > 0) {
+                            html += `
+                                <div class="accordion-subsection">
+                                    <div class="accordion-subsection-header">${subcategory}</div>
+                            `;
+                            filteredSubitems.forEach(item => {
+                                html += this.renderItem(item, accordionId);
+                            });
+                            html += '</div>';
+                        }
+                    });
+                }
+
+                html += '</div></div>';
+                return html;
+            }
+
+            renderItem(item, accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                const isSelected = accordion.selectedItem === item;
+                const displayName = item.startsWith('@') ? item.slice(1) : item;
+
+                return `
+                    <div class="accordion-item ${isSelected ? 'selected' : ''}"
+                         data-item="${item}"
+                         onclick="accordionManager.selectItem('${accordionId}', '${item.replace(/'/g, "\\'")}')"
+                         title="${displayName}">
+                        ${displayName}
+                    </div>
+                `;
+            }
+
+            getFilteredItems(items, searchTerm) {
+                if (Array.isArray(items)) {
+                    return this.filterItems(items, searchTerm);
+                } else {
+                    const result = [];
+                    Object.values(items).forEach(subitems => {
+                        if (Array.isArray(subitems)) {
+                            result.push(...this.filterItems(subitems, searchTerm));
+                        }
+                    });
+                    return result;
+                }
+            }
+
+            filterItems(items, searchTerm) {
+                if (!searchTerm || !Array.isArray(items)) return items;
+                return items.filter(item => 
+                    item.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            filterAccordionData(data, searchTerm) {
+                if (!searchTerm) return data;
+
+                const filtered = {};
+                
+                Object.entries(data).forEach(([category, items]) => {
+                    if (Array.isArray(items)) {
+                        const filteredItems = this.filterItems(items, searchTerm);
+                        if (filteredItems.length > 0) {
+                            filtered[category] = filteredItems;
+                        }
+                    } else {
+                        const filteredSubcategories = {};
+                        Object.entries(items).forEach(([subcat, subitems]) => {
+                            const filteredSub = this.filterItems(subitems, searchTerm);
+                            if (filteredSub.length > 0) {
+                                filteredSubcategories[subcat] = filteredSub;
+                            }
+                        });
+                        if (Object.keys(filteredSubcategories).length > 0) {
+                            filtered[category] = filteredSubcategories;
+                        }
+                    }
+                });
+                
+                return filtered;
+            }
+
+            toggleSection(accordionId, category) {
+                const sectionKey = `${accordionId}-${category}`;
+                const isExpanded = this.expandedSections.get(sectionKey);
+                this.expandedSections.set(sectionKey, !isExpanded);
+                
+                const container = document.getElementById(accordionId);
+                const section = container?.querySelector(`[data-category="${category}"]`);
+                if (section) {
+                    section.classList.toggle('expanded', !isExpanded);
+                }
+            }
+
+            autoExpandSearchResults(accordionId) {
+                const container = document.getElementById(accordionId);
+                container?.querySelectorAll('.accordion-section').forEach(section => {
+                    section.classList.add('expanded');
+                    const category = section.dataset.category;
+                    if (category) {
+                        this.expandedSections.set(`${accordionId}-${category}`, true);
+                    }
+                });
+            }
+
+            selectItem(accordionId, item) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                accordion.selectedItem = item;
+                this.updateSelectedDisplay(accordionId);
+                this.toggleAccordion(accordionId, false);
+                
+                accordion.callbacks.onSelect(item, accordionId);
+            }
+
+            updateSelectedDisplay(accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                const container = document.getElementById(accordionId);
+                if (!accordion || !container) return;
+
+                const displayEl = container.querySelector('.accordion-model-text');
+                if (displayEl && accordion.selectedItem) {
+                    const displayName = accordion.selectedItem.startsWith('@') ? 
+                        accordion.selectedItem.slice(1) : accordion.selectedItem;
+                    displayEl.textContent = displayName;
+                }
+            }
+
+            getSelection(accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                return accordion ? accordion.selectedItem : null;
+            }
+
+            setSelection(accordionId, item) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                accordion.selectedItem = item;
+                this.updateSelectedDisplay(accordionId);
+            }
+
+            clearSelection(accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                accordion.selectedItem = null;
+                this.updateSelectedDisplay(accordionId);
+            }
+
+            destroy(accordionId) {
+                this.accordions.delete(accordionId);
+                this.expandedSections.forEach((value, key) => {
+                    if (key.startsWith(accordionId)) {
+                        this.expandedSections.delete(key);
+                    }
+                });
+                if (this.searchDebounceTimers.has(accordionId)) {
+                    clearTimeout(this.searchDebounceTimers.get(accordionId));
+                    this.searchDebounceTimers.delete(accordionId);
+                }
+            }
+        }
+
+        /* ============================================
+           FLAG MANAGER CLASS (Unchanged)
+           ============================================ */
+
+        class FlagManager {
+            constructor() {
+                this.modelFlags = {};
+            }
+
+            // Get flags for a specific model
+            getModelFlags(modelName) {
+                return MODEL_FLAGS[modelName] || {};
+            }
+
+            // Check if model has flags
+            hasFlags(modelName) {
+                return !!MODEL_FLAGS[modelName];
+            }
+
+            // Set flag value for a model instance
+            setFlag(modelName, flagName, value) {
+                if (!this.modelFlags[modelName]) {
+                    this.modelFlags[modelName] = {};
+                }
+                this.modelFlags[modelName][flagName] = value;
+            }
+
+            // Get flag value for a model instance
+            getFlag(modelName, flagName) {
+                return this.modelFlags[modelName]?.[flagName] || 'default';
+            }
+
+            // Generate flag string for API call
+            generateFlagString(modelName) {
+                const flags = this.modelFlags[modelName];
+                if (!flags) return '';
+
+                const flagParts = [];
+                
+                Object.entries(flags).forEach(([flagName, value]) => {
+                    if (flagName === 'advanced_settings' && typeof value === 'object') {
+                        // Handle advanced settings
+                        Object.entries(value).forEach(([subFlag, subValue]) => {
+                            if (subValue && subValue !== 'none' && subValue !== false) {
+                                if (typeof subValue === 'boolean') {
+                                    flagParts.push(`--${subFlag} true`);
+                                } else {
+                                    // Special handling for Linkup models
+                                    const isLinkup = modelName.includes('Linkup');
+                                    if (isLinkup) {
+                                        flagParts.push(`--${subFlag} ${subValue}`);
+                                    } else {
+                                        flagParts.push(`--${subFlag} "${subValue}"`);
+                                    }
+                                }
+                            }
+                        });
+                    } else if (value !== 'default') {
+                        flagParts.push(`--${flagName} ${value}`);
+                    }
+                });
+
+                return flagParts.length > 0 ? ' ' + flagParts.join(' ') : '';
+            }
+
+            // Reset flags for a model
+            resetFlags(modelName) {
+                delete this.modelFlags[modelName];
+            }
+
+            // Get all models with their current flag states
+            getAllModelStates() {
+                return { ...this.modelFlags };
+            }
+
+            // Set all model states (for import/export)
+            setAllModelStates(states) {
+                this.modelFlags = { ...states };
+            }
+        }
+
+        // Initialize global managers
+        const accordionManager = new AccordionManager();
+        const flagManager = new FlagManager();
+
+        /* ============================================
+           FLAG SYSTEM FUNCTIONS
+           ============================================ */
+
+        // Show/hide flags based on model selection
+        function updateFlagsVisibility(selectorId, selectedModel) {
+            // Map selector IDs to flag container IDs (remove "Model" suffix if present)
+            const flagId = selectorId.replace('Model', '');
+            const flagContainer = document.getElementById(`${flagId}Flags`);
+            const flagControls = document.getElementById(`${flagId}FlagControls`);
+            
+            if (!flagContainer || !flagControls) return;
+            
+            const modelFlags = flagManager.getModelFlags(selectedModel);
+            
+            if (Object.keys(modelFlags).length > 0) {
+                flagContainer.classList.remove('hidden');
+                renderFlagControls(selectorId, selectedModel, modelFlags);
+            } else {
+                flagContainer.classList.add('hidden');
+                flagControls.innerHTML = '';
+            }
+        }
+
+        // Render flag controls for a model
+        function renderFlagControls(selectorId, modelName, modelFlags) {
+            const flagId = selectorId.replace('Model', '');
+            const flagControls = document.getElementById(`${flagId}FlagControls`);
+            if (!flagControls) return;
+            
+            let html = '';
+            
+            Object.entries(modelFlags).forEach(([flagName, flagConfig]) => {
+                if (flagConfig.type === 'slider') {
+                    html += renderSliderFlag(selectorId, modelName, flagName, flagConfig);
+                } else if (flagConfig.type === 'stepped') {
+                    html += renderSteppedFlag(selectorId, modelName, flagName, flagConfig);
+                } else if (flagConfig.type === 'slider_stepped') {
+                    html += renderSliderSteppedFlag(selectorId, modelName, flagName, flagConfig);
+                } else if (flagConfig.type === 'advanced') {
+                    html += renderAdvancedFlag(selectorId, modelName, flagName, flagConfig);
+                }
+            });
+            
+            flagControls.innerHTML = html;
+        }
+
+        // Render slider flag control
+        function renderSliderFlag(selectorId, modelName, flagName, flagConfig) {
+            const currentValue = flagManager.getFlag(modelName, flagName);
+            const displayValue = currentValue === 'default' ? flagConfig.default : currentValue;
+            
+            return `
+                <div class="mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="flag-label">${flagName.replace('_', ' ')}</label>
+                        <span class="text-xs text-gray-500" id="${selectorId}_${flagName}_value">${displayValue}</span>
+                    </div>
+                    <input type="range" 
+                           id="${selectorId}_${flagName}" 
+                           min="${flagConfig.min}" 
+                           max="${flagConfig.max}" 
+                           value="${currentValue === 'default' ? flagConfig.min : currentValue}"
+                           class="flag-slider"
+                           oninput="updateSliderFlag('${selectorId}', '${modelName}', '${flagName}', this.value)">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>${flagConfig.min}</span>
+                        <span class="cursor-pointer hover:text-gray-600 dark:hover:text-gray-300" 
+                              onclick="resetFlag('${selectorId}', '${modelName}', '${flagName}')">default</span>
+                        <span>${flagConfig.max}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render stepped flag control  
+        function renderSteppedFlag(selectorId, modelName, flagName, flagConfig) {
+            const currentValue = flagManager.getFlag(modelName, flagName);
+            
+            let optionsHtml = '<option value="default">default</option>';
+            flagConfig.steps.forEach(step => {
+                const selected = currentValue === step ? 'selected' : '';
+                optionsHtml += `<option value="${step}" ${selected}>${step}</option>`;
+            });
+            
+            return `
+                <div class="mb-3">
+                    <label class="flag-label block mb-1">${flagName.replace('_', ' ')}</label>
+                    <select id="${selectorId}_${flagName}" 
+                            class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                            onchange="updateSteppedFlag('${selectorId}', '${modelName}', '${flagName}', this.value)">
+                        ${optionsHtml}
+                    </select>
+                </div>
+            `;
+        }
+
+        // Render advanced flag control
+        function renderAdvancedFlag(selectorId, modelName, flagName, flagConfig) {
+            return `
+                <div class="mb-3">
+                    <button class="w-full px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            onclick="openAdvancedSettings('${selectorId}', '${modelName}', '${flagName}')">
+                        ⚙️ Advanced Settings
+                    </button>
+                    <div class="text-xs text-gray-500 mt-1" id="${selectorId}_${flagName}_status">
+                        ${getAdvancedSettingsStatus(modelName, flagName)}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update slider flag value
+        function updateSliderFlag(selectorId, modelName, flagName, value) {
+            flagManager.setFlag(modelName, flagName, parseInt(value));
+            document.getElementById(`${selectorId}_${flagName}_value`).textContent = value;
+        }
+
+        // Render slider stepped flag control
+        function renderSliderSteppedFlag(selectorId, modelName, flagName, flagConfig) {
+            const currentValue = flagManager.getFlag(modelName, flagName);
+            let currentIndex = 0;
+            let displayValue = 'default';
+            
+            if (currentValue !== 'default') {
+                currentIndex = flagConfig.steps.indexOf(currentValue);
+                if (currentIndex === -1) currentIndex = 0;
+                displayValue = currentValue;
+            }
+            
+            return `
+                <div class="mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="flag-label">${flagName.replace('_', ' ')}</label>
+                        <span class="text-xs text-gray-500" id="${selectorId}_${flagName}_value">${displayValue}</span>
+                    </div>
+                    <input type="range" 
+                           id="${selectorId}_${flagName}" 
+                           min="0" 
+                           max="${flagConfig.steps.length - 1}" 
+                           value="${currentIndex}"
+                           class="flag-slider"
+                           oninput="updateSliderSteppedFlag('${selectorId}', '${modelName}', '${flagName}', this.value, ${JSON.stringify(flagConfig.steps).replace(/"/g, '&quot;')})">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>${flagConfig.steps[0]}</span>
+                        <span class="cursor-pointer hover:text-gray-600 dark:hover:text-gray-300" 
+                              onclick="resetSliderSteppedFlag('${selectorId}', '${modelName}', '${flagName}', ${JSON.stringify(flagConfig.steps).replace(/"/g, '&quot;')})">default</span>
+                        <span>${flagConfig.steps[flagConfig.steps.length - 1]}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update stepped flag value
+        function updateSteppedFlag(selectorId, modelName, flagName, value) {
+            flagManager.setFlag(modelName, flagName, value);
+        }
+
+        // Update slider stepped flag value
+        function updateSliderSteppedFlag(selectorId, modelName, flagName, sliderValue, steps) {
+            const actualValue = steps[parseInt(sliderValue)];
+            flagManager.setFlag(modelName, flagName, actualValue);
+            document.getElementById(`${selectorId}_${flagName}_value`).textContent = actualValue;
+        }
+
+        // Reset slider stepped flag to default
+        function resetSliderSteppedFlag(selectorId, modelName, flagName, steps) {
+            flagManager.setFlag(modelName, flagName, 'default');
+            
+            const slider = document.getElementById(`${selectorId}_${flagName}`);
+            const valueDisplay = document.getElementById(`${selectorId}_${flagName}_value`);
+            if (slider && valueDisplay) {
+                slider.value = 0;
+                valueDisplay.textContent = 'default';
+            }
+        }
+
+        // Reset flag to default
+        function resetFlag(selectorId, modelName, flagName) {
+            flagManager.setFlag(modelName, flagName, 'default');
+            
+            // Update UI
+            const flagConfig = flagManager.getModelFlags(modelName)[flagName];
+            if (flagConfig.type === 'slider') {
+                const slider = document.getElementById(`${selectorId}_${flagName}`);
+                const valueDisplay = document.getElementById(`${selectorId}_${flagName}_value`);
+                if (slider && valueDisplay) {
+                    slider.value = flagConfig.min;
+                    valueDisplay.textContent = 'default';
+                }
+            } else if (flagConfig.type === 'stepped') {
+                const select = document.getElementById(`${selectorId}_${flagName}`);
+                if (select) {
+                    select.value = 'default';
+                }
+            }
+        }
+
+        // Get advanced settings status
+        function getAdvancedSettingsStatus(modelName, flagName) {
+            const advancedFlags = flagManager.getFlag(modelName, flagName);
+            if (typeof advancedFlags === 'object' && Object.keys(advancedFlags).length > 0) {
+                const activeCount = Object.values(advancedFlags).filter(v => v && v !== 'none' && v !== false).length;
+                return activeCount > 0 ? `${activeCount} setting(s) configured` : 'No settings configured';
+            }
+            return 'No settings configured';
+        }
+
+        // Open advanced settings popup
+        function openAdvancedSettings(selectorId, modelName, flagName) {
+            const flagConfig = flagManager.getModelFlags(modelName)[flagName];
+            if (!flagConfig || flagConfig.type !== 'advanced') return;
+            
+            const currentSettings = flagManager.getFlag(modelName, flagName) || {};
+            
+            // Create modal
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            
+            let fieldsHtml = '';
+            Object.entries(flagConfig.fields).forEach(([fieldName, fieldConfig]) => {
+                const currentValue = currentSettings[fieldName] || fieldConfig.default || '';
+                const isVisible = !fieldConfig.depends_on || currentSettings[fieldConfig.depends_on] === fieldConfig.depends_value;
+                
+                if (fieldConfig.type === 'select') {
+                    let optionsHtml = '';
+                    fieldConfig.options.forEach(option => {
+                        const selected = currentValue === option ? 'selected' : '';
+                        optionsHtml += `<option value="${option}" ${selected}>${option}</option>`;
+                    });
+                    
+                    fieldsHtml += `
+                        <div class="mb-3 ${isVisible ? '' : 'hidden'}" data-field="${fieldName}">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">${fieldName.replace('_', ' ')}</label>
+                            <select class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-base" 
+                                    data-field-name="${fieldName}" onchange="handleAdvancedFieldChange(this)">
+                                ${optionsHtml}
+                            </select>
+                        </div>
+                    `;
+                } else if (fieldConfig.type === 'checkbox') {
+                    const checked = currentValue === true ? 'checked' : '';
+                    fieldsHtml += `
+                        <div class="mb-3">
+                            <label class="flex items-center">
+                                <input type="checkbox" ${checked} class="mr-2" data-field-name="${fieldName}">
+                                <span class="text-sm text-gray-700 dark:text-gray-300">${fieldName.replace('_', ' ')}</span>
+                            </label>
+                        </div>
+                    `;
+                } else {
+                    fieldsHtml += `
+                        <div class="mb-3 ${isVisible ? '' : 'hidden'}" data-field="${fieldName}">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">${fieldName.replace('_', ' ')}</label>
+                            <input type="text" value="${currentValue}" placeholder="${fieldConfig.placeholder || ''}" 
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-base" 
+                                   data-field-name="${fieldName}">
+                        </div>
+                    `;
+                }
+            });
+            
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Advanced Settings - ${flagName.replace('_', ' ')}</h3>
+                    <div id="advancedFieldsContainer">
+                        ${fieldsHtml}
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" 
+                                onclick="this.closest('.fixed').remove()">Cancel</button>
+                        <button class="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded" 
+                                onclick="saveAdvancedSettings('${selectorId}', '${modelName}', '${flagName}'); this.closest('.fixed').remove();">Save</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+
+        // Handle advanced field dependency changes
+        function handleAdvancedFieldChange(selectElement) {
+            const container = selectElement.closest('#advancedFieldsContainer');
+            const fieldName = selectElement.dataset.fieldName;
+            const value = selectElement.value;
+            
+            // Show/hide dependent fields
+            container.querySelectorAll('[data-field]').forEach(fieldDiv => {
+                const targetField = fieldDiv.dataset.field;
+                const dependsInput = fieldDiv.querySelector('input, select');
+                if (dependsInput && dependsInput.dataset.dependsOn === fieldName) {
+                    if (value === dependsInput.dataset.dependsValue) {
+                        fieldDiv.classList.remove('hidden');
+                    } else {
+                        fieldDiv.classList.add('hidden');
+                        dependsInput.value = ''; // Clear hidden field
+                    }
+                }
+            });
+        }
+
+        // Save advanced settings
+        function saveAdvancedSettings(selectorId, modelName, flagName) {
+            const modal = document.querySelector('.fixed');
+            const settings = {};
+            
+            modal.querySelectorAll('[data-field-name]').forEach(input => {
+                const fieldName = input.dataset.fieldName;
+                if (input.type === 'checkbox') {
+                    settings[fieldName] = input.checked;
+                } else {
+                    const value = input.value.trim();
+                    if (value) {
+                        settings[fieldName] = value;
+                    }
+                }
+            });
+            
+            flagManager.setFlag(modelName, flagName, settings);
+            
+            // Update status
+            const statusElement = document.getElementById(`${selectorId}_${flagName}_status`);
+            if (statusElement) {
+                statusElement.textContent = getAdvancedSettingsStatus(modelName, flagName);
+            }
+        }
+
+        // Storage for bank data
+        let bankData = {
+            keys: [],
+            input: [],
+            prompts: [], // Changed from 'execution' to 'prompts'
+            engineName: '' // Store engine name for file naming
+        };
+
+        // Storage for bot-specific custom prompts
+        let botSpecificPrompts = {
+            1: null, 2: null, 3: null, 4: null, 5: null,
+            6: null, 7: null, 8: null, 9: null, 10: null
+        };
+
+        // Create universal model selectors (accordions)
+        function createModelSelectors() {
+            // Define default models for each component
+            const defaultModels = {
+                'magicBoxModel': '@o3',
+                'autocompleteModel': '@GPT-4.1',
+                'bot1Model': '@GPT-5-Chat',
+                'bot2Model': '@Claude-Sonnet-4-Search',
+                'bot3Model': '@Kimi-K2-T',
+                'bot4Model': '@Gemini-2.5-Flash',
+                'bot5Model': '@DeepSeek-V3',
+                'bot6Model': '@Grok-4',
+                'bot7Model': '@Claude-Sonnet-4',
+                'bot8Model': '@GPT-4.1',
+                'bot9Model': '@Gemini-2.5-Pro',
+                'bot10Model': '@DeepSeek-R1'
+            };
+
+            // List of all selector IDs
+            const selectors = ['magicBoxModel'];
+            for (let i = 1; i <= 10; i++) {
+                selectors.push(`bot${i}Model`);
+            }
+            
+            selectors.forEach(selectorId => {
+                const defaultModel = defaultModels[selectorId] || '@Claude-Sonnet-4';
+                
+                // Create accordion for this selector
+                accordionManager.createAccordion(selectorId, MODEL_DATABASE, {
+                    onSelect: (selectedModel, accordionId) => {
+                        // Store the selection
+                        accordionManager.setSelection(accordionId, selectedModel);
+                        updateProcessingLog(`Model selected for ${accordionId}: ${selectedModel.slice(1)}`);
+                        
+                        // Update flags visibility for this model
+                        updateFlagsVisibility(accordionId, selectedModel);
+                    }
+                });
+                
+                // Set initial selection
+                accordionManager.setSelection(selectorId, defaultModel);
+            });
+        }
+
+        // Helper function to get selected model for a selector
+        function getSelectedModel(selectorId) {
+            const selected = accordionManager.getSelection(selectorId);
+            return selected || '@Claude-Sonnet-4'; // fallback
+        }
+
+        // Update bot visibility based on bot count
+        function updateBotVisibility(botCount) {
+            for (let i = 1; i <= 10; i++) {
+                const botContainer = document.getElementById(`bot${i}Container`);
+                if (botContainer) {
+                    if (i <= botCount) {
+                        botContainer.classList.remove('hidden');
+                    } else {
+                        botContainer.classList.add('hidden');
+                    }
+                }
+            }
+        }
+
+        // File reading helper function
+        async function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        // Update processing log
+        function updateProcessingLog(message, isFullResponse = false, responseId = null) {
+            const logContent = document.getElementById('processingLogContent');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            let logEntry;
+            if (isFullResponse) {
+                if (responseId && document.getElementById(responseId)) {
+                    // Update existing response entry
+                    const existingContent = document.getElementById(responseId);
+                    if (existingContent) {
+                        existingContent.textContent = message.content;
+                    }
+                    return responseId; // Return the same ID for continued updates
+                } else {
+                    // Create new response entry
+                    const newResponseId = responseId || 'response_' + Date.now();
+                    logEntry = `
+                        <div class="text-xs mb-3 border-l-2 border-blue-300 dark:border-blue-600 pl-3" id="log_${newResponseId}">
+                            <div class="text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-between">
+                                <span>[${timestamp}] ${message.title}</span>
+                                <button onclick="downloadLogEntry('${newResponseId}')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-2" title="Download">💾</button>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded text-xs">
+                                <button onclick="toggleLogResponse('${newResponseId}')" class="text-blue-600 dark:text-blue-400 hover:underline mb-1">
+                                    📄 Show/Hide Full Response
+                                </button>
+                                <div id="${newResponseId}" class="hidden max-h-40 overflow-y-auto whitespace-pre-wrap text-gray-700 dark:text-gray-300">${message.content}</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (logContent.innerHTML.includes('No processing log yet...')) {
+                        logContent.innerHTML = logEntry;
+                    } else {
+                        logContent.innerHTML += logEntry;
+                    }
+                    
+                    // Auto-scroll to bottom
+                    logContent.scrollTop = logContent.scrollHeight;
+                    return newResponseId;
+                }
+            } else {
+                logEntry = `<div class="text-xs text-gray-600 dark:text-gray-400 mb-2">[${timestamp}] ${message}</div>`;
+                
+                if (logContent.innerHTML.includes('No processing log yet...')) {
+                    logContent.innerHTML = logEntry;
+                } else {
+                    logContent.innerHTML += logEntry;
+                }
+                
+                // Auto-scroll to bottom
+                logContent.scrollTop = logContent.scrollHeight;
+            }
+        }
+
+        // Toggle log response visibility
+        function toggleLogResponse(responseId) {
+            const element = document.getElementById(responseId);
+            if (element) {
+                element.classList.toggle('hidden');
+            }
+        }
+
+        // Download individual log entry
+        function downloadLogEntry(responseId) {
+            const logEntry = document.getElementById(responseId);
+            const logContainer = document.getElementById(`log_${responseId}`);
+            
+            if (logEntry && logContainer) {
+                const title = logContainer.querySelector('.text-gray-600')?.textContent.trim() || 'Log Entry';
+                const content = logEntry.textContent;
+                const timestamp = generateTimestamp();
+                const engineName = bankData.engineName || 'UnknownEngine';
+                
+                let downloadContent = `# ${title}\n\n`;
+                downloadContent += `**Generated:** ${new Date().toLocaleString()}\n`;
+                downloadContent += `**Engine:** ${engineName}\n\n`;
+                downloadContent += `## Content\n\n${content}\n`;
+                
+                const blob = new Blob([downloadContent], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${engineName}_LogEntry_${timestamp}.md`;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                updateProcessingLog(`Log entry downloaded: ${title}`);
+            }
+        }
+
+        // Download state as file
+        function downloadState() {
+            const currentState = {
+                bankData: bankData,
+                botCount: parseInt(document.getElementById('botCountSelector')?.value || 6),
+                currentKey: document.getElementById('currentKey')?.value || '',
+                currentInput: document.getElementById('currentInput')?.value || '',
+                magicBoxInput: document.getElementById('magicBoxInput')?.value || '',
+                selectedModels: {},
+                botOutputs: {},
+                processingLog: document.getElementById('processingLogContent')?.innerHTML || ''
+            };
+            
+            // Save selected models for each component
+            const selectors = ['magicBoxModel'];
+            for (let i = 1; i <= 10; i++) {
+                selectors.push(`bot${i}Model`);
+                // Save bot outputs
+                const output = document.getElementById(`bot${i}Output`);
+                if (output) {
+                    currentState.botOutputs[`bot${i}`] = output.innerHTML;
+                }
+            }
+            selectors.forEach(id => {
+                const selected = accordionManager.getSelection(id);
+                if (selected) {
+                    currentState.selectedModels[id] = selected;
+                }
+            });
+            
+            const timestamp = generateTimestamp();
+            const engineName = bankData.engineName || 'UnknownEngine';
+            const stateString = JSON.stringify(currentState, null, 2);
+            
+            const blob = new Blob([stateString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${engineName}_State_${timestamp}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            updateProcessingLog(`State downloaded: ${engineName}_State_${timestamp}.json`);
+            showAlert('State downloaded successfully!');
+        }
+
+        // Execute Magic Box (Genie)
+        async function executeMagicBox() {
+            const input = document.getElementById('magicBoxInput').value;
+            const fileInput = document.getElementById('magicBoxFile');
+            const modelSelector = document.getElementById('magicBoxModel');
+            const status = document.getElementById('magicBoxStatus');
+            const spinner = document.getElementById('executeMagicBoxSpinner');
+            const text = document.getElementById('executeMagicBoxText');
+            const botCountSelector = document.getElementById('botCountSelector');
+
+            if (!input.trim() && !fileInput.files[0]) {
+                status.textContent = "Please provide text input or upload a file";
+                return;
+            }
+
+            // Set loading state
+            spinner.classList.remove('hidden');
+            text.classList.add('invisible');
+            status.textContent = "Processing with Magic Box...";
+
+            try {
+                updateProcessingLog("Starting Magic Box processing...");
+                
+                let promptText = input.trim();
+                
+                // Handle file attachment
+                if (fileInput.files[0]) {
+                    updateProcessingLog(`Reading file: ${fileInput.files[0].name}`);
+                    const fileContent = await readFileContent(fileInput.files[0]);
+                    promptText = promptText ? `${promptText}\n\nFile Content:\n${fileContent}` : fileContent;
+                }
+
+                const selectedModel = getSelectedModel('magicBoxModel');
+                const botCount = parseInt(botCountSelector.value);
+                
+                // Get flag string for the selected model
+                const flagString = flagManager.generateFlagString(selectedModel);
+                
+                // Updated Genie prompt incorporating Canvas limitations
+                const magicBoxPrompt = `ROLE: Anything Engine Architect
+SYSTEM: Anything Engine System Designer
+
+CRITICAL CANVAS CONTEXT:
+You are designing for Poe Canvas where window.Poe.sendUserMessage sends ALL previous messages in the conversation. This means Bot 3 receives Bot 1 and Bot 2's outputs whether wanted or not. Your prompts SHOULD handle this.
+
+CORE PHILOSOPHY:
+Your primary role is to populate the existing multi-stage framework of the Anything Engine by generating its three core operative components, based on the user's request:
+
+* The Keys: The Keys are the core intellectual tools for the engine. Each Key defines a unique perspective or method that will be used to operate upon a Subject. You are to generate a set of distinct Keys that intelligently reflect the user's core request.
+
+* The Subjects (from the Input bank): The Subjects are illustrative topics or pieces of raw content that the engine will process. They serve as the material for the Keys to act upon. You should generate a diverse set of Subjects to demonstrate the engine's capabilities within the universe defined by the user's mandate.
+
+* The Prompts: The Prompts are the operational instructions for each bot in the chain, defining a clear role and a step-by-step workflow. They should be written as flexible templates tailored to the user's mandate. A bot's prompt should be designed to use the provided Key and Subject as its primary operational material.
+
+The engine's power is derived from two key principles that you should build into your generated prompts:
+
+1. Task Specialization: Each bot in the sequence can dedicate its full processing capacity to its dedicated task. The chain can be designed with a mix of bot types, including both reasoning and web search models, to achieve a more focused and detailed output.
+2. Chained Contextualization: To manage the Poe Canvas environment, prompts (from the second bot onward) should be designed to treat the full output from previous steps as available background context. The prompt should then instruct the bot to perform its own unique, specialized task to actively build upon, refine, and improve the existing material, ensuring an incremental and value-adding workflow.
+
+YOUR TASK:
+Design a complete ${botCount}-bot engine from the user's input. Generate:
+1. 5-15 keys (Bank 1)
+2. 5-8 input samples (Bank 2)
+3. EXACTLY ${botCount} bot prompts (Bank 3)
+4. An engine description explaining the approach
+
+OUTPUT FORMAT (JSON ONLY):
+{
+  "engine_name": "short_descriptive_engine_name",
+  "engine_description": "2-3 paragraph description of the system",
+  "keys": [
+    {"id": 1, "name": "key_name", "method": "clear_operational_method"}
+  ],
+  "input": [
+    {"id": 1, "content": "sample_subject_content"}
+  ],
+  "prompts": [
+    {"id": 1, "bot_number": 1, "role": "role_name", "instructions": "complete_prompt_text"}
+  ]
+}
+
+REMEMBER:
+- Generate EXACTLY ${botCount} prompts.
+- Prompts from the second bot onward should handle the Canvas context accumulation as described in the philosophy.
+
+USER INPUT:
+${promptText}
+
+Generate the complete engine now as valid JSON only.`;
+                updateProcessingLog(`Sending to ${selectedModel}...`);
+
+                await window.Poe.sendUserMessage(`${selectedModel} ${magicBoxPrompt}${flagString}`, {
+                    handler: 'magic-box-handler',
+                    stream: true,
+                    openChat: false
+                });
+
+            } catch (error) {
+                console.error('Magic Box error:', error);
+                status.textContent = `Error: ${error.message}`;
+                updateProcessingLog(`Error: ${error.message}`);
+            } finally {
+                // Reset loading state
+                spinner.classList.add('hidden');
+                text.classList.remove('invisible');
+            }
+        }
+
+        // Download complete engine package
+        function downloadEngine() {
+            if (!bankData.keys.length && !bankData.input.length && !bankData.prompts.length) {
+                showAlert('No engine data available to download. Please generate an engine first using Magic Box.');
+                return;
+            }
+
+            const timestamp = generateTimestamp();
+            const engineName = bankData.engineName || 'UnknownEngine';
+            
+            // Create README content
+            let readmeContent = `# ${engineName}\n\n`;
+            readmeContent += `**Generated:** ${new Date().toLocaleString()}\n`;
+            readmeContent += `**Framework:** VG-AnythingEngine v2.0\n\n`;
+            
+            // Add engine description from preview if available
+            const engineDescContent = document.getElementById('engineDescriptionContent');
+            if (engineDescContent && engineDescContent.textContent.trim()) {
+                readmeContent += `## Description\n\n${engineDescContent.textContent.trim()}\n\n`;
+            }
+            
+            readmeContent += `## Components\n\n`;
+            readmeContent += `- **Keys:** ${bankData.keys.length} transformation techniques\n`;
+            readmeContent += `- **Input:** ${bankData.input.length} sample materials\n`;
+            readmeContent += `- **Prompts:** ${bankData.prompts.length} bot instructions\n\n`;
+            
+            readmeContent += `## Usage\n\n`;
+            readmeContent += `1. Upload this engine to VG-AnythingEngine\n`;
+            readmeContent += `2. Load random or specific keys and inputs\n`;
+            readmeContent += `3. Execute the bot chain for transformation\n\n`;
+            
+            readmeContent += `## Technical Details\n\n`;
+            readmeContent += `This engine package contains three core files:\n`;
+            readmeContent += `- \`keys.json\` - Transformation methods and perspectives\n`;
+            readmeContent += `- \`input.json\` - Sample materials for processing\n`;
+            readmeContent += `- \`prompts.json\` - Bot instructions and workflows\n\n`;
+            
+            readmeContent += `Generated with VG-AnythingEngine - Universal Transformation Framework`;
+            
+            // Create and download README
+            const readmeBlob = new Blob([readmeContent], { type: 'text/markdown' });
+            const readmeUrl = URL.createObjectURL(readmeBlob);
+            const readmeLink = document.createElement('a');
+            readmeLink.href = readmeUrl;
+            readmeLink.download = `${engineName}_README.md`;
+            readmeLink.click();
+            URL.revokeObjectURL(readmeUrl);
+            
+            // Download all bank files
+            downloadBanks();
+            
+            updateProcessingLog(`Complete engine package downloaded: ${engineName}`);
+            showAlert(`Engine "${engineName}" downloaded successfully!\n\nFiles included:\n- README.md\n- Keys.json\n- Input.json\n- Prompts.json`);
+        }
+
+        // Toggle processing log visibility
+        function toggleProcessingLog() {
+            const log = document.getElementById('processingLog');
+            const icon = document.getElementById('logToggleIcon');
+            
+            if (log.classList.contains('hidden')) {
+                log.classList.remove('hidden');
+                icon.textContent = '▲';
+            } else {
+                log.classList.add('hidden');
+                icon.textContent = '▼';
+            }
+        }
+
+        // Update bank status display
+        function updateBankStatus(statusId, message) {
+            const statusElement = document.getElementById(statusId);
+            if (statusElement) {
+                statusElement.innerHTML = `<span class="text-green-600">${message}</span>`;
+            }
+        }
+
+        // Enable random/load buttons after data is loaded
+        function enableRandomButtons() {
+            const buttons = [
+                'loadRandomKey', 'loadSpecificKey', 
+                'loadRandomInput', 'loadSpecificInput',
+                'loadRandomPrompt', 'loadSpecificPrompt',
+                'insertPromptBtn'
+            ];
+            
+            buttons.forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.disabled = false;
+                    button.classList.remove('opacity-50');
+                }
+            });
+        }
+
+        // Update preview sections
+        function updatePreview(description, keys, input, prompts) {
+            const engineDesc = document.getElementById('engineDescription');
+            const engineDescContent = document.getElementById('engineDescriptionContent');
+            const banksPreview = document.getElementById('banksPreview');
+            const keysPreview = document.getElementById('keysPreview');
+            const inputPreview = document.getElementById('inputPreview');
+            const promptsPreview = document.getElementById('promptsPreview');
+
+            // Show engine description
+            if (description) {
+                engineDescContent.innerHTML = marked.parse(description);
+                engineDesc.classList.remove('hidden');
+            }
+
+            // Show banks preview
+            if (keys || input || prompts) {
+                keysPreview.textContent = JSON.stringify(keys, null, 2);
+                inputPreview.textContent = JSON.stringify(input, null, 2);
+                promptsPreview.textContent = JSON.stringify(prompts, null, 2);
+                banksPreview.classList.remove('hidden');
+            }
+        }
+
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all pages
+            document.querySelectorAll('.page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+            
+            // Remove active state from all tabs
+            document.querySelectorAll('.tab-button').forEach(tab => {
+                tab.classList.remove('active', 'border-[#5D5CDE]', 'text-[#5D5CDE]');
+                tab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'dark:text-gray-400', 'dark:hover:text-gray-300', 'hover:border-gray-300');
+            });
+            
+            // Show selected page
+            document.getElementById(`page-${tabName}`).classList.remove('hidden');
+            
+            // Activate selected tab
+            const activeTab = document.getElementById(`tab-${tabName}`);
+            activeTab.classList.add('active', 'border-[#5D5CDE]', 'text-[#5D5CDE]');
+            activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'dark:text-gray-400', 'dark:hover:text-gray-300', 'hover:border-gray-300');
+        }
+
+        // Custom modal dialogs
+        function showAlert(message) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                    <div class="flex justify-end">
+                        <button class="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded" onclick="this.closest('.fixed').remove()">OK</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function showPromptDialog(message, defaultValue = "") {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                        <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                        <input type="text" value="${defaultValue}" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-base mb-4" id="promptInput">
+                        <div class="flex justify-end space-x-3">
+                            <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" onclick="window.promptDialogResolve(null); this.closest('.fixed').remove();">Cancel</button>
+                            <button class="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded" onclick="const val = this.closest('.fixed').querySelector('#promptInput').value; window.promptDialogResolve(val); this.closest('.fixed').remove();">OK</button>
+                        </div>
+                    </div>
+                `;
+                
+                window.promptDialogResolve = resolve;
+                document.body.appendChild(modal);
+                modal.querySelector('#promptInput').focus();
+            });
+        }
+
+        // Execute Bot function
+        async function executeBot(botNumber) {
+            console.log(`Executing Bot ${botNumber}`);
+            const output = document.getElementById(`bot${botNumber}Output`);
+            const status = document.getElementById(`bot${botNumber}Status`);
+            const spinner = document.getElementById(`executeBot${botNumber}Spinner`);
+            const text = document.getElementById(`executeBot${botNumber}Text`);
+            
+            // Set loading state
+            if (spinner && text) {
+                spinner.classList.remove('hidden');
+                text.classList.add('invisible');
+            }
+            
+            try {
+                const selectedModel = getSelectedModel(`bot${botNumber}Model`);
+                
+                // Get flag string for the selected model
+                const flagString = flagManager.generateFlagString(selectedModel);
+                
+                // Get prompt - check bot-specific prompts first, then Bank 3
+                let botPrompt = botSpecificPrompts[botNumber];
+                
+                if (!botPrompt && bankData.prompts && bankData.prompts.length > 0) {
+                    const promptData = bankData.prompts.find(p => 
+                        p.bot_number === botNumber || p.id === botNumber
+                    );
+                    if (promptData) {
+                        botPrompt = promptData.instructions;
+                    }
+                }
+                
+                if (!botPrompt) {
+                    throw new Error(`No prompt found for Bot ${botNumber}. Please load a prompt using Random/Load buttons or insert a custom prompt.`);
+                }
+                
+                // Get current key and input
+                const currentKey = document.getElementById('currentKey')?.value || "";
+                const currentInput = document.getElementById('currentInput')?.value || "";
+                
+                if (!currentKey || !currentInput) {
+                    throw new Error("Please load a key and input before executing");
+                }
+                
+                // Construct the full prompt with key and input
+                const fullPrompt = `${botPrompt}
+
+TRANSFORMATION KEY:
+${currentKey}
+
+INPUT MATERIAL:
+${currentInput}
+
+Execute the transformation according to your role and instructions.`;
+                
+                updateProcessingLog(`Bot ${botNumber} executing with model: ${selectedModel}`);
+                if (status) status.textContent = "Processing...";
+                
+                await window.Poe.sendUserMessage(`${selectedModel} ${fullPrompt}${flagString}`, {
+                    handler: `bot${botNumber}-handler`,
+                    stream: true,
+                    openChat: false
+                });
+                
+            } catch (error) {
+                console.error(`Bot ${botNumber} error:`, error);
+                if (status) status.textContent = "Error occurred";
+                if (output) output.innerHTML = `<div class="text-red-600">Error: ${error.message}</div>`;
+                updateProcessingLog(`Bot ${botNumber} error: ${error.message}`);
+            } finally {
+                // Reset loading state
+                if (spinner && text) {
+                    spinner.classList.add('hidden');
+                    text.classList.remove('invisible');
+                }
+            }
+        }
+
+        // Track active response IDs for non-chunked logging
+        let activeResponseIds = {};
+
+        // Handle bot response
+        function handleBotResponse(result, botNum) {
+            const status = document.getElementById(`bot${botNum}Status`);
+            const output = document.getElementById(`bot${botNum}Output`);
+            
+            if (result.responses && result.responses.length > 0) {
+                const response = result.responses[0];
+                
+                if (response.status === "error") {
+                    if (status) status.textContent = "Error occurred";
+                    if (output) output.innerHTML = `<div class="text-red-600">Error: ${response.statusText || 'Unknown error'}</div>`;
+                    updateProcessingLog(`Bot ${botNum} error: ${response.statusText || 'Unknown error'}`);
+                } else if (response.status === "incomplete") {
+                    if (status) status.textContent = "Generating...";
+                    if (output) output.innerHTML = marked.parse(response.content || "Loading...");
+                    
+                    // Update single streaming response entry (no chunking)
+                    if (response.content && response.content.trim()) {
+                        const responseKey = `bot${botNum}_streaming`;
+                        activeResponseIds[responseKey] = updateProcessingLog({
+                            title: `Bot ${botNum} streaming response`,
+                            content: response.content
+                        }, true, activeResponseIds[responseKey]);
+                    }
+                } else if (response.status === "complete") {
+                    if (status) status.textContent = "Complete";
+                    if (output) output.innerHTML = marked.parse(response.content);
+                    updateProcessingLog(`Bot ${botNum} completed successfully`);
+                    
+                    // Log complete bot response as separate entry
+                    updateProcessingLog({
+                        title: `Bot ${botNum} complete response`,
+                        content: response.content
+                    }, true);
+                    
+                    // Clear the streaming response ID
+                    delete activeResponseIds[`bot${botNum}_streaming`];
+                }
+            }
+        }
+
+        // Handle Magic Box response
+        function handleMagicBoxResponse(result, context) {
+            const status = document.getElementById('magicBoxStatus');
+            
+            if (result.responses && result.responses.length > 0) {
+                const response = result.responses[0];
+                
+                if (response.status === "error") {
+                    status.textContent = "Error occurred during processing";
+                    updateProcessingLog(`Error: ${response.statusText || 'Unknown error'}`);
+                } else if (response.status === "incomplete") {
+                    status.textContent = "Generating transformation engine...";
+                    
+                    // Update single streaming response entry (no chunking)
+                    if (response.content && response.content.trim()) {
+                        activeResponseIds['magicbox_streaming'] = updateProcessingLog({
+                            title: "Magic Box streaming response",
+                            content: response.content
+                        }, true, activeResponseIds['magicbox_streaming']);
+                    }
+                } else if (response.status === "complete") {
+                    status.textContent = "Magic Box processing complete!";
+                    updateProcessingLog("Magic Box completed successfully");
+                    
+                    // Log complete response as separate entry
+                    updateProcessingLog({
+                        title: "Magic Box complete response",
+                        content: response.content
+                    }, true);
+                    
+                    // Clear the streaming response ID
+                    delete activeResponseIds['magicbox_streaming'];
+                    
+                    try {
+                        const content = response.content.trim();
+                        // Extract JSON from response
+                        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
+                                         content.match(/```\s*([\s\S]*?)\s*```/) || 
+                                         content.match(/\{[\s\S]*\}/);
+                        
+                        if (jsonMatch) {
+                            const jsonString = jsonMatch[1] || jsonMatch[0];
+                            const parsedData = JSON.parse(jsonString);
+                            
+                            // Log parsed JSON structure
+                            updateProcessingLog({
+                                title: "Magic Box parsed JSON structure",
+                                content: JSON.stringify(parsedData, null, 2)
+                            }, true);
+                            
+                            // Store engine description and name
+                            const description = parsedData.engine_description || "Transformation engine generated";
+                            bankData.engineName = parsedData.engine_name || "UnnamedEngine";
+                            updateProcessingLog(`Engine name: ${bankData.engineName}`);
+                            
+                            // Update banks
+                            if (parsedData.keys) {
+                                bankData.keys = parsedData.keys;
+                                updateBankStatus('keysStatus', `Loaded ${parsedData.keys.length} keys`);
+                                updateProcessingLog(`Keys loaded: ${parsedData.keys.length} entries`);
+                            }
+                            
+                            if (parsedData.input) {
+                                bankData.input = parsedData.input;
+                                updateBankStatus('inputStatus', `Loaded ${parsedData.input.length} inputs`);
+                                updateProcessingLog(`Inputs loaded: ${parsedData.input.length} entries`);
+                            }
+                            
+                            if (parsedData.prompts) {
+                                bankData.prompts = parsedData.prompts;
+                                updateBankStatus('promptsStatus', `Loaded ${parsedData.prompts.length} prompts`);
+                                updateProcessingLog(`Prompts loaded: ${parsedData.prompts.length} entries`);
+                                populateBotsFromPrompts();
+                            }
+                            
+                            updatePreview(description, bankData.keys, bankData.input, bankData.prompts);
+                            enableRandomButtons();
+                            
+                        } else {
+                            throw new Error("Could not extract JSON from response");
+                        }
+                    } catch (parseError) {
+                        console.error('Magic Box parsing error:', parseError);
+                        status.textContent = "Could not parse engine structure";
+                        updateProcessingLog(`Parsing error: ${parseError.message}`);
+                    }
+                }
+            }
+        }
+
+        // Handle Autocomplete response
+        function handleAutocompleteResponse(result, context) {
+            const status = document.getElementById('autocompleteStatus');
+            
+            if (result.responses && result.responses.length > 0) {
+                const response = result.responses[0];
+                
+                if (response.status === "error") {
+                    status.textContent = "Error occurred during processing";
+                    updateProcessingLog(`Error: ${response.statusText || 'Unknown error'}`);
+                } else if (response.status === "incomplete") {
+                    status.textContent = "Processing files...";
+                    
+                    // Update single streaming response entry (no chunking)
+                    if (response.content && response.content.trim()) {
+                        activeResponseIds['autocomplete_streaming'] = updateProcessingLog({
+                            title: "Autocomplete streaming response",
+                            content: response.content
+                        }, true, activeResponseIds['autocomplete_streaming']);
+                    }
+                } else if (response.status === "complete") {
+                    status.textContent = "Autocomplete processing complete!";
+                    updateProcessingLog("Autocomplete completed successfully");
+                    
+                    // Log complete response as separate entry
+                    updateProcessingLog({
+                        title: "Autocomplete complete response",
+                        content: response.content
+                    }, true);
+                    
+                    // Clear the streaming response ID
+                    delete activeResponseIds['autocomplete_streaming'];
+                    
+                    try {
+                        const content = response.content.trim();
+                        // Extract JSON from response
+                        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
+                                         content.match(/```\s*([\s\S]*?)\s*```/) || 
+                                         content.match(/\{[\s\S]*\}/);
+                        
+                        if (jsonMatch) {
+                            const jsonString = jsonMatch[1] || jsonMatch[0];
+                            const parsedData = JSON.parse(jsonString);
+                            
+                            // Log parsed JSON structure
+                            updateProcessingLog({
+                                title: "Autocomplete parsed JSON structure",
+                                content: JSON.stringify(parsedData, null, 2)
+                            }, true);
+                            
+                            // Store engine description and name
+                            const description = parsedData.engine_description || "Autocomplete engine generated";
+                            bankData.engineName = parsedData.engine_name || "AutocompleteEngine";
+                            updateProcessingLog(`Engine name: ${bankData.engineName}`);
+                            
+                            // Update banks
+                            if (parsedData.keys) {
+                                bankData.keys = parsedData.keys;
+                                updateBankStatus('keysStatus', `Loaded ${parsedData.keys.length} keys`);
+                                updateProcessingLog(`Keys loaded: ${parsedData.keys.length} entries`);
+                            }
+                            
+                            if (parsedData.input) {
+                                bankData.input = parsedData.input;
+                                updateBankStatus('inputStatus', `Loaded ${parsedData.input.length} inputs`);
+                                updateProcessingLog(`Inputs loaded: ${parsedData.input.length} entries`);
+                            }
+                            
+                            if (parsedData.prompts) {
+                                bankData.prompts = parsedData.prompts;
+                                updateBankStatus('promptsStatus', `Loaded ${parsedData.prompts.length} prompts`);
+                                updateProcessingLog(`Prompts loaded: ${parsedData.prompts.length} entries`);
+                                populateBotsFromPrompts();
+                            }
+                            
+                            updatePreview(description, bankData.keys, bankData.input, bankData.prompts);
+                            enableRandomButtons();
+                            
+                        } else {
+                            throw new Error("Could not extract JSON from response");
+                        }
+                    } catch (parseError) {
+                        console.error('Autocomplete parsing error:', parseError);
+                        status.textContent = "Could not parse engine structure";
+                        updateProcessingLog(`Parsing error: ${parseError.message}`);
+                    }
+                }
+            }
+        }
+
+        // Populate bots from prompts bank
+        function populateBotsFromPrompts() {
+            if (bankData.prompts && bankData.prompts.length > 0) {
+                updateProcessingLog("Populating bot prompts from bank...");
+                
+                bankData.prompts.forEach((prompt) => {
+                    const botNumber = prompt.bot_number || prompt.id;
+                    if (botNumber >= 1 && botNumber <= 10) {
+                        const promptStatus = document.getElementById(`bot${botNumber}PromptStatus`);
+                        if (promptStatus) {
+                            promptStatus.innerHTML = `<span class="text-green-600">Loaded: ${prompt.role}</span>`;
+                        }
+                    }
+                });
+                
+                // Update bot count to match prompts
+                const botCount = bankData.prompts.length;
+                const botCountSelector = document.getElementById('botCountSelector');
+                if (botCountSelector && botCount >= 1 && botCount <= 10) {
+                    botCountSelector.value = botCount;
+                    updateBotVisibility(botCount);
+                }
+                
+                updateProcessingLog("Bot prompts populated successfully");
+            }
+        }
+
+        // Load random key from Bank 1
+        async function loadRandomKey() {
+            if (bankData.keys && bankData.keys.length > 0) {
+                const randomKey = bankData.keys[Math.floor(Math.random() * bankData.keys.length)];
+                const currentKeyTextarea = document.getElementById('currentKey');
+                const statusElement = document.getElementById('currentKeyStatus');
+                
+                if (currentKeyTextarea && statusElement) {
+                    currentKeyTextarea.value = `${randomKey.name}: ${randomKey.method}`;
+                    statusElement.innerHTML = `<span class="text-green-600">Loaded key ID ${randomKey.id}</span>`;
+                    updateProcessingLog(`Random key loaded: ${randomKey.name}`);
+                }
+            }
+        }
+
+        // Load random input from Bank 2  
+        async function loadRandomInput() {
+            if (bankData.input && bankData.input.length > 0) {
+                const randomInput = bankData.input[Math.floor(Math.random() * bankData.input.length)];
+                const currentInputTextarea = document.getElementById('currentInput');
+                const statusElement = document.getElementById('currentInputStatus');
+                
+                if (currentInputTextarea && statusElement) {
+                    currentInputTextarea.value = randomInput.content;
+                    statusElement.innerHTML = `<span class="text-green-600">Loaded input ID ${randomInput.id}</span>`;
+                    updateProcessingLog(`Random input loaded: ID ${randomInput.id}`);
+                }
+            }
+        }
+
+        // Load specific key by ID
+        async function loadSpecificKey() {
+            const keyId = await showPromptDialog("Enter Key ID:", "1");
+            if (keyId && bankData.keys) {
+                const key = bankData.keys.find(k => k.id.toString() === keyId.toString());
+                if (key) {
+                    const currentKeyTextarea = document.getElementById('currentKey');
+                    const statusElement = document.getElementById('currentKeyStatus');
+                    
+                    if (currentKeyTextarea && statusElement) {
+                        currentKeyTextarea.value = `${key.name}: ${key.method}`;
+                        statusElement.innerHTML = `<span class="text-green-600">Loaded key ID ${key.id}</span>`;
+                        updateProcessingLog(`Specific key loaded: ${key.name}`);
+                    }
+                } else {
+                    showAlert(`Key with ID ${keyId} not found`);
+                }
+            }
+        }
+
+        // Load specific input by ID
+        async function loadSpecificInput() {
+            const inputId = await showPromptDialog("Enter Input ID:", "1");
+            if (inputId && bankData.input) {
+                const input = bankData.input.find(i => i.id.toString() === inputId.toString());
+                if (input) {
+                    const currentInputTextarea = document.getElementById('currentInput');
+                    const statusElement = document.getElementById('currentInputStatus');
+                    
+                    if (currentInputTextarea && statusElement) {
+                        currentInputTextarea.value = input.content;
+                        statusElement.innerHTML = `<span class="text-green-600">Loaded input ID ${input.id}</span>`;
+                        updateProcessingLog(`Specific input loaded: ID ${input.id}`);
+                    }
+                } else {
+                    showAlert(`Input with ID ${inputId} not found`);
+                }
+            }
+        }
+
+        // Load random prompt from Bank 3
+        async function loadRandomPrompt() {
+            if (bankData.prompts && bankData.prompts.length > 0) {
+                const randomPrompt = bankData.prompts[Math.floor(Math.random() * bankData.prompts.length)];
+                const currentPromptTextarea = document.getElementById('currentPrompt');
+                const statusElement = document.getElementById('currentPromptStatus');
+                
+                if (currentPromptTextarea && statusElement) {
+                    currentPromptTextarea.value = randomPrompt.instructions;
+                    statusElement.innerHTML = `<span class="text-green-600">Loaded prompt ID ${randomPrompt.id} (${randomPrompt.role})</span>`;
+                    updateProcessingLog(`Random prompt loaded: ${randomPrompt.role}`);
+                }
+            }
+        }
+
+        // Load specific prompt by ID
+        async function loadSpecificPrompt() {
+            const promptId = await showPromptDialog("Enter Prompt ID:", "1");
+            if (promptId && bankData.prompts) {
+                const prompt = bankData.prompts.find(p => p.id.toString() === promptId.toString());
+                if (prompt) {
+                    const currentPromptTextarea = document.getElementById('currentPrompt');
+                    const statusElement = document.getElementById('currentPromptStatus');
+                    
+                    if (currentPromptTextarea && statusElement) {
+                        currentPromptTextarea.value = prompt.instructions;
+                        statusElement.innerHTML = `<span class="text-green-600">Loaded prompt ID ${prompt.id} (${prompt.role})</span>`;
+                        updateProcessingLog(`Specific prompt loaded: ${prompt.role}`);
+                    }
+                } else {
+                    showAlert(`Prompt with ID ${promptId} not found`);
+                }
+            }
+        }
+
+        // Toggle insert prompt dropdown
+        function toggleInsertDropdown() {
+            const dropdown = document.getElementById('insertPromptDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        function closeInsertDropdown() {
+            const dropdown = document.getElementById('insertPromptDropdown');
+            dropdown.classList.add('hidden');
+        }
+
+        // Insert prompt into specific bot with confirmation
+        async function insertPromptIntoBot(botNumber) {
+            closeInsertDropdown();
+            
+            const currentPromptTextarea = document.getElementById('currentPrompt');
+            const promptContent = currentPromptTextarea?.value?.trim();
+            
+            if (!promptContent) {
+                showAlert('No prompt content to insert. Please load or enter a prompt first.');
+                return;
+            }
+            
+            // Show confirmation dialog
+            showConfirmDialog(
+                `Insert this prompt into Bot ${botNumber}?`,
+                () => {
+                    // Store the prompt for the specific bot
+                    botSpecificPrompts[botNumber] = promptContent;
+                    
+                    // Update bot prompt status
+                    const promptStatus = document.getElementById(`bot${botNumber}PromptStatus`);
+                    if (promptStatus) {
+                        promptStatus.innerHTML = `<span class="text-orange-600">Custom prompt inserted</span>`;
+                    }
+                    
+                    updateProcessingLog(`Custom prompt inserted into Bot ${botNumber}`);
+                    showAlert(`Prompt successfully inserted into Bot ${botNumber}!`);
+                    
+                    // Update staging status
+                    const statusElement = document.getElementById('currentPromptStatus');
+                    if (statusElement) {
+                        statusElement.innerHTML = `<span class="text-green-600">Inserted into Bot ${botNumber}</span>`;
+                    }
+                }
+            );
+        }
+
+        // Custom confirm dialog
+        function showConfirmDialog(message, onConfirm) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                    <div class="flex justify-end space-x-3">
+                        <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" onclick="this.closest('.fixed').remove()">Cancel</button>
+                        <button class="px-4 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded" onclick="this.closest('.fixed').remove(); arguments[0]()">Insert</button>
+                    </div>
+                </div>
+            `;
+            
+            // Add the onConfirm function to the button's onclick
+            const confirmBtn = modal.querySelector('.bg-orange-500');
+            confirmBtn.onclick = () => {
+                modal.remove();
+                onConfirm();
+            };
+            
+            document.body.appendChild(modal);
+        }
+
+        // Save complete state
+        async function saveState() {
+            const currentState = {
+                bankData: bankData,
+                botCount: parseInt(document.getElementById('botCountSelector')?.value || 6),
+                currentKey: document.getElementById('currentKey')?.value || '',
+                currentInput: document.getElementById('currentInput')?.value || '',
+                magicBoxInput: document.getElementById('magicBoxInput')?.value || '',
+                autocompleteInstructions: document.getElementById('autocompleteInstructions')?.value || '',
+                selectedModels: {},
+                botOutputs: {}
+            };
+            
+            // Save selected models for each component
+            const selectors = ['magicBoxModel'];
+            for (let i = 1; i <= 10; i++) {
+                selectors.push(`bot${i}Model`);
+                // Save bot outputs
+                const output = document.getElementById(`bot${i}Output`);
+                if (output) {
+                    currentState.botOutputs[`bot${i}`] = output.innerHTML;
+                }
+            }
+            selectors.forEach(id => {
+                const selected = accordionManager.getSelection(id);
+                if (selected) {
+                    currentState.selectedModels[id] = selected;
+                }
+            });
+            
+            const stateString = JSON.stringify(currentState, null, 2);
+            navigator.clipboard.writeText(stateString).then(() => {
+                showAlert('State saved to clipboard successfully!');
+                updateProcessingLog('State saved to clipboard');
+            }).catch(err => {
+                showAlert('Failed to save to clipboard: ' + err.message);
+            });
+        }
+
+        // Load state from clipboard
+        async function loadState() {
+            const stateString = await showPromptDialog('Paste state JSON:', '');
+            if (!stateString) return;
+            
+            try {
+                const state = JSON.parse(stateString);
+                
+                // Restore bank data
+                if (state.bankData) {
+                    bankData = state.bankData;
+                    
+                    // Update bank status displays
+                    if (bankData.keys && bankData.keys.length > 0) {
+                        updateBankStatus('keysStatus', `Loaded ${bankData.keys.length} keys`);
+                    }
+                    if (bankData.input && bankData.input.length > 0) {
+                        updateBankStatus('inputStatus', `Loaded ${bankData.input.length} inputs`);
+                    }
+                    if (bankData.prompts && bankData.prompts.length > 0) {
+                        updateBankStatus('promptsStatus', `Loaded ${bankData.prompts.length} prompts`);
+                        populateBotsFromPrompts();
+                    }
+                    
+                    enableRandomButtons();
+                    updatePreview("State loaded", bankData.keys, bankData.input, bankData.prompts);
+                }
+                
+                // Restore UI state
+                if (state.botCount) {
+                    const botCountSelector = document.getElementById('botCountSelector');
+                    if (botCountSelector) {
+                        botCountSelector.value = state.botCount;
+                        updateBotVisibility(state.botCount);
+                    }
+                }
+                
+                if (state.currentKey) {
+                    const currentKeyTextarea = document.getElementById('currentKey');
+                    if (currentKeyTextarea) currentKeyTextarea.value = state.currentKey;
+                }
+                
+                if (state.currentInput) {
+                    const currentInputTextarea = document.getElementById('currentInput');
+                    if (currentInputTextarea) currentInputTextarea.value = state.currentInput;
+                }
+                
+                if (state.magicBoxInput) {
+                    const magicBoxInput = document.getElementById('magicBoxInput');
+                    if (magicBoxInput) magicBoxInput.value = state.magicBoxInput;
+                }
+                
+                if (state.autocompleteInstructions) {
+                    const autocompleteInstructions = document.getElementById('autocompleteInstructions');
+                    if (autocompleteInstructions) autocompleteInstructions.value = state.autocompleteInstructions;
+                }
+                
+                // Restore model selections
+                if (state.selectedModels) {
+                    Object.entries(state.selectedModels).forEach(([id, value]) => {
+                        accordionManager.setSelection(id, value);
+                    });
+                }
+                
+                // Restore bot outputs
+                if (state.botOutputs) {
+                    Object.entries(state.botOutputs).forEach(([botId, content]) => {
+                        const output = document.getElementById(`${botId}Output`);
+                        if (output) output.innerHTML = content;
+                    });
+                }
+                
+                showAlert('State loaded successfully!');
+                updateProcessingLog('State loaded from clipboard');
+                
+            } catch (error) {
+                showAlert('Failed to parse state JSON: ' + error.message);
+            }
+        }
+
+        // Bot utility functions
+        function copyBotOutput(botNumber) {
+            const output = document.getElementById(`bot${botNumber}Output`);
+            if (output) {
+                const text = output.innerText;
+                navigator.clipboard.writeText(text).then(() => {
+                    showAlert(`Bot ${botNumber} output copied to clipboard!`);
+                }).catch(err => {
+                    showAlert('Failed to copy: ' + err.message);
+                });
+            }
+        }
+
+        function downloadBotOutput(botNumber) {
+            const output = document.getElementById(`bot${botNumber}Output`);
+            const modelSelector = document.getElementById(`bot${botNumber}Model`);
+            
+            if (output && output.innerText.trim()) {
+                const timestamp = generateTimestamp();
+                const engineName = bankData.engineName || 'UnknownEngine';
+                const modelName = accordionManager.getSelection(`bot${botNumber}Model`) || 'UnknownModel';
+                const cleanedModelName = cleanModelName(modelName);
+                const botPrompt = bankData.prompts?.find(p => p.bot_number === botNumber);
+                const currentKey = document.getElementById('currentKey')?.value || '';
+                const currentInput = document.getElementById('currentInput')?.value || '';
+                
+                // Create markdown content with metadata
+                let content = `# Bot ${botNumber} Output - ${engineName}\n\n`;
+                content += `**Generated:** ${new Date().toLocaleString()}\n`;
+                content += `**Engine:** ${engineName}\n`;
+                content += `**Bot:** ${botNumber}\n`;
+                content += `**Model:** ${modelName}\n`;
+                if (botPrompt) {
+                    content += `**Role:** ${botPrompt.role}\n`;
+                }
+                content += `\n---\n\n`;
+                
+                if (currentKey) {
+                    content += `## 🔑 Transformation Key\n\n${currentKey}\n\n`;
+                }
+                
+                if (currentInput) {
+                    content += `## 📝 Input Material\n\n${currentInput}\n\n`;
+                }
+                
+                content += `## 🤖 Bot ${botNumber} Output\n\n${output.innerText}\n`;
+                
+                const blob = new Blob([content], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${engineName}_bot${botNumber}_${cleanedModelName}_${timestamp}.md`;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                updateProcessingLog(`Bot ${botNumber} output downloaded: ${engineName}_bot${botNumber}_${cleanedModelName}_${timestamp}.md`);
+            } else {
+                showAlert(`Bot ${botNumber} has no output to download`);
+            }
+        }
+
+        function clearBotOutput(botNumber) {
+            const output = document.getElementById(`bot${botNumber}Output`);
+            const status = document.getElementById(`bot${botNumber}Status`);
+            if (output) output.innerHTML = '';
+            if (status) status.textContent = '';
+        }
+
+        // Generate timestamp for file naming
+        function generateTimestamp() {
+            const now = new Date();
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+            const month = months[now.getMonth()];
+            const date = now.getDate();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            
+            return `${month}${date}_${hours}${minutes}${seconds}`;
+        }
+
+        // Clean model name for file naming
+        function cleanModelName(modelName) {
+            // Remove @ symbol and clean special characters
+            return modelName.replace('@', '').replace(/[-._]/g, '');
+        }
+
+        // Download banks function
+        function downloadBanks() {
+            if (!bankData.keys.length && !bankData.input.length && !bankData.prompts.length) {
+                showAlert('No bank data available to download');
+                return;
+            }
+
+            const timestamp = generateTimestamp();
+            const engineName = bankData.engineName || 'UnknownEngine';
+            
+            // Download Bank 1: Keys
+            if (bankData.keys.length > 0) {
+
+
+const keysBlob = new Blob([JSON.stringify(bankData.keys, null, 2)], { type: 'application/json' });
+                const keysUrl = URL.createObjectURL(keysBlob);
+                const keysLink = document.createElement('a');
+                keysLink.href = keysUrl;
+                keysLink.download = `Bank1_Keys_${engineName}_${timestamp}.json`;
+                keysLink.click();
+                URL.revokeObjectURL(keysUrl);
+            }
+            
+            // Download Bank 2: Input
+            if (bankData.input.length > 0) {
+                const inputBlob = new Blob([JSON.stringify(bankData.input, null, 2)], { type: 'application/json' });
+                const inputUrl = URL.createObjectURL(inputBlob);
+                const inputLink = document.createElement('a');
+                inputLink.href = inputUrl;
+                inputLink.download = `Bank2_Input_${engineName}_${timestamp}.json`;
+                inputLink.click();
+                URL.revokeObjectURL(inputUrl);
+            }
+            
+            // Download Bank 3: Prompts
+            if (bankData.prompts.length > 0) {
+                const promptsBlob = new Blob([JSON.stringify(bankData.prompts, null, 2)], { type: 'application/json' });
+                const promptsUrl = URL.createObjectURL(promptsBlob);
+                const promptsLink = document.createElement('a');
+                promptsLink.href = promptsUrl;
+                promptsLink.download = `Bank3_Prompts_${engineName}_${timestamp}.json`;
+                promptsLink.click();
+                URL.revokeObjectURL(promptsUrl);
+            }
+            
+            updateProcessingLog(`Banks downloaded: ${bankData.keys.length ? 'Keys ' : ''}${bankData.input.length ? 'Input ' : ''}${bankData.prompts.length ? 'Prompts' : ''}`);
+            showAlert('Bank files downloaded successfully!');
+        }
+
+        // Download complete flow (all bot outputs)
+        function downloadFlow() {
+            const timestamp = generateTimestamp();
+            const engineName = bankData.engineName || 'UnknownEngine';
+            let hasContent = false;
+            let flowContent = `# ${engineName} - Complete Execution Flow\n\n`;
+            flowContent += `**Generated:** ${new Date().toLocaleString()}\n`;
+            flowContent += `**Engine:** ${engineName}\n\n`;
+            
+            // Add current key and input
+            const currentKey = document.getElementById('currentKey')?.value || '';
+            const currentInput = document.getElementById('currentInput')?.value || '';
+            
+            if (currentKey) {
+                flowContent += `## 🔑 Transformation Key\n\n${currentKey}\n\n`;
+            }
+            
+            if (currentInput) {
+                flowContent += `## 📝 Input Material\n\n${currentInput}\n\n`;
+            }
+            
+            // Add all bot outputs
+            for (let i = 1; i <= 10; i++) {
+                const output = document.getElementById(`bot${i}Output`);
+                
+                if (output && output.innerText.trim()) {
+                    hasContent = true;
+                    const modelName = accordionManager.getSelection(`bot${i}Model`) || 'Unknown';
+                    const botPrompt = bankData.prompts?.find(p => p.bot_number === i);
+                    
+                    flowContent += `## 🤖 Bot ${i} - ${cleanModelName(modelName)}\n\n`;
+                    if (botPrompt) {
+                        flowContent += `**Role:** ${botPrompt.role}\n\n`;
+                    }
+                    flowContent += `**Model:** ${modelName}\n\n`;
+                    flowContent += `### Output:\n\n${output.innerText}\n\n---\n\n`;
+                }
+            }
+            
+            if (!hasContent) {
+                showAlert('No bot outputs available to download');
+                return;
+            }
+            
+            const blob = new Blob([flowContent], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${engineName}_CompleteFlow_${timestamp}.md`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            updateProcessingLog(`Complete flow downloaded: ${engineName}_CompleteFlow_${timestamp}.md`);
+            showAlert('Complete flow downloaded successfully!');
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            createModelSelectors();
+            
+            // Setup tab switching
+            document.getElementById('tab-config').addEventListener('click', () => switchTab('config'));
+            document.getElementById('tab-execution').addEventListener('click', () => switchTab('execution'));
+            
+            // Setup bot count selector
+            const botCountSelector = document.getElementById('botCountSelector');
+            if (botCountSelector) {
+                botCountSelector.addEventListener('change', (e) => {
+                    const botCount = parseInt(e.target.value);
+                    updateBotVisibility(botCount);
+                });
+                // Initialize with default value (4)
+                updateBotVisibility(4);
+            }
+
+            // Setup Magic Box button
+            const executeMagicBoxBtn = document.getElementById('executeMagicBox');
+            if (executeMagicBoxBtn) {
+                executeMagicBoxBtn.addEventListener('click', executeMagicBox);
+            }
+
+
+
+            // Setup random/load buttons
+            document.getElementById('loadRandomKey')?.addEventListener('click', loadRandomKey);
+            document.getElementById('loadRandomInput')?.addEventListener('click', loadRandomInput);
+            document.getElementById('loadSpecificKey')?.addEventListener('click', loadSpecificKey);
+            document.getElementById('loadSpecificInput')?.addEventListener('click', loadSpecificInput);
+            document.getElementById('loadRandomPrompt')?.addEventListener('click', loadRandomPrompt);
+            document.getElementById('loadSpecificPrompt')?.addEventListener('click', loadSpecificPrompt);
+            
+            // Setup Insert button dropdown
+            document.getElementById('insertPromptBtn')?.addEventListener('click', toggleInsertDropdown);
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                const insertBtn = document.getElementById('insertPromptBtn');
+                const dropdown = document.getElementById('insertPromptDropdown');
+                if (insertBtn && dropdown && !insertBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                    closeInsertDropdown();
+                }
+            });
+
+            // Register handlers for Magic Box
+            window.Poe.registerHandler('magic-box-handler', handleMagicBoxResponse);
+
+            // Register handlers for all bots (1-10)
+            for (let i = 1; i <= 10; i++) {
+                window.Poe.registerHandler(`bot${i}-handler`, (result) => {
+                    handleBotResponse(result, i);
+                });
+            }
+        });
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-[#5D5CDE] mb-2">⚡ VG-AnythingEngine</h1>
+            <p class="text-gray-600 dark:text-gray-400">Universal Transformation Framework v2.0</p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200 dark:border-gray-700">
+                <nav class="-mb-px flex justify-between items-center">
+                    <div class="flex space-x-8">
+                        <button id="tab-config" class="tab-button active py-2 px-1 border-b-2 border-[#5D5CDE] font-medium text-sm text-[#5D5CDE]">
+                            📝 Input Configuration
+                        </button>
+                        <button id="tab-execution" class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300">
+                            ⚡ Execution & Results
+                        </button>
+                    </div>
+                    <!-- Utilities -->
+                    <div class="flex space-x-2 pb-2">
+                        <button 
+                            class="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-lg"
+                            onclick="saveState()"
+                            title="Save State"
+                        >
+                            💾
+                        </button>
+                        <button 
+                            class="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-lg"
+                            onclick="loadState()"
+                            title="Load State"
+                        >
+                            📂
+                        </button>
+                        <button 
+                            class="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-lg"
+                            onclick="downloadState()"
+                            title="Download State"
+                        >
+                            💾⬇
+                        </button>
+                    </div>
+                </nav>
+            </div>
+        </div>
+        
+        
+        <!-- Page 1: Input Configuration -->
+        <div id="page-config" class="page-content">
+            <h2 class="text-xl font-semibold mb-4">📝 Input Configuration</h2>
+
+            <!-- Magic Box Section -->
+            <div class="mb-6 p-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                <h3 class="font-semibold mb-4 text-purple-800 dark:text-purple-200 text-lg">⚡ Magic Box (Genie) - Universal Engine Designer</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Input Area -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Input Text or Description</label>
+                            <textarea 
+                                id="magicBoxInput" 
+                                class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-vertical"
+                                rows="8"
+                                placeholder="Enter any text, problem, idea, or description. The Genie will design a complete transformation engine..."
+                            ></textarea>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">File Attachment (Optional)</label>
+                                <input type="file" id="magicBoxFile" class="w-full text-sm" accept="*/*">
+                            </div>
+                            <div class="flex-shrink-0">
+                                <label class="block text-sm font-medium mb-2">Processing Model</label>
+                                <div id="magicBoxModel" class="accordion-container w-64"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Controls -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Bot Count</label>
+                            <select id="botCountSelector" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-base">
+                                <option value="1">1 Bot</option>
+                                <option value="2">2 Bots</option>
+                                <option value="3">3 Bots</option>
+                                <option value="4" selected>4 Bots</option>
+                                <option value="5">5 Bots</option>
+                                <option value="6">6 Bots</option>
+                                <option value="7">7 Bots</option>
+                                <option value="8">8 Bots</option>
+                                <option value="9">9 Bots</option>
+                                <option value="10">10 Bots</option>
+                            </select>
+                        </div>
+                        <button 
+                            id="executeMagicBox"
+                            class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium relative"
+                        >
+                            <span id="executeMagicBoxText">⚡ Generate Engine</span>
+                            <div id="executeMagicBoxSpinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <!-- Magic Box Flags -->
+                        <div id="magicBoxFlags" class="hidden flag-container">
+                            <div id="magicBoxFlagControls"></div>
+                        </div>
+                        <div id="magicBoxStatus" class="text-sm text-gray-600 dark:text-gray-400 min-h-[20px]"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Three Banks System -->
+            <div class="mb-6 p-6 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <h3 class="font-semibold mb-4 text-green-800 dark:text-green-200 text-lg">🏦 Three Banks System</h3>
+                
+                <!-- Bank Upload Areas -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Bank 1: Keys -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <h4 class="font-medium mb-3 text-gray-800 dark:text-gray-200">🔑 Bank 1: Keys</h4>
+                        <div class="space-y-3">
+                            <input type="file" id="keysFile" class="w-full text-sm" accept="*/*">
+                            <div id="keysStatus" class="text-xs font-medium">
+                                <span class="text-gray-500">Empty</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Upload transformation techniques</p>
+                        </div>
+                    </div>
+
+                    <!-- Bank 2: Input -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <h4 class="font-medium mb-3 text-gray-800 dark:text-gray-200">📝 Bank 2: Input</h4>
+                        <div class="space-y-3">
+                            <input type="file" id="inputFile" class="w-full text-sm" accept="*/*">
+                            <div id="inputStatus" class="text-xs font-medium">
+                                <span class="text-gray-500">Empty</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Upload material to transform</p>
+                        </div>
+                    </div>
+
+                    <!-- Bank 3: Prompts -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <h4 class="font-medium mb-3 text-gray-800 dark:text-gray-200">⚡ Bank 3: Prompts</h4>
+                        <div class="space-y-3">
+                            <input type="file" id="promptsFile" class="w-full text-sm" accept="*/*">
+                            <div id="promptsStatus" class="text-xs font-medium">
+                                <span class="text-gray-500">Empty</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Upload bot prompts (optional)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="font-medium text-gray-800 dark:text-gray-200 mb-1">🏦 Bank Management</h4>
+                            <p class="text-xs text-gray-500">Download and manage bank data</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <button 
+                                class="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-sm"
+                                onclick="downloadBanks()"
+                                title="Download All Banks"
+                            >
+                                📥 Download Banks
+                            </button>
+                            <button 
+                                class="px-3 py-2 bg-[#5D5CDE] text-white rounded hover:bg-[#4a49c5] transition-colors text-sm"
+                                onclick="downloadEngine()"
+                                title="Download Complete Engine"
+                            >
+                                🚀 Download Engine
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execution Input Section -->
+            <div class="mb-6 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 class="font-semibold mb-4 text-blue-800 dark:text-blue-200 text-lg">🎯 Current Execution Configuration</h3>
+                
+                <!-- Top row: Key and Prompt side by side -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Current Key -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200">🔑 Current Key</label>
+                            <div class="flex space-x-1">
+                                <button 
+                                    id="loadRandomKey"
+                                    class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs opacity-50"
+                                    title="Load Random Key from Bank 1"
+                                    disabled
+                                >
+                                    🎲 Random
+                                </button>
+                                <button 
+                                    id="loadSpecificKey"
+                                    class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs opacity-50"
+                                    title="Load Specific Key by ID"
+                                    disabled
+                                >
+                                    📂 Load
+                                </button>
+                            </div>
+                        </div>
+                        <textarea 
+                            id="currentKey" 
+                            class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-vertical"
+                            rows="6"
+                            placeholder="Current transformation key will appear here after loading from Bank 1..."
+                        ></textarea>
+                        <div id="currentKeyStatus" class="text-xs text-gray-500 mt-1">No key selected</div>
+                    </div>
+
+                    <!-- Current Prompt -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200">⚡ Current Prompt (Staging)</label>
+                            <div class="flex space-x-1">
+                                <div class="relative">
+                                    <button 
+                                        id="insertPromptBtn"
+                                        class="px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors text-xs opacity-50 flex items-center"
+                                        title="Insert Prompt into Specific Bot"
+                                        disabled
+                                    >
+                                        📤 Insert ▼
+                                    </button>
+                                    <div id="insertPromptDropdown" class="hidden absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-10 min-w-[120px]">
+                                        <div class="py-1">
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(1)">Insert into Bot 1</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(2)">Insert into Bot 2</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(3)">Insert into Bot 3</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(4)">Insert into Bot 4</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(5)">Insert into Bot 5</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(6)">Insert into Bot 6</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(7)">Insert into Bot 7</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(8)">Insert into Bot 8</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(9)">Insert into Bot 9</button>
+                                            <button class="block w-full text-left px-3 py-1 text-xs hover:bg-gray-100 dark:hover:bg-gray-700" onclick="insertPromptIntoBot(10)">Insert into Bot 10</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button 
+                                    id="loadRandomPrompt"
+                                    class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs opacity-50"
+                                    title="Load Random Prompt from Bank 3"
+                                    disabled
+                                >
+                                    🎲 Random
+                                </button>
+                                <button 
+                                    id="loadSpecificPrompt"
+                                    class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs opacity-50"
+                                    title="Load Specific Prompt by ID"
+                                    disabled
+                                >
+                                    📂 Load
+                                </button>
+                            </div>
+                        </div>
+                        <textarea 
+                            id="currentPrompt" 
+                            class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-vertical"
+                            rows="6"
+                            placeholder="Staging area: Load a prompt here, edit if needed, then use Insert button to assign to specific bot..."
+                        ></textarea>
+                        <div id="currentPromptStatus" class="text-xs text-gray-500 mt-1">Staging area - no effect until inserted</div>
+                    </div>
+                </div>
+
+                <!-- Bottom row: Input (full width) -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-medium text-gray-800 dark:text-gray-200">📝 Current Input</label>
+                        <div class="flex space-x-1">
+                            <button 
+                                id="loadRandomInput"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs opacity-50"
+                                title="Load Random Input from Bank 2"
+                                disabled
+                            >
+                                🎲 Random
+                            </button>
+                            <button 
+                                id="loadSpecificInput"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs opacity-50"
+                                title="Load Specific Input by ID"
+                                disabled
+                            >
+                                📂 Load
+                            </button>
+                        </div>
+                    </div>
+                    <textarea 
+                        id="currentInput" 
+                        class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-vertical"
+                        rows="6"
+                        placeholder="Current input material will appear here after loading from Bank 2..."
+                    ></textarea>
+                    <div id="currentInputStatus" class="text-xs text-gray-500 mt-1">No input selected</div>
+                </div>
+            </div>
+
+            <!-- Preview & Log Section -->
+            <div class="mb-6 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <h3 class="font-semibold mb-4 text-yellow-800 dark:text-yellow-200 text-lg">📋 Engine Preview & Processing Log</h3>
+                
+                <!-- Engine Description -->
+                <div id="engineDescription" class="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hidden">
+                    <h4 class="font-medium text-gray-800 dark:text-gray-200 mb-2">🎯 Generated Engine Description</h4>
+                    <div id="engineDescriptionContent" class="prose dark:prose-invert max-w-none text-sm"></div>
+                </div>
+
+                <!-- Banks Preview -->
+                <div id="banksPreview" class="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-4 hidden">
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                        <h5 class="font-medium text-xs text-gray-600 dark:text-gray-400 mb-2">🔑 Keys Preview</h5>
+                        <pre id="keysPreview" class="text-xs text-gray-700 dark:text-gray-300 max-h-40 overflow-y-auto whitespace-pre-wrap"></pre>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                        <h5 class="font-medium text-xs text-gray-600 dark:text-gray-400 mb-2">📝 Input Preview</h5>
+                        <pre id="inputPreview" class="text-xs text-gray-700 dark:text-gray-300 max-h-40 overflow-y-auto whitespace-pre-wrap"></pre>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                        <h5 class="font-medium text-xs text-gray-600 dark:text-gray-400 mb-2">⚡ Prompts Preview</h5>
+                        <pre id="promptsPreview" class="text-xs text-gray-700 dark:text-gray-300 max-h-40 overflow-y-auto whitespace-pre-wrap"></pre>
+                    </div>
+                </div>
+
+                <!-- Processing Log -->
+                <div class="border-t border-yellow-200 dark:border-yellow-700 pt-4">
+                    <button id="toggleLog" class="flex items-center justify-between w-full text-left" onclick="toggleProcessingLog()">
+                        <span class="font-medium text-yellow-800 dark:text-yellow-200">📜 Processing Log</span>
+                        <span id="logToggleIcon" class="text-yellow-600 dark:text-yellow-400">▼</span>
+                    </button>
+                    <div id="processingLog" class="mt-3 hidden">
+                        <div id="processingLogContent" class="bg-white dark:bg-gray-800 p-4 rounded border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto">
+                            <p class="text-sm text-gray-500 italic">No processing log yet...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+</div>
+
+        <!-- Page 2: Execution & Results -->
+        <div id="page-execution" class="page-content hidden">
+            <h2 class="text-xl font-semibold mb-4">⚡ Execution & Results</h2>
+            
+            <!-- Flow Control Bar -->
+            <div class="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">🔄 Flow Control</span>
+                        <button 
+                            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm font-medium"
+                            onclick="for(let i=1; i<=10; i++) { const container = document.getElementById(`bot${i}Container`); if(container && !container.classList.contains('hidden')) { executeBot(i); } }"
+                        >
+                            ▶️ Execute All Visible
+                        </button>
+                        <button 
+                            class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors text-sm font-medium"
+                            onclick="for(let i=1; i<=10; i++) { clearBotOutput(i); }"
+                        >
+                            🗑️ Clear All Outputs
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button 
+                            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm font-medium"
+                            onclick="downloadFlow()"
+                        >
+                            💾 Download Complete Flow
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bot 1 Container -->
+            <div id="bot1Container" class="mb-6 p-6 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-purple-800 dark:text-purple-200 text-lg">🤖 Bot 1 - Initial Transformation</h3>
+                        <span id="bot1Status" class="text-sm text-purple-600 dark:text-purple-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot1Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot1PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 1 Flags -->
+                    <div id="bot1Flags" class="hidden flag-container">
+                        <div id="bot1FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot1"
+                        class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium relative"
+                        onclick="executeBot(1)"
+                    >
+                        <span id="executeBot1Text">⚡ Execute Bot 1</span>
+                        <div id="executeBot1Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-purple-200 dark:border-purple-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-purple-700 dark:text-purple-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(1)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(1)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(1)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot1Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 2 Container -->
+            <div id="bot2Container" class="mb-6 p-6 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-blue-800 dark:text-blue-200 text-lg">🤖 Bot 2 - Enhancement Layer</h3>
+                        <span id="bot2Status" class="text-sm text-blue-600 dark:text-blue-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot2Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot2PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 2 Flags -->
+                    <div id="bot2Flags" class="hidden flag-container">
+                        <div id="bot2FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot2"
+                        class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium relative"
+                        onclick="executeBot(2)"
+                    >
+                        <span id="executeBot2Text">⚡ Execute Bot 2</span>
+                        <div id="executeBot2Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-blue-200 dark:border-blue-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-blue-700 dark:text-blue-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(2)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(2)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(2)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot2Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 3 Container -->
+            <div id="bot3Container" class="mb-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-green-800 dark:text-green-200 text-lg">🤖 Bot 3 - Synthesis Stage</h3>
+                        <span id="bot3Status" class="text-sm text-green-600 dark:text-green-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot3Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot3PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 3 Flags -->
+                    <div id="bot3Flags" class="hidden flag-container">
+                        <div id="bot3FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot3"
+                        class="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium relative"
+                        onclick="executeBot(3)"
+                    >
+                        <span id="executeBot3Text">⚡ Execute Bot 3</span>
+                        <div id="executeBot3Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-green-200 dark:border-green-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-green-700 dark:text-green-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(3)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(3)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(3)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot3Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 4 Container -->
+            <div id="bot4Container" class="mb-6 p-6 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-orange-800 dark:text-orange-200 text-lg">🤖 Bot 4 - Final Polish</h3>
+                        <span id="bot4Status" class="text-sm text-orange-600 dark:text-orange-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot4Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot4PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 4 Flags -->
+                    <div id="bot4Flags" class="hidden flag-container">
+                        <div id="bot4FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot4"
+                        class="w-full px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium relative"
+                        onclick="executeBot(4)"
+                    >
+                        <span id="executeBot4Text">⚡ Execute Bot 4</span>
+                        <div id="executeBot4Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-orange-200 dark:border-orange-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-orange-700 dark:text-orange-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(4)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(4)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(4)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot4Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 5 Container -->
+            <div id="bot5Container" class="hidden mb-6 p-6 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-pink-800 dark:text-pink-200 text-lg">🤖 Bot 5 - Extended Processing</h3>
+                        <span id="bot5Status" class="text-sm text-pink-600 dark:text-pink-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot5Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot5PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 5 Flags -->
+                    <div id="bot5Flags" class="hidden flag-container">
+                        <div id="bot5FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot5"
+                        class="w-full px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors font-medium relative"
+                        onclick="executeBot(5)"
+                    >
+                        <span id="executeBot5Text">⚡ Execute Bot 5</span>
+                        <div id="executeBot5Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-pink-200 dark:border-pink-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-pink-700 dark:text-pink-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(5)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(5)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(5)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot5Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 6 Container -->
+            <div id="bot6Container" class="hidden mb-6 p-6 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-indigo-800 dark:text-indigo-200 text-lg">🤖 Bot 6 - Deep Analysis</h3>
+                        <span id="bot6Status" class="text-sm text-indigo-600 dark:text-indigo-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot6Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot6PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 6 Flags -->
+                    <div id="bot6Flags" class="hidden flag-container">
+                        <div id="bot6FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot6"
+                        class="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium relative"
+                        onclick="executeBot(6)"
+                    >
+                        <span id="executeBot6Text">⚡ Execute Bot 6</span>
+                        <div id="executeBot6Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-indigo-200 dark:border-indigo-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-indigo-700 dark:text-indigo-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(6)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(6)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(6)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot6Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 7 Container -->
+            <div id="bot7Container" class="hidden mb-6 p-6 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-teal-800 dark:text-teal-200 text-lg">🤖 Bot 7 - Integration Layer</h3>
+                        <span id="bot7Status" class="text-sm text-teal-600 dark:text-teal-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot7Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot7PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 7 Flags -->
+                    <div id="bot7Flags" class="hidden flag-container">
+                        <div id="bot7FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot7"
+                        class="w-full px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium relative"
+                        onclick="executeBot(7)"
+                    >
+                        <span id="executeBot7Text">⚡ Execute Bot 7</span>
+                        <div id="executeBot7Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-teal-200 dark:border-teal-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-teal-700 dark:text-teal-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(7)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(7)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(7)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot7Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 8 Container -->
+            <div id="bot8Container" class="hidden mb-6 p-6 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-yellow-800 dark:text-yellow-200 text-lg">🤖 Bot 8 - Refinement Process</h3>
+                        <span id="bot8Status" class="text-sm text-yellow-600 dark:text-yellow-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot8Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot8PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 8 Flags -->
+                    <div id="bot8Flags" class="hidden flag-container">
+                        <div id="bot8FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot8"
+                        class="w-full px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium relative"
+                        onclick="executeBot(8)"
+                    >
+                        <span id="executeBot8Text">⚡ Execute Bot 8</span>
+                        <div id="executeBot8Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-yellow-200 dark:border-yellow-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-yellow-700 dark:text-yellow-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(8)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(8)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(8)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot8Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 9 Container -->
+            <div id="bot9Container" class="hidden mb-6 p-6 bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-red-800 dark:text-red-200 text-lg">🤖 Bot 9 - Critical Review</h3>
+                        <span id="bot9Status" class="text-sm text-red-600 dark:text-red-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot9Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot9PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 9 Flags -->
+                    <div id="bot9Flags" class="hidden flag-container">
+                        <div id="bot9FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot9"
+                        class="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium relative"
+                        onclick="executeBot(9)"
+                    >
+                        <span id="executeBot9Text">⚡ Execute Bot 9</span>
+                        <div id="executeBot9Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-red-200 dark:border-red-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-red-700 dark:text-red-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(9)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(9)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(9)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot9Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Bot 10 Container -->
+            <div id="bot10Container" class="hidden mb-6 p-6 bg-gradient-to-r from-cyan-50 to-sky-50 dark:from-cyan-900/20 dark:to-sky-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-cyan-800 dark:text-cyan-200 text-lg">🤖 Bot 10 - Final Synthesis</h3>
+                        <span id="bot10Status" class="text-sm text-cyan-600 dark:text-cyan-400"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Model Selection</label>
+                            <div id="bot10Model" class="accordion-container"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Prompt Status</label>
+                            <div id="bot10PromptStatus" class="text-sm text-gray-600 dark:text-gray-400 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-500">No prompt loaded</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 10 Flags -->
+                    <div id="bot10Flags" class="hidden flag-container">
+                        <div id="bot10FlagControls"></div>
+                    </div>
+                    
+                    <button 
+                        id="executeBot10"
+                        class="w-full px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors font-medium relative"
+                        onclick="executeBot(10)"
+                    >
+                        <span id="executeBot10Text">⚡ Execute Bot 10</span>
+                        <div id="executeBot10Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="border-t border-cyan-200 dark:border-cyan-700 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-medium text-cyan-700 dark:text-cyan-300">Output</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="copyBotOutput(10)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Copy">📋</button>
+                            <button onclick="downloadBotOutput(10)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Download">💾</button>
+                            <button onclick="clearBotOutput(10)" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Clear">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="bot10Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Results Summary -->
+            <div class="mt-8 p-6 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h3 class="font-semibold text-gray-800 dark:text-gray-200 text-lg mb-4">📊 Execution Summary</h3>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="totalExecutions">0</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Total Executions</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600 dark:text-green-400" id="successfulExecutions">0</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Successful</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-orange-600 dark:text-orange-400" id="activeExecutions">0</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Active</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-purple-600 dark:text-purple-400" id="totalOutputs">0</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Outputs Generated</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update JavaScript to remove autocomplete -->
+    <script>
+        // Remove autocomplete functionality - update the executeAutocomplete function to show a message
+        window.executeAutocomplete = function() {
+            const status = document.getElementById('autocompleteStatus');
+            if (status) {
+                status.textContent = "Autocomplete has been removed. Please use Magic Box instead.";
+                updateProcessingLog("Autocomplete is no longer available. Use Magic Box for engine generation.");
+            }
+        };
+
+        // Update stats tracking
+        let executionStats = {
+            total: 0,
+            successful: 0,
+            active: 0,
+            outputs: 0
+        };
+
+        // Override bot execution to track stats
+        const originalExecuteBot = window.executeBot;
+        window.executeBot = async function(botNumber) {
+            executionStats.total++;
+            executionStats.active++;
+            updateExecutionStats();
+            
+            try {
+                await originalExecuteBot(botNumber);
+                executionStats.successful++;
+                executionStats.outputs++;
+            } catch (error) {
+                console.error(`Bot ${botNumber} execution failed:`, error);
+            } finally {
+                executionStats.active--;
+                updateExecutionStats();
+            }
+        };
+
+        function updateExecutionStats() {
+            document.getElementById('totalExecutions').textContent = executionStats.total;
+            document.getElementById('successfulExecutions').textContent = executionStats.successful;
+            document.getElementById('activeExecutions').textContent = executionStats.active;
+            document.getElementById('totalOutputs').textContent = executionStats.outputs;
+        }
+
+        // Initialize stats on page load
+        document.addEventListener('DOMContentLoaded', updateExecutionStats);
+
+        // Remove autocomplete button and hide the section
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hide autocomplete-specific elements
+            const autocompleteBtn = document.getElementById('executeAutocomplete');
+            const autocompleteInstructions = document.getElementById('autocompleteInstructions');
+            
+            if (autocompleteBtn) {
+                autocompleteBtn.style.display = 'none';
+            }
+            
+            if (autocompleteInstructions) {
+                autocompleteInstructions.parentElement.style.display = 'none';
+            }
+            
+            // Update the Three Banks title to remove autocomplete reference
+            const banksTitle = document.querySelector('.text-green-800.text-lg');
+            if (banksTitle && banksTitle.textContent.includes('Autocomplete')) {
+                banksTitle.textContent = '🏦 Three Banks System';
+            }
+        });
+    </script>
+</body>
+</html>
+
