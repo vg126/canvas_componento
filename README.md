@@ -9,3 +9,7 @@ Critical rule
 
 Notes
 - This repository focuses on organization and component extraction. Implementation “how-tos” may vary by contributor and are intentionally not prescribed here.
+
+## Updates
+
+- 15-09-2025 - Added Canvas HTML files
