@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Prompt Rotator & Deep Research</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+    <style>
+        .rotation-controls { min-height: 200px; }
+        .results-panel { min-height: 300px; }
+        .copy-button:hover { background-color: #4338ca; }
+        .compact-spacing { margin-bottom: 0.75rem; }
+        .compact-text { font-size: 0.875rem; }
+        .compact-input { padding: 0.5rem; }
+        
+        /* Research Results Chat-like Styling - Default Gray Theme */
+        .research-content {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            max-width: 95%;
+            transition: all 0.3s ease;
+        }
+        
+        .dark .research-content {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border-color: #475569;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Blue Theme (Poe-like) */
+        .theme-blue .research-content {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-color: #93c5fd;
+        }
+        .dark .theme-blue .research-content {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+            border-color: #3b82f6;
+        }
+
+        /* Green Theme */
+        .theme-green .research-content {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border-color: #86efac;
+        }
+        .dark .theme-green .research-content {
+            background: linear-gradient(135deg, #14532d 0%, #166534 100%);
+            border-color: #22c55e;
+        }
+
+        /* Yellow Theme */
+        .theme-yellow .research-content {
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            border-color: #fed7aa;
+        }
+        .dark .theme-yellow .research-content {
+            background: linear-gradient(135deg, #713f12 0%, #92400e 100%);
+            border-color: #f59e0b;
+        }
+
+        /* Red Theme */
+        .theme-red .research-content {
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+            border-color: #fca5a5;
+        }
+        .dark .theme-red .research-content {
+            background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+            border-color: #ef4444;
+        }
+
+        /* Active color button indicator */
+        .color-btn.active {
+            border-color: #5D5CDE !important;
+            border-width: 3px;
+            transform: scale(1.1);
+        }
+        
+        .research-content h1, .research-content h2, .research-content h3 {
+            color: #5D5CDE;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .dark .research-content h1, .dark .research-content h2, .dark .research-content h3 {
+            color: #a78bfa;
+        }
+        
+        .research-content ul, .research-content ol {
+            margin: 0.75rem 0;
+            padding-left: 1.5rem;
+        }
+        
+        .research-content li {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+        
+        .research-content p {
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+        
+        .research-content strong {
+            color: #1e40af;
+            font-weight: 600;
+        }
+        
+        .dark .research-content strong {
+            color: #60a5fa;
+        }
+        
+        @media (max-width: 768px) {
+            .desktop-grid { display: block !important; }
+            .desktop-grid > div { margin-bottom: 1rem; }
+            .research-content { 
+                padding: 1rem; 
+                margin: 0.5rem 0;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    
+    <!-- Dark Mode Detection -->
+    <script>
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+    </script>
+
+    <div class="container mx-auto p-3 max-w-7xl">
+        <!-- Header -->
+        <div class="mb-4">
+            <h1 class="text-2xl font-bold text-center mb-1" style="color: #5D5CDE;">AI Prompt Rotator & Deep Research</h1>
+            <p class="text-center text-gray-600 dark:text-gray-400 text-sm">Systematic prompt variation with integrated research capabilities</p>
+        </div>
+
+        <!-- Main Grid Layout -->
+        <div class="desktop-grid grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            
+            <!-- Left Panel: Input & Controls -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+                <h2 class="text-lg font-semibold mb-3">Prompt Input & Analysis</h2>
+                
+                <!-- Original Prompt Input -->
+                <div class="compact-spacing">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-medium">Original Prompt:</label>
+                        <button 
+                            id="clearPrompt" 
+                            class="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+                        >
+                            🗑️ Clear
+                        </button>
+                    </div>
+                    <textarea 
+                        id="originalPrompt" 
+                        class="w-full compact-input border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm resize-none"
+                        rows="3"
+                        placeholder="Enter your prompt here... (e.g., 'Find the best chicken dishes in India that are spicy')"
+                    ></textarea>
+                </div>
+
+                <!-- Bot Selection -->
+                <div class="compact-spacing">
+                    <label class="block text-xs font-medium mb-1">Analysis Bot:</label>
+                    <select id="analysisBot" class="w-full compact-input border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-xs">
+                        <option value="Claude-Sonnet-4">Claude-Sonnet-4</option>
+                        <option value="GPT-4o">GPT-4o</option>
+                        <option value="Gemini-2.0-Flash">Gemini-2.0-Flash</option>
+                        <option value="Web-Search">Web-Search</option>
+                    </select>
+                </div>
+
+                <!-- Analysis Controls -->
+                <div class="flex gap-2 compact-spacing flex-wrap">
+                    <button 
+                        id="analyzeBtn" 
+                        class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
+                    >
+                        🔍 Analyze Variables
+                    </button>
+                    <button 
+                        id="addChoiceBtn" 
+                        class="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs"
+                    >
+                        ✨ Add "Of Your Choice"
+                    </button>
+                    <button 
+                        id="feedBtn" 
+                        class="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs"
+                    >
+                        ⬇️ Feed
+                    </button>
+                    <button 
+                        id="copyOriginal" 
+                        class="px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-xs"
+                    >
+                        📋 Copy
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div id="analysisLoading" class="hidden compact-spacing">
+                    <div class="flex items-center text-blue-600">
+                        <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+                        <span id="analysisStatus" class="text-xs">Analyzing prompt...</span>
+                    </div>
+                </div>
+
+                <!-- Variable Controls Container -->
+                <div id="variableControls" class="rotation-controls hidden">
+                    <h3 class="text-sm font-medium mb-2">Rotation Variables:</h3>
+                    <div id="variableList" class="space-y-2 mb-3 max-h-64 overflow-y-auto">
+                        <!-- Variables will be populated here -->
+                    </div>
+                    
+                    <!-- Navigation Controls -->
+                    <div class="flex gap-2 items-center">
+                        <button id="prevCombo" class="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs">← Prev</button>
+                        <span id="comboCounter" class="px-2 py-1 text-center bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium">1 / 1</span>
+                        <button id="nextCombo" class="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs">Next →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Generated Variations -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+                <h2 class="text-lg font-semibold mb-3">Current Prompt Variation</h2>
+                
+                <!-- Generated Prompt Display -->
+                <div class="compact-spacing">
+                    <label class="block text-sm font-medium mb-2">Rotated Prompt (Editable):</label>
+                    <textarea 
+                        id="generatedPrompt" 
+                        class="w-full compact-input border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm resize-none"
+                        rows="3"
+                        placeholder="Generated prompt will appear here..."
+                    ></textarea>
+                </div>
+
+                <!-- Enhancement Controls -->
+                <div class="compact-spacing">
+                    <div class="mb-2">
+                        <label class="block text-xs font-medium mb-1">Enhancement Bot:</label>
+                        <select id="enhancementBot" class="w-full compact-input border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-xs">
+                            <option value="Claude-Sonnet-4">Claude-Sonnet-4</option>
+                            <option value="GPT-4o">GPT-4o</option>
+                            <option value="Gemini-2.0-Flash">Gemini-2.0-Flash</option>
+                            <option value="Web-Search">Web-Search</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Prompting Techniques Upload -->
+                    <div class="mb-2">
+                        <label class="block text-xs font-medium mb-1">Prompting Techniques (Optional):</label>
+                        <div class="relative">
+                            <input 
+                                type="file" 
+                                id="techniquesFile" 
+                                accept=".txt,.md" 
+                                class="hidden"
+                            >
+                            <div class="flex gap-1">
+                                <button 
+                                    onclick="document.getElementById('techniquesFile').click()" 
+                                    class="flex-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs transition-colors"
+                                    id="uploadBtn"
+                                >
+                                    📁 Upload Techniques
+                                </button>
+                                <button 
+                                    id="clearTechniques" 
+                                    class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs transition-colors hidden"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <div id="techniqueStatus" class="text-xs mt-1 hidden">
+                                <span id="techniqueIndicator" class="text-green-600 dark:text-green-400"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Three Small Action Buttons -->
+                    <div class="flex gap-2 mb-3">
+                        <button 
+                            id="refeedBtn" 
+                            class="flex-1 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-xs"
+                        >
+                            ⬆️ Refeed
+                        </button>
+                        <button 
+                            id="copyPrompt" 
+                            class="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 copy-button transition-colors text-xs"
+                        >
+                            📋 Copy
+                        </button>
+                        <button 
+                            id="enhancePromptBtn" 
+                            class="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 px-3 rounded-lg transition-colors text-xs disabled:opacity-50"
+                        >
+                            <span id="enhanceBtnText">🚀 Enhance</span>
+                            <div id="enhanceBtnLoader" class="hidden inline-flex items-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                <span>Enhancing...</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Research Settings -->
+                <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg compact-spacing">
+                    <h3 class="text-xs font-medium mb-2">Research Settings:</h3>
+                    <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+                        <div>
+                            <label class="block mb-1">Search Bot:</label>
+                            <select id="searchBot" class="w-full compact-input border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600">
+                                <option value="Web-Search">Web-Search (Default)</option>
+                                <option value="GPT-4o-Search">GPT-4o-Search</option>
+                                <option value="Claude-Sonnet-4-Search">Claude-Sonnet-4-Search</option>
+                                <option value="Gemini-2.5-Pro">Gemini-2.5-Pro</option>
+                                <option value="Perplexity-Sonar-Pro">Perplexity-Sonar-Pro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Research Depth:</label>
+                            <select id="researchDepth" class="w-full compact-input border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600">
+                                <option value="basic">Basic Search</option>
+                                <option value="enhanced">Enhanced (2-layer)</option>
+                                <option value="deep">Deep Research (3-layer)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Color Theme Selector -->
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Results Theme:</label>
+                        <div class="flex gap-1">
+                            <button class="color-btn w-6 h-6 rounded border-2 border-transparent hover:border-gray-400 transition-colors" data-theme="gray" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);" title="Classic Gray"></button>
+                            <button class="color-btn w-6 h-6 rounded border-2 border-transparent hover:border-gray-400 transition-colors" data-theme="blue" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);" title="Poe Blue"></button>
+                            <button class="color-btn w-6 h-6 rounded border-2 border-transparent hover:border-gray-400 transition-colors" data-theme="green" style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);" title="Fresh Green"></button>
+                            <button class="color-btn w-6 h-6 rounded border-2 border-transparent hover:border-gray-400 transition-colors" data-theme="yellow" style="background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);" title="Warm Yellow"></button>
+                            <button class="color-btn w-6 h-6 rounded border-2 border-transparent hover:border-gray-400 transition-colors" data-theme="red" style="background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);" title="Soft Red"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Research Button -->
+                <button 
+                    id="sendToResearch" 
+                    class="w-full py-3 px-4 text-white rounded-lg transition-colors font-semibold"
+                    style="background-color: #5D5CDE;"
+                >
+                    🔍 Research This Prompt
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Panel: Research Results -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold">Research Results</h2>
+                <button 
+                    id="copyResults" 
+                    class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors hidden"
+                >
+                    📋 Copy Results
+                </button>
+            </div>
+            
+            <!-- Research Loading State -->
+            <div id="researchLoading" class="hidden mb-3">
+                <div class="flex items-center text-blue-600">
+                    <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+                    <span id="researchStatus" class="text-sm">Conducting research...</span>
+                </div>
+            </div>
+
+            <!-- Results Container -->
+            <div id="researchResults" class="results-panel">
+                <div class="text-center text-gray-500 italic py-6 text-sm">
+                    Research results will appear here after sending a prompt to research...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentVariables = [];
+        let currentCombination = 0;
+        let totalCombinations = 0;
+        let originalPrompt = '';
+        let loadedTechniques = null;
+        let techniqueFileName = '';
+
+        // Poe API handlers
+        window.Poe.registerHandler("analysis-handler", handleAnalysisResponse);
+        window.Poe.registerHandler("enhancement-handler", handleEnhancementResponse);
+        window.Poe.registerHandler("research-handler", handleResearchResponse);
+
+        // DOM elements
+        const elements = {
+            originalPrompt: document.getElementById('originalPrompt'),
+            analysisBot: document.getElementById('analysisBot'),
+            enhancementBot: document.getElementById('enhancementBot'),
+            analyzeBtn: document.getElementById('analyzeBtn'),
+            addChoiceBtn: document.getElementById('addChoiceBtn'),
+            feedBtn: document.getElementById('feedBtn'),
+            refeedBtn: document.getElementById('refeedBtn'),
+            enhancePromptBtn: document.getElementById('enhancePromptBtn'),
+            enhanceBtnText: document.getElementById('enhanceBtnText'),
+            enhanceBtnLoader: document.getElementById('enhanceBtnLoader'),
+            analysisLoading: document.getElementById('analysisLoading'),
+            analysisStatus: document.getElementById('analysisStatus'),
+            variableControls: document.getElementById('variableControls'),
+            variableList: document.getElementById('variableList'),
+            prevCombo: document.getElementById('prevCombo'),
+            nextCombo: document.getElementById('nextCombo'),
+            comboCounter: document.getElementById('comboCounter'),
+            generatedPrompt: document.getElementById('generatedPrompt'),
+            copyPrompt: document.getElementById('copyPrompt'),
+            sendToResearch: document.getElementById('sendToResearch'),
+            copyResults: document.getElementById('copyResults'),
+            clearPrompt: document.getElementById('clearPrompt'),
+            searchBot: document.getElementById('searchBot'),
+            researchDepth: document.getElementById('researchDepth'),
+            researchLoading: document.getElementById('researchLoading'),
+            researchStatus: document.getElementById('researchStatus'),
+            researchResults: document.getElementById('researchResults'),
+            techniquesFile: document.getElementById('techniquesFile'),
+            uploadBtn: document.getElementById('uploadBtn'),
+            clearTechniques: document.getElementById('clearTechniques'),
+            techniqueStatus: document.getElementById('techniqueStatus'),
+            techniqueIndicator: document.getElementById('techniqueIndicator'),
+            copyOriginal: document.getElementById('copyOriginal')
+        };
+
+        // Custom alert function
+        function showAlert(message) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                    <div class="flex justify-end">
+                        <button class="px-4 py-2 bg-primary text-white hover:bg-purple-600 rounded" onclick="this.closest('.fixed').remove()">OK</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Analysis functions
+        async function analyzePrompt() {
+            const prompt = elements.originalPrompt.value.trim();
+            if (!prompt) {
+                showAlert('Please enter a prompt to analyze.');
+                return;
+            }
+
+            originalPrompt = prompt;
+            showAnalysisLoading(true, 'Analyzing prompt variables...');
+
+            const analysisPrompt = `
+Analyze this prompt and identify key variables that could be rotated for systematic research: "${prompt}"
+
+Your task:
+1. Identify the most important nouns, adjectives, locations, or concepts that could be varied
+2. For each variable, generate exactly 10 diverse, relevant alternatives
+3. Use the EXACT text from the original prompt as current_value for each variable
+
+Output ONLY valid JSON in this exact format:
+{
+  "variables": [
+    {
+      "name": "variable_name",
+      "current_value": "exact_text_from_original_prompt", 
+      "options": ["option1", "option2", "option3", "option4", "option5", "option6", "option7", "option8", "option9", "option10"]
+    }
+  ]
+}
+
+You can identify up to 10 variables, but focus on the most meaningful ones. Each variable should have exactly 10 options.`;
+
+            try {
+                const selectedBot = elements.analysisBot.value;
+                await window.Poe.sendUserMessage(`@${selectedBot} ${analysisPrompt}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'analyze' }
+                });
+            } catch (error) {
+                showAnalysisLoading(false);
+                showAlert('Error sending analysis request: ' + error.message);
+            }
+        }
+
+        function addChoiceOptions() {
+            if (currentVariables.length === 0) {
+                showAlert('Please analyze a prompt first to generate variables.');
+                return;
+            }
+
+            let addedCount = 0;
+
+            currentVariables.forEach((variable, index) => {
+                const choiceOption = `${variable.name.toLowerCase()} of your choice`;
+                
+                if (!variable.options.includes(choiceOption)) {
+                    variable.options.push(choiceOption);
+                    addedCount++;
+                }
+
+                // Refresh the dropdown
+                const select = document.querySelector(`[data-variable-index="${index}"]`);
+                if (select) {
+                    refreshVariableDropdown(variable, select, select.value);
+                }
+            });
+
+            calculateCombinations();
+            
+            if (addedCount > 0) {
+                showAlert(`Added "of your choice" options to ${addedCount} variable${addedCount !== 1 ? 's' : ''}!`);
+            } else {
+                showAlert('All variables already have "of your choice" options.');
+            }
+        }
+
+        function feedPrompt() {
+            const originalText = elements.originalPrompt.value.trim();
+            if (!originalText) {
+                showAlert('Original prompt is empty. Please enter a prompt first.');
+                return;
+            }
+            elements.generatedPrompt.value = originalText;
+        }
+
+        function refeedPrompt() {
+            const generatedText = elements.generatedPrompt.value.trim();
+            if (!generatedText) {
+                showAlert('Generated prompt is empty. Please generate a prompt variation first.');
+                return;
+            }
+            elements.originalPrompt.value = generatedText;
+        }
+
+        // Attachment system functions
+        function handleTechniqueFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.match(/\.(txt|md)$/i)) {
+                showAlert('Please upload a .txt or .md file.');
+                elements.techniquesFile.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                loadedTechniques = e.target.result;
+                techniqueFileName = file.name;
+                updateTechniqueStatus(true);
+            };
+            reader.onerror = function() {
+                showAlert('Error reading file. Please try again.');
+                clearTechniqueFile();
+            };
+            reader.readAsText(file);
+        }
+
+        function updateTechniqueStatus(loaded) {
+            if (loaded) {
+                elements.uploadBtn.textContent = `📄 ${techniqueFileName}`;
+                elements.uploadBtn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+                elements.uploadBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                elements.clearTechniques.classList.remove('hidden');
+                elements.techniqueStatus.classList.remove('hidden');
+                elements.techniqueIndicator.textContent = `✓ Techniques loaded (${Math.round(loadedTechniques.length / 1024)}KB)`;
+                
+                // Update enhance button text
+                elements.enhanceBtnText.textContent = '🚀 Enhance with Techniques';
+            } else {
+                elements.uploadBtn.textContent = '📁 Upload Techniques';
+                elements.uploadBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                elements.uploadBtn.classList.add('bg-gray-600', 'hover:bg-gray-700');
+                elements.clearTechniques.classList.add('hidden');
+                elements.techniqueStatus.classList.add('hidden');
+                
+                // Reset enhance button text
+                elements.enhanceBtnText.textContent = '🚀 Enhance Prompt';
+            }
+        }
+
+        function clearTechniqueFile() {
+            loadedTechniques = null;
+            techniqueFileName = '';
+            elements.techniquesFile.value = '';
+            updateTechniqueStatus(false);
+        }
+
+        // Enhancement functions
+        async function enhancePrompt() {
+            const prompt = elements.generatedPrompt.value.trim();
+            if (!prompt) {
+                showAlert('Please enter a prompt to enhance.');
+                return;
+            }
+
+            setEnhanceLoadingState(true);
+
+            let enhancementPrompt;
+
+            if (loadedTechniques) {
+                // Use attached techniques for enhancement
+                enhancementPrompt = `
+Use the following advanced prompting techniques to enhance this prompt: "${prompt}"
+
+PROMPTING TECHNIQUES:
+${loadedTechniques}
+
+Your task:
+1. Apply the relevant techniques from the provided library to enhance the prompt
+2. Improve structure, clarity, and research effectiveness
+3. Ensure the prompt is suitable for systematic exploration and high-quality research
+4. Maintain the core intent while maximizing analytical depth and precision
+
+Provide ONLY the enhanced prompt text, nothing else.`;
+            } else {
+                // Standard enhancement without techniques
+                enhancementPrompt = `
+Enhance this prompt for better clarity, research effectiveness, and systematic exploration: "${prompt}"
+
+Your task:
+1. Improve the structure and language for maximum clarity
+2. Add specific details that would improve research quality
+3. Ensure the prompt is suitable for systematic rotation and analysis
+4. Maintain the core intent while enhancing effectiveness
+
+Provide ONLY the enhanced prompt text, nothing else.`;
+            }
+
+            try {
+                const selectedBot = elements.enhancementBot.value;
+                await window.Poe.sendUserMessage(`@${selectedBot} ${enhancementPrompt}`, {
+                    handler: "enhancement-handler",
+                    stream: false,
+                    openChat: false
+                });
+            } catch (error) {
+                setEnhanceLoadingState(false);
+                showAlert('Error enhancing prompt: ' + error.message);
+            }
+        }
+
+        function setEnhanceLoadingState(loading) {
+            elements.enhancePromptBtn.disabled = loading;
+            elements.enhanceBtnText.classList.toggle('hidden', loading);
+            elements.enhanceBtnLoader.classList.toggle('hidden', !loading);
+        }
+
+        function handleEnhancementResponse(result) {
+            if (result.status === "error") {
+                setEnhanceLoadingState(false);
+                showAlert("Enhancement error: " + (result.responses[0].statusText || 'Unknown error'));
+                return;
+            }
+            
+            if (result.status !== "complete") return;
+
+            const response = result.responses[0].content;
+            const enhancedText = response.trim();
+            elements.generatedPrompt.value = enhancedText;
+            setEnhanceLoadingState(false);
+        }
+
+        async function copyOriginalPrompt() {
+            const prompt = elements.originalPrompt.value.trim();
+            if (!prompt) {
+                showAlert('No original prompt to copy. Please enter a prompt first.');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(prompt);
+                
+                const originalText = elements.copyOriginal.textContent;
+                elements.copyOriginal.textContent = '✓ Copied!';
+                elements.copyOriginal.classList.add('bg-green-700');
+                
+                setTimeout(() => {
+                    elements.copyOriginal.textContent = originalText;
+                    elements.copyOriginal.classList.remove('bg-green-700');
+                }, 2000);
+            } catch (error) {
+                showAlert('Failed to copy prompt: ' + error.message);
+            }
+        }
+
+        // Variable management functions
+        function handleAnalysisResponse(result, context) {
+            if (result.status === "error") {
+                showAnalysisLoading(false);
+                showAlert("Analysis error: " + (result.responses[0].statusText || 'Unknown error'));
+                return;
+            }
+            
+            if (result.status !== "complete") return;
+
+            const response = result.responses[0].content;
+
+            if (context?.type === 'analyze') {
+                try {
+                    const jsonMatch = response.match(/\{[\s\S]*\}/);
+                    if (!jsonMatch) {
+                        throw new Error('No JSON found in response');
+                    }
+                    
+                    const data = JSON.parse(jsonMatch[0]);
+                    
+                    if (!data.variables || !Array.isArray(data.variables)) {
+                        throw new Error('Invalid variables structure');
+                    }
+
+                    currentVariables = data.variables.slice(0, 10);
+                    
+                    setupVariableControls();
+                    calculateCombinations();
+                    updateGeneratedPrompt();
+                    showAnalysisLoading(false);
+                    
+                } catch (error) {
+                    showAnalysisLoading(false);
+                    showAlert('Error parsing analysis results: ' + error.message);
+                }
+                return;
+            }
+
+            if (context?.type === 'expand') {
+                try {
+                    const expandedOptions = response.trim().split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+                    const variableIndex = context.variableIndex;
+                    const originalOptions = context.originalOptions;
+                    
+                    const allNewOptions = [...originalOptions, ...expandedOptions];
+                    
+                    const customTextArea = document.getElementById(`customText-${variableIndex}`);
+                    customTextArea.value = allNewOptions.join('\n');
+                    
+                    showAnalysisLoading(false);
+                    showAlert(`AI generated ${expandedOptions.length} additional options! Review and click "Add Options" to confirm.`);
+                    
+                } catch (error) {
+                    showAnalysisLoading(false);
+                    showAlert('Error processing AI expansion: ' + error.message);
+                }
+                return;
+            }
+        }
+
+        function setupVariableControls() {
+            elements.variableList.innerHTML = '';
+            
+            currentVariables.forEach((variable, index) => {
+                const variableDiv = document.createElement('div');
+                variableDiv.className = 'p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700';
+                
+                variableDiv.innerHTML = `
+                    <label class="block text-xs font-medium mb-1">${variable.name}:</label>
+                    <div class="flex gap-1">
+                        <select 
+                            class="flex-1 compact-input border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-xs" 
+                            data-variable-index="${index}"
+                        >
+                            ${buildVariableOptions(variable)}
+                        </select>
+                        <button 
+                            class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs transition-colors"
+                            onclick="addCustomOption(${index})"
+                            title="Add custom options"
+                        >
+                            +
+                        </button>
+                    </div>
+                    <div id="customInput-${index}" class="hidden mt-2">
+                        <div class="flex flex-col gap-1">
+                            <textarea 
+                                id="customText-${index}"
+                                class="w-full compact-input border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-xs resize-none"
+                                rows="2"
+                                placeholder="Add custom options (one per line)"
+                            ></textarea>
+                            <div class="flex gap-1">
+                                <button 
+                                    class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                    onclick="confirmCustomOptions(${index})"
+                                >
+                                    Add
+                                </button>
+                                <button 
+                                    class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs"
+                                    onclick="aiExpandOptions(${index})"
+                                >
+                                    AI Expand
+                                </button>
+                                <button 
+                                    class="px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs"
+                                    onclick="cancelCustomOptions(${index})"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const select = variableDiv.querySelector('select');
+                select.addEventListener('change', updateGeneratedPrompt);
+                
+                elements.variableList.appendChild(variableDiv);
+            });
+            
+            elements.variableControls.classList.remove('hidden');
+        }
+
+        function buildVariableOptions(variable) {
+            let allOptions = [];
+            
+            if (variable.current_value && variable.current_value.trim()) {
+                allOptions.push({
+                    value: variable.current_value,
+                    display: `${variable.current_value} (Original)`,
+                    isOriginal: true
+                });
+            }
+            
+            variable.options.forEach(option => {
+                if (option !== variable.current_value) {
+                    allOptions.push({
+                        value: option,
+                        display: option,
+                        isOriginal: false
+                    });
+                }
+            });
+
+            return allOptions.map(optionObj => 
+                `<option value="${optionObj.value}" ${optionObj.isOriginal ? 'selected' : ''}>${optionObj.display}</option>`
+            ).join('');
+        }
+
+        function refreshVariableDropdown(variable, select, currentValue) {
+            select.innerHTML = buildVariableOptions(variable);
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+
+        function calculateCombinations() {
+            totalCombinations = Math.min(currentVariables.reduce((total, variable) => total * variable.options.length, 1), 10000);
+            currentCombination = 0;
+            updateComboCounter();
+        }
+
+        function updateGeneratedPrompt() {
+            if (currentVariables.length === 0) return;
+
+            let prompt = originalPrompt;
+            
+            currentVariables.forEach((variable, index) => {
+                const select = document.querySelector(`[data-variable-index="${index}"]`);
+                const selectedValue = select ? select.value : variable.current_value;
+                
+                const patterns = [
+                    new RegExp(`\\b${escapeRegExp(variable.current_value)}\\b`, 'gi'),
+                    new RegExp(escapeRegExp(variable.current_value), 'gi')
+                ];
+                
+                for (const pattern of patterns) {
+                    if (pattern.test(prompt)) {
+                        prompt = prompt.replace(pattern, selectedValue);
+                        break;
+                    }
+                }
+            });
+
+            elements.generatedPrompt.value = prompt;
+        }
+
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function navigateCombination(direction) {
+            if (currentVariables.length === 0) return;
+
+            const newIndex = currentCombination + direction;
+            if (newIndex < 0 || newIndex >= totalCombinations) return;
+
+            currentCombination = newIndex;
+            
+            let remaining = currentCombination;
+            currentVariables.forEach((variable, varIndex) => {
+                const optionIndex = remaining % variable.options.length;
+                remaining = Math.floor(remaining / variable.options.length);
+                
+                const select = document.querySelector(`[data-variable-index="${varIndex}"]`);
+                if (select) {
+                    select.selectedIndex = optionIndex;
+                }
+            });
+
+            updateGeneratedPrompt();
+            updateComboCounter();
+        }
+
+        function updateComboCounter() {
+            elements.comboCounter.textContent = `${currentCombination + 1} / ${totalCombinations}`;
+            elements.prevCombo.disabled = currentCombination === 0;
+            elements.nextCombo.disabled = currentCombination === totalCombinations - 1;
+        }
+
+        // Custom options functionality
+        function addCustomOption(variableIndex) {
+            const customInput = document.getElementById(`customInput-${variableIndex}`);
+            customInput.classList.remove('hidden');
+            document.getElementById(`customText-${variableIndex}`).focus();
+        }
+
+        function cancelCustomOptions(variableIndex) {
+            const customInput = document.getElementById(`customInput-${variableIndex}`);
+            customInput.classList.add('hidden');
+            document.getElementById(`customText-${variableIndex}`).value = '';
+        }
+
+        function confirmCustomOptions(variableIndex) {
+            const customText = document.getElementById(`customText-${variableIndex}`).value.trim();
+            if (!customText) {
+                showAlert('Please enter some custom options.');
+                return;
+            }
+
+            const newOptions = customText.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+            if (newOptions.length === 0) {
+                showAlert('Please enter valid options.');
+                return;
+            }
+
+            const variable = currentVariables[variableIndex];
+            newOptions.forEach(option => {
+                if (!variable.options.includes(option)) {
+                    variable.options.push(option);
+                }
+            });
+
+            const select = document.querySelector(`[data-variable-index="${variableIndex}"]`);
+            const currentValue = select.value;
+            refreshVariableDropdown(variable, select, currentValue);
+
+            calculateCombinations();
+            cancelCustomOptions(variableIndex);
+            
+            showAlert(`Added ${newOptions.length} custom option${newOptions.length !== 1 ? 's' : ''}!`);
+        }
+
+        async function aiExpandOptions(variableIndex) {
+            const customText = document.getElementById(`customText-${variableIndex}`).value.trim();
+            if (!customText) {
+                showAlert('Please enter at least one example option for AI to expand on.');
+                return;
+            }
+
+            const variable = currentVariables[variableIndex];
+            const examples = customText.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+            
+            showAnalysisLoading(true, 'AI expanding your options...');
+
+            const expandPrompt = `
+Based on these examples: ${examples.join(', ')}
+And this variable context: "${variable.name}" from original prompt "${originalPrompt}"
+
+Generate exactly 8 more similar options that follow the same pattern/style/category.
+
+Output ONLY a simple list, one option per line, no explanations or formatting:`;
+
+            try {
+                const selectedBot = elements.analysisBot.value;
+                await window.Poe.sendUserMessage(`@${selectedBot} ${expandPrompt}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'expand', variableIndex: variableIndex, originalOptions: examples }
+                });
+            } catch (error) {
+                showAnalysisLoading(false);
+                showAlert('Error expanding options: ' + error.message);
+            }
+        }
+
+        // Research functions (unchanged from original)
+        async function sendToResearch() {
+            const prompt = elements.generatedPrompt.value;
+            if (!prompt || prompt.includes('Generated prompt will appear here')) {
+                showAlert('No prompt to research. Please generate a prompt variation first.');
+                return;
+            }
+
+            const searchBot = elements.searchBot.value;
+            const depth = elements.researchDepth.value;
+            
+            showResearchLoading(true);
+            
+            let cleanPrompt = prompt.trim();
+            cleanPrompt = cleanPrompt.replace(/\{[\s\S]*?\}/g, '').trim();
+            cleanPrompt = cleanPrompt.replace(/(?:analyze|analysis|identify variables|extract|JSON|output only)/gi, '').trim();
+            
+            let researchPrompt = '';
+            
+            if (depth === 'basic') {
+                researchPrompt = `Research and provide information about: ${cleanPrompt}
+
+Please provide factual information, sources, and relevant details.`;
+            } else if (depth === 'enhanced') {
+                researchPrompt = `Conduct comprehensive research on: ${cleanPrompt}
+
+Requirements:
+- Provide detailed information from multiple authoritative sources
+- Include relevant statistics and data where available
+- Offer practical insights and actionable information
+- Cite credible sources`;
+            } else if (depth === 'deep') {
+                researchPrompt = `Conduct in-depth research analysis on: ${cleanPrompt}
+
+Requirements:
+- Multiple authoritative and credible sources
+- Comparative analysis and data tables where relevant
+- Current market trends and recent developments
+- Detailed methodology and evidence-based findings
+- Actionable insights and recommendations
+- Proper source citations`;
+            }
+
+            try {
+                await window.Poe.sendUserMessage(`@${searchBot} ${researchPrompt}`, {
+                    handler: "research-handler",
+                    stream: true,
+                    openChat: false
+                });
+            } catch (error) {
+                showResearchLoading(false);
+                showAlert('Error sending research request: ' + error.message);
+            }
+        }
+
+        function handleResearchResponse(result) {
+            if (result.status === "error") {
+                showResearchLoading(false);
+                elements.researchResults.innerHTML = `<div class="text-red-600 dark:text-red-400">Research error: ${result.responses[0].statusText}</div>`;
+                return;
+            }
+
+            const response = result.responses[0].content;
+            
+            if (result.status === "incomplete") {
+                elements.researchStatus.textContent = "Processing research results...";
+                if (response.length > 100) {
+                    const formattedContent = `<div class="research-content">${marked.parse(response)}</div>`;
+                    elements.researchResults.innerHTML = formattedContent + '<div class="text-blue-600 mt-4">⏳ Research continuing...</div>';
+                }
+            } else if (result.status === "complete") {
+                showResearchLoading(false);
+                const formattedContent = `<div class="research-content">${marked.parse(response)}</div>`;
+                elements.researchResults.innerHTML = formattedContent;
+                elements.copyResults.classList.remove('hidden');
+                elements.researchResults.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Utility functions
+        async function copyCurrentPrompt() {
+            const prompt = elements.generatedPrompt.value;
+            if (!prompt || prompt.includes('Generated prompt will appear here')) {
+                showAlert('No prompt to copy. Please analyze a prompt first.');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(prompt);
+                
+                const originalText = elements.copyPrompt.textContent;
+                elements.copyPrompt.textContent = '✓ Copied!';
+                elements.copyPrompt.classList.add('bg-green-700');
+                
+                setTimeout(() => {
+                    elements.copyPrompt.textContent = originalText;
+                    elements.copyPrompt.classList.remove('bg-green-700');
+                }, 2000);
+            } catch (error) {
+                showAlert('Failed to copy prompt: ' + error.message);
+            }
+        }
+
+        async function copyResearchResults() {
+            const resultsText = elements.researchResults.textContent;
+            if (!resultsText || resultsText.includes('Research results will appear here')) {
+                showAlert('No research results to copy. Please run a research first.');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(resultsText);
+                
+                const originalText = elements.copyResults.textContent;
+                elements.copyResults.textContent = '✓ Copied!';
+                elements.copyResults.classList.add('bg-green-700');
+                
+                setTimeout(() => {
+                    elements.copyResults.textContent = originalText;
+                    elements.copyResults.classList.remove('bg-green-700');
+                }, 2000);
+            } catch (error) {
+                showAlert('Failed to copy results: ' + error.message);
+            }
+        }
+
+        function showAnalysisLoading(loading, status = 'Analyzing prompt...') {
+            elements.analysisLoading.classList.toggle('hidden', !loading);
+            if (loading) {
+                elements.analysisStatus.textContent = status;
+            }
+        }
+
+        function showResearchLoading(show) {
+            if (show) {
+                elements.researchLoading.classList.remove('hidden');
+                elements.sendToResearch.disabled = true;
+                elements.researchResults.innerHTML = '<div class="text-center text-gray-500 italic py-4">Research in progress...</div>';
+            } else {
+                elements.researchLoading.classList.add('hidden');
+                elements.sendToResearch.disabled = false;
+            }
+        }
+
+        function clearPrompt() {
+            elements.originalPrompt.value = '';
+            elements.generatedPrompt.value = '';
+            elements.variableControls.classList.add('hidden');
+            elements.researchResults.innerHTML = '<div class="text-center text-gray-500 italic py-6 text-sm">Research results will appear here after sending a prompt to research...</div>';
+            elements.copyResults.classList.add('hidden');
+            
+            currentVariables = [];
+            currentCombination = 0;
+            totalCombinations = 0;
+            originalPrompt = '';
+        }
+
+        // Event listeners
+        elements.analyzeBtn.addEventListener('click', analyzePrompt);
+        elements.addChoiceBtn.addEventListener('click', addChoiceOptions);
+        elements.feedBtn.addEventListener('click', feedPrompt);
+        elements.refeedBtn.addEventListener('click', refeedPrompt);
+        elements.enhancePromptBtn.addEventListener('click', enhancePrompt);
+        elements.prevCombo.addEventListener('click', () => navigateCombination(-1));
+        elements.nextCombo.addEventListener('click', () => navigateCombination(1));
+        elements.copyPrompt.addEventListener('click', copyCurrentPrompt);
+        elements.sendToResearch.addEventListener('click', sendToResearch);
+        elements.clearPrompt.addEventListener('click', clearPrompt);
+        elements.copyResults.addEventListener('click', copyResearchResults);
+        
+        // Color theme functionality
+        function initializeColorThemes() {
+            // Set default theme
+            setColorTheme('gray');
+            
+            // Add event listeners to color buttons
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const theme = btn.dataset.theme;
+                    setColorTheme(theme);
+                });
+            });
+        }
+
+        function setColorTheme(theme) {
+            // Remove all theme classes
+            document.body.classList.remove('theme-gray', 'theme-blue', 'theme-green', 'theme-yellow', 'theme-red');
+            
+            // Add selected theme class
+            document.body.classList.add(`theme-${theme}`);
+            
+            // Update active button indicator
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.theme === theme) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // Attachment system event listeners
+        elements.techniquesFile.addEventListener('change', handleTechniqueFile);
+        elements.clearTechniques.addEventListener('click', clearTechniqueFile);
+        elements.copyOriginal.addEventListener('click', copyOriginalPrompt);
+
+        // Initialize
+        elements.originalPrompt.focus();
+        initializeColorThemes();
+        console.log('AI Prompt Rotator with Advanced Prompting Techniques initialized');
+    </script>
+</body>
+</html>
+

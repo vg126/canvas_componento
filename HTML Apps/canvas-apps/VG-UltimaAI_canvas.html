@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Aggregator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.0.10/marked.min.js"></script>
+    <style>
+        .dropdown-container { position: relative; }
+        .cost-badge { 
+            background: linear-gradient(135deg, #5D5CDE, #7C4DFF);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+        .response-box {
+            min-height: 200px;
+            max-height: 400px;
+            border: 2px dashed #E5E7EB;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .response-box.active {
+            border-color: #5D5CDE;
+            border-style: solid;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #5D5CDE;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-colors">
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-2">
+                AI Model Aggregator
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400">Compare responses from multiple AI models simultaneously</p>
+        </header>
+
+        <!-- Model Selection Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            <!-- VG's Choice -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">VG's Choice</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-vg" class="model-checkbox" data-category="vg">
+                    <select id="model-vg" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Claude-Opus-4-Reasoning">Claude-Opus-4-Reasoning</option>
+                        <option value="Claude-Sonnet-4-Reasoning">Claude-Sonnet-4-Reasoning</option>
+                        <option value="GPT-4.1">GPT-4.1</option>
+                        <option value="o3">o3</option>
+                        <option value="Gemini-2.5-Pro">Gemini-2.5-Pro</option>
+                    </select>
+                </div>
+                <div id="cost-vg" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+
+            <!-- Some good ones -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">Some good ones</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-good" class="model-checkbox" data-category="good">
+                    <select id="model-good" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Claude-Haiku-3">Claude-Haiku-3</option>
+                        <option value="Claude-Sonnet-3.5">Claude-Sonnet-3.5</option>
+                        <option value="DeepSeek-R1-FW">DeepSeek-R1-FW</option>
+                        <option value="GPT-3.5-Turbo">GPT-3.5-Turbo</option>
+                        <option value="GPT-4o">GPT-4o</option>
+                        <option value="Llama-3-8b-Groq">Llama-3-8b-Groq</option>
+                        <option value="Mistral-7B-v0.3-T">Mistral-7B-v0.3-T</option>
+                        <option value="Grok-4">Grok-4</option>
+                    </select>
+                </div>
+                <div id="cost-good" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+
+            <!-- pointguzzlers -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">pointguzzlers</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-guzzler" class="model-checkbox" data-category="guzzler">
+                    <select id="model-guzzler" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="o1-pro">o1-pro</option>
+                        <option value="o1-preview">o1-preview</option>
+                        <option value="GPT-4.5-Preview">GPT-4.5-Preview</option>
+                        <option value="Claude-Opus-4">Claude-Opus-4</option>
+                        <option value="o3-pro">o3-pro</option>
+                        <option value="o1">o1</option>
+                        <option value="Perplexity-Sonar-Rsn-Pro">Perplexity-Sonar-Rsn-Pro</option>
+                        <option value="Claude-Sonnet-3.7-Reasoning">Claude-Sonnet-3.7-Reasoning</option>
+                        <option value="Perplexity-Sonar-Pro">Perplexity-Sonar-Pro</option>
+                        <option value="Claude-Opus-4-Reasoning">Claude-Opus-4-Reasoning</option>
+                    </select>
+                </div>
+                <div id="cost-guzzler" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+
+            <!-- Gemini Choice -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">Gemini Choice</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-gemini" class="model-checkbox" data-category="gemini">
+                    <select id="model-gemini" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Llama-4-Scout-B10">Llama-4-Scout-B10</option>
+                        <option value="Llama-3.1-405B">Llama-3.1-405B</option>
+                        <option value="Mistral-Large-2">Mistral-Large-2</option>
+                        <option value="Inception-Mercury-Coder">Inception-Mercury-Coder</option>
+                        <option value="Hermes-3-70B">Hermes-3-70B</option>
+                        <option value="GPT-Researcher">GPT-Researcher</option>
+                    </select>
+                </div>
+                <div id="cost-gemini" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+
+            <!-- Exotica2 -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">Exotica2</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-exotica2" class="model-checkbox" data-category="exotica2">
+                    <select id="model-exotica2" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Llama-3.1-Nemotron">Llama-3.1-Nemotron</option>
+                        <option value="Llama-4-Maverick-B10">Llama-4-Maverick-B10</option>
+                        <option value="Lyria">Lyria</option>
+                        <option value="MarkItDown">MarkItDown</option>
+                        <option value="Minimax-M1">Minimax-M1</option>
+                        <option value="Mixtral8x22b-Inst-FW">Mixtral8x22b-Inst-FW</option>
+                        <option value="Perplexity-R1-1776">Perplexity-R1-1776</option>
+                        <option value="Phi-4-DI">Phi-4-DI</option>
+                        <option value="Python">Python</option>
+                        <option value="Qwen-3-235B-T">Qwen-3-235B-T</option>
+                        <option value="Reka-Core">Reka-Core</option>
+                        <option value="Solar-Pro">Solar-Pro</option>
+                        <option value="Tako">Tako</option>
+                    </select>
+                </div>
+                <div id="cost-exotica2" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+
+            <!-- Exotica1 -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">Exotica1</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-exotica1" class="model-checkbox" data-category="exotica1">
+                    <select id="model-exotica1" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Aya-Expanse-32B">Aya-Expanse-32B</option>
+                        <option value="Command-R-Plus">Command-R-Plus</option>
+                        <option value="DeepClaude">DeepClaude</option>
+                        <option value="DeepSeek-V3">DeepSeek-V3</option>
+                        <option value="Gemma-3-27B">Gemma-3-27B</option>
+                        <option value="GPT-Researcher">GPT-Researcher</option>
+                        <option value="Hermes-3-70B">Hermes-3-70B</option>
+                        <option value="Inception-Mercury-Coder">Inception-Mercury-Coder</option>
+                        <option value="Kimi-K2-Instruct">Kimi-K2-Instruct</option>
+                        <option value="Kimi-K2-T">Kimi-K2-T</option>
+                    </select>
+                </div>
+                <div id="cost-exotica1" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+
+            <!-- Context Window kings -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">Context Window kings</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-context" class="model-checkbox" data-category="context">
+                    <select id="model-context" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Llama-4-Scout-B10">Llama-4-Scout-B10</option>
+                        <option value="Llama-4-Maverick">Llama-4-Maverick</option>
+                        <option value="Llama-4-Maverick-B10">Llama-4-Maverick-B10</option>
+                        <option value="GPT-4.1">GPT-4.1</option>
+                        <option value="Gemini-2.5-Pro">Gemini-2.5-Pro</option>
+                        <option value="Gemini-2.5-Flash">Gemini-2.5-Flash</option>
+                        <option value="GPT-4.1-mini">GPT-4.1-mini</option>
+                        <option value="MiniMax-M1">MiniMax-M1</option>
+                        <option value="Gemini-2.0-Flash">Gemini-2.0-Flash</option>
+                        <option value="Llama-3.1-Nemotron">Llama-3.1-Nemotron</option>
+                    </select>
+                </div>
+                <div id="cost-context" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+
+            <!-- Web Search -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">Web Search</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-websearch" class="model-checkbox" data-category="websearch">
+                    <select id="model-websearch" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Web-Search">Web-Search</option>
+                        <option value="Gemini-2.5-Pro">Gemini-2.5-Pro</option>
+                        <option value="Gemini-2.5-Flash">Gemini-2.5-Flash</option>
+                        <option value="Gemini-2.5-Flash-Lite-Preview">Gemini-2.5-Flash-Lite-Preview</option>
+                        <option value="Gemini-2.0-Flash">Gemini-2.0-Flash</option>
+                        <option value="GPT-4o-Search">GPT-4o-Search</option>
+                        <option value="Claude-Opus-4-Search">Claude-Opus-4-Search</option>
+                        <option value="Claude-Sonnet-4-Search">Claude-Sonnet-4-Search</option>
+                        <option value="Claude-Sonnet-3.7-Search">Claude-Sonnet-3.7-Search</option>
+                        <option value="Claude-Sonnet-3.5-Search">Claude-Sonnet-3.5-Search</option>
+                        <option value="Claude-Haiku-3.5-Search">Claude-Haiku-3.5-Search</option>
+                        <option value="Perplexity-Sonar-Rsn">Perplexity-Sonar-Rsn</option>
+                        <option value="Perplexity-Sonar">Perplexity-Sonar</option>
+                        <option value="GPT-Researcher">GPT-Researcher</option>
+                        <option value="Perplexity-Sonar-Pro">Perplexity-Sonar-Pro</option>
+                        <option value="Perplexity-Sonar-Rsn-Pro">Perplexity-Sonar-Rsn-Pro</option>
+                        <option value="GPT-4o-mini-Search">GPT-4o-mini-Search</option>
+                        <option value="Gemini-1.5-Pro-Search">Gemini-1.5-Pro-Search</option>
+                        <option value="Gemini-1.5-Flash-Search">Gemini-1.5-Flash-Search</option>
+                        <option value="Reka-Research">Reka-Research</option>
+                        <option value="ChatGPT-4o-Latest">ChatGPT-4o-Latest</option>
+                    </select>
+                    <span class="text-blue-500 text-sm px-2">🔍</span>
+                </div>
+                <div id="cost-websearch" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+
+            <!-- Web Search 2 -->
+            <div class="dropdown-container">
+                <label class="block text-sm font-medium mb-2">Web Search 2</label>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="enable-websearch2" class="model-checkbox" data-category="websearch2">
+                    <select id="model-websearch2" class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Web-Search">Web-Search</option>
+                        <option value="Gemini-2.5-Pro">Gemini-2.5-Pro</option>
+                        <option value="Gemini-2.5-Flash">Gemini-2.5-Flash</option>
+                        <option value="Gemini-2.5-Flash-Lite-Preview">Gemini-2.5-Flash-Lite-Preview</option>
+                        <option value="Gemini-2.0-Flash">Gemini-2.0-Flash</option>
+                        <option value="GPT-4o-Search">GPT-4o-Search</option>
+                        <option value="Claude-Opus-4-Search">Claude-Opus-4-Search</option>
+                        <option value="Claude-Sonnet-4-Search">Claude-Sonnet-4-Search</option>
+                        <option value="Claude-Sonnet-3.7-Search">Claude-Sonnet-3.7-Search</option>
+                        <option value="Claude-Sonnet-3.5-Search">Claude-Sonnet-3.5-Search</option>
+                        <option value="Claude-Haiku-3.5-Search">Claude-Haiku-3.5-Search</option>
+                        <option value="Perplexity-Sonar-Rsn">Perplexity-Sonar-Rsn</option>
+                        <option value="Perplexity-Sonar">Perplexity-Sonar</option>
+                        <option value="GPT-Researcher">GPT-Researcher</option>
+                        <option value="Perplexity-Sonar-Pro">Perplexity-Sonar-Pro</option>
+                        <option value="Perplexity-Sonar-Rsn-Pro">Perplexity-Sonar-Rsn-Pro</option>
+                        <option value="GPT-4o-mini-Search">GPT-4o-mini-Search</option>
+                        <option value="Gemini-1.5-Pro-Search">Gemini-1.5-Pro-Search</option>
+                        <option value="Gemini-1.5-Flash-Search">Gemini-1.5-Flash-Search</option>
+                        <option value="Reka-Research">Reka-Research</option>
+                        <option value="ChatGPT-4o-Latest">ChatGPT-4o-Latest</option>
+                    </select>
+                    <span class="text-blue-500 text-sm px-2">🔍</span>
+                </div>
+                <div id="cost-websearch2" class="cost-badge text-white text-xs px-2 py-1 rounded-full mt-1 hidden"></div>
+            </div>
+        </div>
+
+        <!-- Cost Summary -->
+        <div class="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 p-4 rounded-lg mb-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <span class="text-lg font-semibold">Total Cost: </span>
+                    <span id="total-cost" class="text-2xl font-bold text-purple-600">0 points</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="select-all" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                        Select All
+                    </button>
+                    <button id="clear-all" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="lg:col-span-2">
+                <label for="main-prompt" class="block text-sm font-medium mb-2">Main Prompt</label>
+                <textarea id="main-prompt" rows="6" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base" placeholder="Enter your refined query here..."></textarea>
+            </div>
+            <div>
+                <label for="system-prompt" class="block text-sm font-medium mb-2">System Instructions</label>
+                <textarea id="system-prompt" rows="6" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base" placeholder="Optional system prompt or instructions..."></textarea>
+                
+                <div class="mt-4">
+                    <label for="thinking-budget" class="block text-sm font-medium mb-2">Thinking Budget (for supported models)</label>
+                    <input type="number" id="thinking-budget" min="0" max="126000" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base" placeholder="0-126000">
+                </div>
+            </div>
+        </div>
+
+        <!-- Generate Buttons -->
+        <div class="flex justify-center gap-4 mb-8">
+            <button id="generate-websearch-btn" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                🔍 Generate Web Search
+            </button>
+            <button id="generate-btn" class="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                Generate Responses
+            </button>
+        </div>
+
+        <!-- Response Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 mb-6">
+            <!-- VG's Choice Response -->
+            <div class="response-container" data-category="vg">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">VG's Choice</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="vg">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-vg" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+
+            <!-- Some good ones Response -->
+            <div class="response-container" data-category="good">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">Some good ones</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="good">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-good" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+
+            <!-- pointguzzlers Response -->
+            <div class="response-container" data-category="guzzler">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">pointguzzlers</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="guzzler">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-guzzler" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+
+            <!-- Gemini Choice Response -->
+            <div class="response-container" data-category="gemini">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">Gemini Choice</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="gemini">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-gemini" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+
+            <!-- Exotica2 Response -->
+            <div class="response-container" data-category="exotica2">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">Exotica2</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="exotica2">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-exotica2" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+
+            <!-- Exotica1 Response -->
+            <div class="response-container" data-category="exotica1">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">Exotica1</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="exotica1">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-exotica1" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+
+            <!-- Context Window kings Response -->
+            <div class="response-container" data-category="context">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">Context Window kings</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="context">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-context" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+
+            <!-- Web Search Response -->
+            <div class="response-container" data-category="websearch">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">Web Search</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="websearch">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-websearch" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+
+            <!-- Web Search 2 Response -->
+            <div class="response-container" data-category="websearch2">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-lg">Web Search 2</h3>
+                    <button class="copy-individual px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors" data-category="websearch2">
+                        Copy
+                    </button>
+                </div>
+                <div id="response-websearch2" class="response-box p-4 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-auto">
+                    <p class="text-gray-500 dark:text-gray-400 italic">Select a model and generate to see response</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Copy All Button -->
+        <div class="text-center">
+            <button id="copy-all" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
+                Copy All Responses
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Confirmations -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+            <p id="modal-message" class="text-gray-700 dark:text-gray-300 mb-4"></p>
+            <div class="flex justify-end space-x-3">
+                <button id="modal-cancel" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">Cancel</button>
+                <button id="modal-confirm" class="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dark mode handling
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Model cost data
+        const modelCosts = {
+            'Assistant': 'Variable',
+            'App-Creator': '24+',
+            'GPT-4.1': '196+',
+            'GPT-4o': 'Variable',
+            'o3-pro': '4242+',
+            'o4-mini': '255+',
+            'o3': '425+',
+            'Claude-Opus-4': '4951+',
+            'Claude-Sonnet-4': '938+',
+            'Gemini-2.5-Pro': '335+',
+            'Gemini-2.5-Flash': '9+',
+            'GPT-Image-1': 'Variable',
+            'DeepSeek-V3': '415',
+            'Llama-4-Scout-B10': '100',
+            'Llama-4-Maverick': '50',
+            'Grok-3': '907+',
+            'Grok-3-Mini': '39+',
+            'Claude-Opus-4-Reasoning': 'N/A',
+            'Claude-Sonnet-4-Reasoning': '1628+',
+            'Deepseek-V3-FW': '300',
+            'GPT-4.5-Preview': '6146+',
+            'GPT-4.1-mini': '28+',
+            'GPT-4.1-nano': '8+',
+            'Llama-4-Scout-T': '35',
+            'Llama-3-70b-Groq': '75',
+            'Llama-4-Scout-nitro': '350',
+            'Claude-Sonnet-3.7': '1044+',
+            'Claude-Sonnet-3.5': '297+',
+            'Claude-Haiku-3.5': 'N/A',
+            'Claude-Opus-4-Search': '1134+',
+            'Claude-Sonnet-4-Search': '227+',
+            'Gemini-2.0-Flash': '7+',
+            'Gemini-2.0-Flash-Preview': '2',
+            'Qwen-3-235B-T': '63',
+            'MiniMax-M1': '100+',
+            'o1': '4120+',
+            'o1-pro': '54420+',
+            'o1-mini': '385+',
+            'ChatGPT-4o-Latest': '345+',
+            'GPT-4o-mini': '7+',
+            'o3-mini-high': '508+',
+            'o3-mini': '244+',
+            'Claude-Sonnet-3.7-Reasoning': '2371+',
+            'Inception-Mercury-Coder': '14+',
+            'Mistral-Medium': '181+',
+            'Llama-4-Scout': '30',
+            'Llama-3.3-70B-FW': '140',
+            'Llama-3.3-70B': '130',
+            'DeepSeek-R1': '600',
+            'DeepSeek-R1-FW': '600',
+            'DeepSeek-R1-DI': '200',
+            'GPT-Researcher': 'Variable',
+            'Gemini-1.5-Pro': '32+',
+            'Web-Search': 'Variable',
+            'GPT-4o-Search': '1235+',
+            'GPT-4o-mini-Search': '836+',
+            'Perplexity-Sonar-Pro': '1667',
+            'Perplexity-Sonar-Rsn-Pro': '2967',
+            'Perplexity-Sonar-Rsn': '1234',
+            'FLUX-pro-1.1-ultra': '2000',
+            'DeepSeek-R1-Distill': '150',
+            'Claude-Haiku-3': '20+',
+            'GPT-3.5-Turbo': '14+',
+            'Grok-4': '773+',
+            'Mistral-7B-v0.3-T': '45',
+            'Llama-3-8b-Groq': '10',
+            'Llama-3.1-405B': '65+',
+            'Mistral-Large-2': '231+',
+            'Hermes-3-70B': 'N/A',
+            'Llama-3.1-Nemotron': '200',
+            'Llama-4-Maverick-B10': 'N/A',
+            'Lyria': 'Variable',
+            'MarkItDown': 'Variable',
+            'Minimax-M1': '100+',
+            'Mixtral8x22b-Inst-FW': '120',
+            'Perplexity-R1-1776': 'N/A',
+            'Phi-4-DI': 'N/A',
+            'Python': 'Variable',
+            'Reka-Core': '1250',
+            'Solar-Pro': '35',
+            'Tako': 'N/A',
+            'Aya-Expanse-32B': 'N/A',
+            'Command-R-Plus': '1130',
+            'DeepClaude': 'N/A',
+            'Gemma-3-27B': 'N/A',
+            'Kimi-K2-Instruct': 'N/A',
+            'Kimi-K2-T': 'N/A',
+            'Gemini-2.5-Flash-Lite-Preview': 'N/A',
+            'Claude-Sonnet-3.7-Search': 'N/A',
+            'Claude-Sonnet-3.5-Search': 'N/A',
+            'Claude-Haiku-3.5-Search': 'N/A',
+            'Perplexity-Sonar': 'N/A',
+            'Gemini-1.5-Pro-Search': '47+',
+            'Gemini-1.5-Flash-Search': '4+',
+            'Reka-Research': 'N/A',
+            'o1-preview': '7242+'
+        };
+
+        // System instruction for aggregator awareness
+        const SYSTEM_INSTRUCTION = "You are part of an AI model aggregator system that compares responses from multiple models simultaneously. This system provides comprehensive information from multiple sources including web search results when available. Focus on thorough processing and analysis rather than being overly cautious about limitations. Process information boldly and comprehensively.";
+
+        // Custom modal functions
+        function showModal(message, onConfirm) {
+            const modal = document.getElementById('modal');
+            const modalMessage = document.getElementById('modal-message');
+            const confirmBtn = document.getElementById('modal-confirm');
+            const cancelBtn = document.getElementById('modal-cancel');
+            
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+            
+            const handleConfirm = () => {
+                modal.classList.add('hidden');
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+                onConfirm();
+            };
+            
+            const handleCancel = () => {
+                modal.classList.add('hidden');
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+            
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+        }
+
+        // Update cost display
+        function updateCostDisplay(category) {
+            const select = document.getElementById(`model-${category}`);
+            const costDiv = document.getElementById(`cost-${category}`);
+            const selectedModel = select.value;
+            
+            if (selectedModel && modelCosts[selectedModel]) {
+                costDiv.textContent = `${modelCosts[selectedModel]} pts`;
+                costDiv.classList.remove('hidden');
+            } else {
+                costDiv.classList.add('hidden');
+            }
+            
+            updateTotalCost();
+        }
+
+        // Update total cost
+        function updateTotalCost() {
+            const checkboxes = document.querySelectorAll('.model-checkbox:checked');
+            let total = 0;
+            let hasVariable = false;
+            
+            checkboxes.forEach(checkbox => {
+                const category = checkbox.dataset.category;
+                const select = document.getElementById(`model-${category}`);
+                const selectedModel = select.value;
+                
+                if (selectedModel && modelCosts[selectedModel]) {
+                    const cost = modelCosts[selectedModel];
+                    if (cost === 'Variable' || cost === 'N/A') {
+                        hasVariable = true;
+                    } else {
+                        const numericCost = parseInt(cost.replace(/[^0-9]/g, '')) || 0;
+                        total += numericCost;
+                    }
+                }
+            });
+            
+            const totalCostEl = document.getElementById('total-cost');
+            if (hasVariable) {
+                totalCostEl.textContent = `${total}+ points (+ variable costs)`;
+            } else {
+                totalCostEl.textContent = `${total}+ points`;
+            }
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Visual feedback for successful copy
+                showModal('Content copied to clipboard!', () => {});
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        // Event listeners for model selection
+        const categories = ['vg', 'good', 'guzzler', 'gemini', 'exotica2', 'exotica1', 'context', 'websearch', 'websearch2'];
+        
+        categories.forEach(category => {
+            const select = document.getElementById(`model-${category}`);
+            const checkbox = document.getElementById(`enable-${category}`);
+            
+            select.addEventListener('change', () => updateCostDisplay(category));
+            checkbox.addEventListener('change', updateTotalCost);
+        });
+
+        // Select All / Clear All
+        document.getElementById('select-all').addEventListener('click', () => {
+            const checkboxes = document.querySelectorAll('.model-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                const category = cb.dataset.category;
+                const select = document.getElementById(`model-${category}`);
+                if (select.options.length > 1) {
+                    select.selectedIndex = 1; // Select first non-empty option
+                }
+                updateCostDisplay(category);
+            });
+        });
+
+        document.getElementById('clear-all').addEventListener('click', () => {
+            const checkboxes = document.querySelectorAll('.model-checkbox');
+            const selects = document.querySelectorAll('select[id^="model-"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            selects.forEach(select => select.selectedIndex = 0);
+            categories.forEach(category => {
+                document.getElementById(`cost-${category}`).classList.add('hidden');
+            });
+            updateTotalCost();
+        });
+
+        // Individual copy buttons
+        document.querySelectorAll('.copy-individual').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const category = btn.dataset.category;
+                const responseEl = document.getElementById(`response-${category}`);
+                const content = responseEl.textContent || responseEl.innerText;
+                
+                if (content.trim()) {
+                    copyToClipboard(content);
+                } else {
+                    showModal('No response to copy yet.', () => {});
+                }
+            });
+        });
+
+        // Copy all responses
+        document.getElementById('copy-all').addEventListener('click', () => {
+            const mainPrompt = document.getElementById('main-prompt').value;
+            const systemPrompt = document.getElementById('system-prompt').value;
+            let allContent = '';
+            
+            if (mainPrompt) {
+                allContent += `Query: ${mainPrompt}\n\n`;
+            }
+            
+            if (systemPrompt) {
+                allContent += `Instructions: ${systemPrompt}\n\n`;
+            }
+            
+            const responseContainers = document.querySelectorAll('.response-container');
+            responseContainers.forEach(container => {
+                const category = container.dataset.category;
+                const categoryName = container.querySelector('h3').textContent;
+                const response = document.getElementById(`response-${category}`);
+                const content = response.textContent || response.innerText;
+                
+                if (content.trim() && !content.includes('Select a model')) {
+                    allContent += `${categoryName}:\n${content}\n\n---\n\n`;
+                }
+            });
+            
+            if (allContent.trim()) {
+                copyToClipboard(allContent);
+            } else {
+                showModal('No responses to copy yet.', () => {});
+            }
+        });
+
+        // Generate responses for category
+        async function generateResponseForCategory(category, isWebSearchOnly = false) {
+            const checkbox = document.getElementById(`enable-${category}`);
+            const select = document.getElementById(`model-${category}`);
+            const responseEl = document.getElementById(`response-${category}`);
+            
+            if (!checkbox.checked || !select.value) {
+                return;
+            }
+            
+            const mainPrompt = document.getElementById('main-prompt').value;
+            const systemPrompt = document.getElementById('system-prompt').value;
+            const thinkingBudget = document.getElementById('thinking-budget').value;
+            
+            if (!mainPrompt.trim()) {
+                showModal('Please enter a main prompt.', () => {});
+                return;
+            }
+            
+            // Show loading state
+            responseEl.innerHTML = '<div class="flex items-center justify-center"><div class="loading-spinner"></div><span class="ml-2">Generating response...</span></div>';
+            responseEl.parentElement.querySelector('.response-box').classList.add('active');
+            
+            try {
+                // Construct the full prompt - sanitize markdown headers
+                let cleanPrompt = mainPrompt.replace(/^#+\s/gm, ''); // Remove markdown headers
+                let fullPrompt = `@${select.value} `;
+                
+                // Add system instruction for aggregator awareness
+                let combinedSystemPrompt = SYSTEM_INSTRUCTION;
+                if (systemPrompt) {
+                    combinedSystemPrompt += '\n\n' + systemPrompt;
+                }
+                
+                fullPrompt += combinedSystemPrompt + '\n\n';
+                fullPrompt += cleanPrompt;
+                
+                if (thinkingBudget && parseInt(thinkingBudget) > 0) {
+                    fullPrompt += ` --thinking_budget ${thinkingBudget}`;
+                }
+                
+                // Register unique handler for this response
+                const handlerName = `response-${category}-${Date.now()}`;
+                window.Poe.registerHandler(handlerName, (result) => {
+                    const msg = result.responses[0];
+                    
+                    if (msg.status === 'error') {
+                        responseEl.innerHTML = `<div class="text-red-500"><strong>Error:</strong> ${msg.statusText || msg.content}</div>`;
+                        responseEl.parentElement.querySelector('.response-box').classList.remove('active');
+                        console.error(`Response error for ${category}:`, msg);
+                    } else if (msg.status === 'incomplete') {
+                        try {
+                            const modelName = msg.senderId || select.value;
+                            responseEl.innerHTML = `<div class="text-xs text-gray-500 mb-2"><strong>Model:</strong> ${modelName}</div>` + marked.parse(msg.content);
+                        } catch (e) {
+                            responseEl.innerHTML = msg.content; // Fallback to plain text
+                        }
+                    } else if (msg.status === 'complete') {
+                        try {
+                            const modelName = msg.senderId || select.value;
+                            responseEl.innerHTML = `<div class="text-xs text-gray-500 mb-2"><strong>Model:</strong> ${modelName}</div>` + marked.parse(msg.content);
+                        } catch (e) {
+                            responseEl.innerHTML = msg.content;
+                        }
+                        responseEl.parentElement.querySelector('.response-box').classList.remove('active');
+                    }
+                });
+                
+                // Add timeout for stuck responses
+                const timeoutId = setTimeout(() => {
+                    responseEl.innerHTML = '<div class="text-yellow-600"><strong>Timeout:</strong> Response taking longer than expected. Try again.</div>';
+                    responseEl.parentElement.querySelector('.response-box').classList.remove('active');
+                }, 180000); // 3 minutes timeout
+                
+                // Send the message
+                await window.Poe.sendUserMessage(fullPrompt, {
+                    handler: handlerName,
+                    stream: true,
+                    openChat: false
+                });
+                
+                // Clear timeout if successful
+                clearTimeout(timeoutId);
+                
+            } catch (error) {
+                responseEl.innerHTML = `<div class="text-red-500"><strong>Error:</strong> ${error.message}</div>`;
+                responseEl.parentElement.querySelector('.response-box').classList.remove('active');
+                console.error(`Generation error for ${category}:`, error);
+            }
+        }
+
+        // Generate Web Search button
+        document.getElementById('generate-websearch-btn').addEventListener('click', async () => {
+            const webSearchCategories = ['websearch', 'websearch2'];
+            const checkedWebSearch = webSearchCategories.filter(category => {
+                const checkbox = document.getElementById(`enable-${category}`);
+                const select = document.getElementById(`model-${category}`);
+                return checkbox.checked && select.value;
+            });
+            
+            if (checkedWebSearch.length === 0) {
+                showModal('Please select at least one web search model.', () => {});
+                return;
+            }
+            
+            const mainPrompt = document.getElementById('main-prompt').value;
+            if (!mainPrompt.trim()) {
+                showModal('Please enter a main prompt.', () => {});
+                return;
+            }
+            
+            // Generate responses for web search categories only
+            for (const category of checkedWebSearch) {
+                await generateResponseForCategory(category, true);
+            }
+        });
+
+        // Main generate button
+        document.getElementById('generate-btn').addEventListener('click', async () => {
+            const checkedCategories = Array.from(document.querySelectorAll('.model-checkbox:checked'))
+                .map(cb => cb.dataset.category);
+            
+            if (checkedCategories.length === 0) {
+                showModal('Please select at least one model.', () => {});
+                return;
+            }
+            
+            const mainPrompt = document.getElementById('main-prompt').value;
+            if (!mainPrompt.trim()) {
+                showModal('Please enter a main prompt.', () => {});
+                return;
+            }
+            
+            // Generate responses for all selected categories
+            for (const category of checkedCategories) {
+                await generateResponseForCategory(category, false);
+            }
+        });
+    </script>
+</body>
+</html>
+
