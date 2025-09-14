@@ -1,0 +1,1864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VG-AnythingEngine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script>
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Consolidated Model List
+        const MODEL_LIST = [
+            'Claude-Opus-4-Reasoning',
+            'Claude-Opus-4-Search', 
+            'Claude-Opus-4.1',
+            'Claude-Sonnet-4-Reasoning',
+            'Claude-Sonnet-4-Search',
+            'Claude-Sonnet-4',
+            'DeepSeek-R1',
+            'DeepSeek-V3',
+            'Deepseek-V3-FW',
+            'Gemini-2.5-Flash',
+            'Gemini-2.5-Pro',
+            'GPT-4.1',
+            'GPT-5',
+            'GPT-5-Chat',
+            'GPT-Researcher',
+            'Grok-4',
+            'Kimi-K2-Instruct-N',
+            'Kimi-K2-T',
+            'o1',
+            'o3',
+            'o3-pro',
+            'Perplexity-Sonar-Pro',
+            'Perplexity-Sonar-Rsn-Pro',
+            'Qwen3-235B-2507-FW'
+        ];
+
+        // Populate model dropdowns
+        function populateModelDropdowns() {
+            const selectors = ['magicBoxModel', 'jsonifyModel'];
+            // Add all bot model selectors (1-10)
+            for (let i = 1; i <= 10; i++) {
+                selectors.push(`bot${i}Model`);
+            }
+            
+            selectors.forEach(selectorId => {
+                const select = document.getElementById(selectorId);
+                if (select) {
+                    select.innerHTML = '';
+                    MODEL_LIST.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        if (model === 'Claude-Sonnet-4') {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                }
+            });
+        }
+
+        // Update bot visibility based on bot count
+        function updateBotVisibility(botCount) {
+            for (let i = 1; i <= 10; i++) {
+                const botContainer = document.getElementById(`bot${i}Container`);
+                if (botContainer) {
+                    if (i <= botCount) {
+                        botContainer.classList.remove('hidden');
+                    } else {
+                        botContainer.classList.add('hidden');
+                    }
+                }
+            }
+        }
+
+        // Enhanced bot execution using Bank 3 prompts
+        async function executeBot(botNumber) {
+            console.log(`Executing Bot ${botNumber}`);
+            const modelSelector = document.getElementById(`bot${botNumber}Model`);
+            const output = document.getElementById(`bot${botNumber}Output`);
+            const status = document.getElementById(`bot${botNumber}Status`);
+            const spinner = document.getElementById(`executeBot${botNumber}Spinner`);
+            const text = document.getElementById(`executeBot${botNumber}Text`);
+            const botContainer = document.getElementById(`bot${botNumber}Container`);
+            
+            // Set loading state
+            if (spinner && text) {
+                spinner.classList.remove('hidden');
+                text.classList.add('invisible');
+            }
+            
+            try {
+                const selectedModel = modelSelector ? modelSelector.value : 'Claude-Sonnet-4';
+                
+                // Get execution prompt from Bank 3 data or bot container
+                let executionPrompt = null;
+                let executionRole = "Transformation Bot";
+                
+                if (botContainer && botContainer.dataset.executionPrompt) {
+                    executionPrompt = botContainer.dataset.executionPrompt;
+                    executionRole = botContainer.dataset.executionRole || "Transformation Bot";
+                } else if (bankData.execution && bankData.execution.length > 0) {
+                    // Find execution for this bot number
+                    const execution = bankData.execution.find(ex => 
+                        (ex.bot_number && ex.bot_number === botNumber) || 
+                        (ex.id && ex.id === botNumber)
+                    );
+                    if (execution) {
+                        executionPrompt = execution.instructions;
+                        executionRole = execution.role || "Transformation Bot";
+                    }
+                }
+                
+                // Get current key and input
+                const currentKey = document.getElementById('currentKey')?.value || "No transformation key provided";
+                const currentInput = document.getElementById('currentInput')?.value || "No input material provided";
+                
+                // Construct the full transformation prompt
+                let fullPrompt;
+                if (executionPrompt) {
+                    fullPrompt = `ROLE: ${executionRole}
+
+EXECUTION INSTRUCTIONS:
+${executionPrompt}
+
+TRANSFORMATION KEY:
+${currentKey}
+
+INPUT MATERIAL:
+${currentInput}
+
+Execute the transformation according to your role and instructions.`;
+                } else {
+                    // Fallback for when no Bank 3 execution is available
+                    fullPrompt = `You are Bot ${botNumber} in the VG-AnythingEngine transformation system.
+
+TRANSFORMATION KEY:
+${currentKey}
+
+INPUT MATERIAL:
+${currentInput}
+
+Apply the transformation key to the input material and provide a detailed analysis or transformation.`;
+                }
+                
+                updateProcessingLog(`Bot ${botNumber} executing with role: ${executionRole}`);
+                
+                await window.Poe.sendUserMessage(`@${selectedModel} ${fullPrompt}`, {
+                    handler: `bot${botNumber}-handler`,
+                    stream: true,
+                    openChat: false
+                });
+                
+            } catch (error) {
+                console.error(`Bot ${botNumber} error:`, error);
+                if (status) status.textContent = "Error occurred";
+                if (output) output.innerHTML = `<div class="text-red-600">Error: ${error.message}</div>`;
+                updateProcessingLog(`Bot ${botNumber} error: ${error.message}`);
+            } finally {
+                // Reset loading state
+                if (spinner && text) {
+                    spinner.classList.add('hidden');
+                    text.classList.remove('invisible');
+                }
+            }
+        }
+
+        // Simple response handler
+        function handleBotResponse(result, botNum) {
+            const status = document.getElementById(`bot${botNum}Status`);
+            const output = document.getElementById(`bot${botNum}Output`);
+            
+            if (result.responses && result.responses.length > 0) {
+                const response = result.responses[0];
+                
+                if (response.status === "error") {
+                    if (status) status.textContent = "Error occurred";
+                    if (output) output.innerHTML = `<div class="text-red-600">Error: ${response.statusText || 'Unknown error'}</div>`;
+                } else if (response.status === "incomplete") {
+                    if (status) status.textContent = "Generating...";
+                    if (output) output.innerHTML = marked.parse(response.content || "Loading...");
+                } else if (response.status === "complete") {
+                    if (status) status.textContent = "Complete";
+                    if (output) output.innerHTML = marked.parse(response.content);
+                }
+            }
+        }
+
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all pages
+            document.querySelectorAll('.page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+            
+            // Remove active state from all tabs
+            document.querySelectorAll('.tab-button').forEach(tab => {
+                tab.classList.remove('active', 'border-[#5D5CDE]', 'text-[#5D5CDE]');
+                tab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'dark:text-gray-400', 'dark:hover:text-gray-300', 'hover:border-gray-300');
+            });
+            
+            // Show selected page
+            document.getElementById(`page-${tabName}`).classList.remove('hidden');
+            
+            // Activate selected tab
+            const activeTab = document.getElementById(`tab-${tabName}`);
+            activeTab.classList.add('active', 'border-[#5D5CDE]', 'text-[#5D5CDE]');
+            activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'dark:text-gray-400', 'dark:hover:text-gray-300', 'hover:border-gray-300');
+        }
+
+        // File reading helper function
+        async function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        // Storage for bank data
+        let bankData = {
+            keys: [],
+            input: [],
+            execution: []
+        };
+
+        // Execute JSONify function
+        async function executeJSONify() {
+            const keysFile = document.getElementById('keysFile').files[0];
+            const inputFile = document.getElementById('inputFile').files[0];
+            const executionFile = document.getElementById('executionFile').files[0];
+            const modelSelector = document.getElementById('jsonifyModel');
+            const status = document.getElementById('jsonifyStatus');
+            const spinner = document.getElementById('executeJSONifySpinner');
+            const text = document.getElementById('executeJSONifyText');
+
+            // Check if at least one file is uploaded
+            if (!keysFile && !inputFile && !executionFile) {
+                status.textContent = "Please upload at least one file to any bank";
+                return;
+            }
+
+            // Set loading state
+            spinner.classList.remove('hidden');
+            text.classList.add('invisible');
+            status.textContent = "Processing files with JSONify...";
+
+            try {
+                updateProcessingLog("Starting JSONify processing...");
+                
+                let fileContents = [];
+                let bankIndicators = [];
+
+                // Read all uploaded files
+                if (keysFile) {
+                    updateProcessingLog(`Reading Keys file: ${keysFile.name}`);
+                    const content = await readFileContent(keysFile);
+                    fileContents.push(content);
+                    bankIndicators.push("Bank 1 (Keys)");
+                }
+                
+                if (inputFile) {
+                    updateProcessingLog(`Reading Input file: ${inputFile.name}`);
+                    const content = await readFileContent(inputFile);
+                    fileContents.push(content);
+                    bankIndicators.push("Bank 2 (Input)");
+                }
+                
+                if (executionFile) {
+                    updateProcessingLog(`Reading Execution file: ${executionFile.name}`);
+                    const content = await readFileContent(executionFile);
+                    fileContents.push(content);
+                    bankIndicators.push("Bank 3 (Execution)");
+                }
+
+                const selectedModel = modelSelector.value;
+                
+                // Create JSONify prompt
+                const jsonifyPrompt = `ROLE: intelligent_data_converter
+SYSTEM: VG-AnythingEngine - Cross-Domain Transformation Architecture
+
+You are converting uploaded files into the precise JSON structure required by a three-bank transformation system. This system enables cross-domain knowledge creation through AI orchestration.
+
+THE THREE BANKS:
+- Bank 1 (Keys): Transformation techniques from any domain that can be mechanically applied to modify structure/content
+- Bank 2 (Input): Raw material to be transformed (text, data, concepts, problems)  
+- Bank 3 (Execution): AI role prompts that define unique processing identities for bot orchestration
+
+CONVERSION REQUIREMENTS:
+1. Analyze uploaded content and determine which bank(s) it belongs to
+2. If content spans multiple banks, intelligently distribute across relevant banks
+3. If banks are missing, auto-generate appropriate content using domain knowledge
+4. Output valid JSON arrays with proper structure for each bank
+5. Each entry must have an "id" field for individual selection
+
+REASONING GUIDANCE:
+- Think about transformation potential, not just content categorization
+- Consider how techniques from one domain can apply to completely different domains
+- Focus on mechanical applicability rather than semantic similarity
+- Generate complementary content that creates productive dialectical tension
+
+JSON OUTPUT FORMAT:
+{
+  "keys": [{"id": 1, "name": "technique_name", "method": "application_method", "domain": "source_domain"}],
+  "input": [{"id": 1, "content": "raw_material", "context": "domain_info", "type": "content_type"}],
+  "execution": [{"id": 1, "bot_number": 1, "role": "ai_identity", "instructions": "processing_approach"}]
+}
+
+UPLOADED FILES:
+${bankIndicators.map((indicator, index) => `${indicator}: ${fileContents[index]}`).join('\n\n')}
+
+Convert the uploaded content maintaining fidelity while ensuring system operability. Provide ONLY the JSON response with no additional text.`;
+
+                updateProcessingLog(`Sending to ${selectedModel}...`);
+
+                await window.Poe.sendUserMessage(`@${selectedModel} ${jsonifyPrompt}`, {
+                    handler: 'jsonify-handler',
+                    stream: false,
+                    openChat: false
+                });
+
+            } catch (error) {
+                console.error('JSONify error:', error);
+                status.textContent = `Error: ${error.message}`;
+                updateProcessingLog(`Error: ${error.message}`);
+            } finally {
+                // Reset loading state
+                spinner.classList.add('hidden');
+                text.classList.remove('invisible');
+            }
+        }
+
+        // Toggle processing log visibility
+        function toggleProcessingLog() {
+            const log = document.getElementById('processingLog');
+            const icon = document.getElementById('logToggleIcon');
+            
+            if (log.classList.contains('hidden')) {
+                log.classList.remove('hidden');
+                icon.textContent = '▲';
+            } else {
+                log.classList.add('hidden');
+                icon.textContent = '▼';
+            }
+        }
+
+        // Update processing log
+        function updateProcessingLog(message) {
+            const logContent = document.getElementById('processingLogContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `<div class="text-xs text-gray-600 dark:text-gray-400 mb-2">[${timestamp}] ${message}</div>`;
+            
+            if (logContent.innerHTML.includes('No processing log yet...')) {
+                logContent.innerHTML = logEntry;
+            } else {
+                logContent.innerHTML += logEntry;
+            }
+            
+            // Auto-scroll to bottom
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        // Update preview sections
+        function updatePreview(description, keys, input, execution) {
+            const engineDesc = document.getElementById('engineDescription');
+            const engineDescContent = document.getElementById('engineDescriptionContent');
+            const banksPreview = document.getElementById('banksPreview');
+            const keysPreview = document.getElementById('keysPreview');
+            const inputPreview = document.getElementById('inputPreview');
+            const executionPreview = document.getElementById('executionPreview');
+
+            // Show engine description
+            if (description) {
+                engineDescContent.innerHTML = marked.parse(description);
+                engineDesc.classList.remove('hidden');
+            }
+
+            // Show banks preview
+            if (keys || input || execution) {
+                keysPreview.textContent = keys ? JSON.stringify(keys, null, 2) : 'No keys generated';
+                inputPreview.textContent = input ? JSON.stringify(input, null, 2) : 'No input generated';
+                executionPreview.textContent = execution ? JSON.stringify(execution, null, 2) : 'No execution generated';
+                banksPreview.classList.remove('hidden');
+            }
+        }
+
+        // Execute Magic Box
+        async function executeMagicBox() {
+            const input = document.getElementById('magicBoxInput').value;
+            const fileInput = document.getElementById('magicBoxFile');
+            const modelSelector = document.getElementById('magicBoxModel');
+            const status = document.getElementById('magicBoxStatus');
+            const spinner = document.getElementById('executeMagicBoxSpinner');
+            const text = document.getElementById('executeMagicBoxText');
+            const botCountSelector = document.getElementById('botCountSelector');
+
+            if (!input.trim() && !fileInput.files[0]) {
+                status.textContent = "Please provide text input or upload a file";
+                return;
+            }
+
+            // Set loading state
+            spinner.classList.remove('hidden');
+            text.classList.add('invisible');
+            status.textContent = "Processing with Magic Box...";
+
+            try {
+                updateProcessingLog("Starting Magic Box processing...");
+                
+                let promptText = input.trim();
+                
+                // Handle file attachment
+                if (fileInput.files[0]) {
+                    updateProcessingLog(`Reading file: ${fileInput.files[0].name}`);
+                    const fileContent = await readFileContent(fileInput.files[0]);
+                    promptText = promptText ? `${promptText}\n\nFile Content:\n${fileContent}` : fileContent;
+                }
+
+                const selectedModel = modelSelector.value;
+                const botCount = parseInt(botCountSelector.value);
+                
+                // Genie prompt from your specification
+                const magicBoxPrompt = `ROLE: transformation_engine_architect  
+SYSTEM: VG-AnythingEngine - Anything-to-Anything Transformation Creator
+
+You design complete transformation systems from any user input. Your goal is creating a functional engine that transforms input material through cross-domain techniques via AI orchestration.
+
+SYSTEM ARCHITECTURE UNDERSTANDING:
+This is a three-bank system where:
+- Keys (Bank 1): Cross-domain transformation techniques that can be mechanically applied
+- Input (Bank 2): Raw material requiring transformation or analysis
+- Execution (Bank 3): AI role definitions that create dialectical processing chains
+
+TRANSFORMATION PHILOSOPHY:
+- Innovation happens in the gap between domains through mechanical application of techniques
+- AI models perform unique orchestral roles, not just processing
+- Emergence occurs through structured opposition and synthesis
+- No predetermined outcomes - system enables genuine novelty
+
+YOUR TASKS:
+1. Interpret user input (any format: text, attachments, ideas, problems)
+2. Design appropriate transformation keys from relevant domains
+3. Structure input material for optimal transformation potential
+4. Create AI execution roles that generate productive dialectical tension
+5. Determine optimal bot count (1-10) and model selections
+6. Generate engine description explaining the transformation approach
+
+REASONING CONSTRAINTS:
+- Think mechanically about technique application, not semantic similarity
+- Design for emergence, not predetermined answers
+- Create productive opposition between processing stages
+- Focus on actionable transformation, not abstract analysis
+- Ensure each bot role has distinct perspective and constraints
+
+OUTPUT REQUIREMENTS:
+- Complete JSON for all three banks (5-15 entries each)
+- Bot count recommendation (1-10)
+- Model selection for each bot from provided dropdown options
+- Engine description (2-3 paragraphs explaining transformation approach)
+- One-shot design - no iteration requests
+
+CRITICAL: Design engines that surprise even you with their outputs while maintaining rigorous structural integrity.
+
+USER INPUT:
+${promptText}
+
+REQUESTED BOT COUNT: ${botCount}
+
+Generate the complete transformation engine now.`;
+
+                updateProcessingLog(`Sending to ${selectedModel}...`);
+
+                await window.Poe.sendUserMessage(`@${selectedModel} ${magicBoxPrompt}`, {
+                    handler: 'magic-box-handler',
+                    stream: true,
+                    openChat: false
+                });
+
+            } catch (error) {
+                console.error('Magic Box error:', error);
+                status.textContent = `Error: ${error.message}`;
+                updateProcessingLog(`Error: ${error.message}`);
+            } finally {
+                // Reset loading state
+                spinner.classList.add('hidden');
+                text.classList.remove('invisible');
+            }
+        }
+
+        // Handle JSONify response
+        function handleJSONifyResponse(result, context) {
+            const status = document.getElementById('jsonifyStatus');
+            
+            if (result.responses && result.responses.length > 0) {
+                const response = result.responses[0];
+                
+                if (response.status === "error") {
+                    status.textContent = "Error occurred during JSONify processing";
+                    updateProcessingLog(`JSONify Error: ${response.statusText || 'Unknown error'}`);
+                } else if (response.status === "incomplete") {
+                    status.textContent = "Converting files to JSON...";
+                    updateProcessingLog("JSONify in progress...");
+                } else if (response.status === "complete") {
+                    status.textContent = "JSONify processing complete!";
+                    updateProcessingLog("JSONify completed successfully");
+                    
+                    // Parse JSON from response
+                    try {
+                        const content = response.content.trim();
+                        // Try to extract JSON from response (remove any markdown formatting)
+                        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/) || [null, content];
+                        const jsonString = jsonMatch[1] || content;
+                        
+                        const parsedData = JSON.parse(jsonString);
+                        
+                        if (parsedData.keys) {
+                            bankData.keys = parsedData.keys;
+                            updateBankStatus('keysStatus', `Loaded ${parsedData.keys.length} keys`);
+                            updateProcessingLog(`Keys loaded: ${parsedData.keys.length} entries`);
+                        }
+                        
+                        if (parsedData.input) {
+                            bankData.input = parsedData.input;
+                            updateBankStatus('inputStatus', `Loaded ${parsedData.input.length} inputs`);
+                            updateProcessingLog(`Inputs loaded: ${parsedData.input.length} entries`);
+                        }
+                        
+                        if (parsedData.execution) {
+                            bankData.execution = parsedData.execution;
+                            updateBankStatus('executionStatus', `Loaded ${parsedData.execution.length} executions`);
+                            updateProcessingLog(`Execution roles loaded: ${parsedData.execution.length} entries`);
+                            populateBotsFromExecution();
+                        }
+                        
+                        updatePreview("JSONify generated banks", bankData.keys, bankData.input, bankData.execution);
+                        enableRandomButtons();
+                        
+                    } catch (parseError) {
+                        console.error('JSONify parsing error:', parseError);
+                        status.textContent = "Could not parse JSON from response";
+                        updateProcessingLog(`JSONify parsing error: ${parseError.message}`);
+                    }
+                }
+            }
+        }
+
+        // Handle Magic Box response
+        function handleMagicBoxResponse(result, context) {
+            const status = document.getElementById('magicBoxStatus');
+            
+            if (result.responses && result.responses.length > 0) {
+                const response = result.responses[0];
+                
+                if (response.status === "error") {
+                    status.textContent = "Error occurred during processing";
+                    updateProcessingLog(`Error: ${response.statusText || 'Unknown error'}`);
+                } else if (response.status === "incomplete") {
+                    status.textContent = "Generating transformation engine...";
+                    updateProcessingLog("Receiving response from AI...");
+                } else if (response.status === "complete") {
+                    status.textContent = "Magic Box processing complete!";
+                    updateProcessingLog("Magic Box processing completed successfully");
+                    
+                    // Parse Magic Box response for engine components
+                    try {
+                        const content = response.content.trim();
+                        updateProcessingLog("Attempting to parse Magic Box response...");
+                        
+                        // Extract engine description from the response
+                        const descMatch = content.match(/Engine Description:\s*([\s\S]*?)(?=\{|$)/i) || 
+                                         content.match(/This.*?engine.*?(?=\{|$)/is);
+                        const description = descMatch ? descMatch[0].trim() : "Magic Box transformation engine generated";
+                        
+                        // Multiple JSON parsing strategies
+                        let parsedData = null;
+                        
+                        // Strategy 1: Look for JSON in code blocks
+                        const jsonBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+                        if (jsonBlockMatch) {
+                            try {
+                                parsedData = JSON.parse(jsonBlockMatch[1]);
+                                updateProcessingLog("Successfully parsed JSON from code block");
+                            } catch (e) {
+                                updateProcessingLog("Failed to parse JSON from code block");
+                            }
+                        }
+                        
+                        // Strategy 2: Look for any JSON object
+                        if (!parsedData) {
+                            const jsonMatch = content.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) {
+                                try {
+                                    parsedData = JSON.parse(jsonMatch[0]);
+                                    updateProcessingLog("Successfully parsed JSON object");
+                                } catch (e) {
+                                    updateProcessingLog("Failed to parse JSON object");
+                                }
+                            }
+                        }
+                        
+                        // Strategy 3: Parse line by line for array structures
+                        if (!parsedData) {
+                            try {
+                                // Look for specific patterns in your response format
+                                const keysMatch = content.match(/"keys":\s*\[([\s\S]*?)\]/);
+                                const inputMatch = content.match(/"input":\s*\[([\s\S]*?)\]/);
+                                const executionMatch = content.match(/"execution":\s*\[([\s\S]*?)\]/);
+                                
+                                if (keysMatch || inputMatch || executionMatch) {
+                                    parsedData = {};
+                                    
+                                    if (keysMatch) {
+                                        const keysStr = '[' + keysMatch[1] + ']';
+                                        parsedData.keys = JSON.parse(keysStr);
+                                    }
+                                    if (inputMatch) {
+                                        const inputStr = '[' + inputMatch[1] + ']';
+                                        parsedData.input = JSON.parse(inputStr);
+                                    }
+                                    if (executionMatch) {
+                                        const execStr = '[' + executionMatch[1] + ']';
+                                        parsedData.execution = JSON.parse(execStr);
+                                    }
+                                    
+                                    updateProcessingLog("Successfully parsed arrays from content");
+                                }
+                            } catch (e) {
+                                updateProcessingLog("Failed to parse arrays from content");
+                            }
+                        }
+                        
+                        if (parsedData) {
+                            // Convert string arrays to objects with IDs if needed
+                            if (parsedData.keys && Array.isArray(parsedData.keys)) {
+                                if (typeof parsedData.keys[0] === 'string') {
+                                    bankData.keys = parsedData.keys.map((key, index) => ({
+                                        id: index + 1,
+                                        name: key.split(':')[0] || `Key ${index + 1}`,
+                                        method: key,
+                                        domain: "Generated"
+                                    }));
+                                } else {
+                                    bankData.keys = parsedData.keys;
+                                }
+                                updateBankStatus('keysStatus', `Generated ${bankData.keys.length} keys`);
+                                updateProcessingLog(`Keys processed: ${bankData.keys.length} entries`);
+                            }
+                            
+                            if (parsedData.input && Array.isArray(parsedData.input)) {
+                                if (typeof parsedData.input[0] === 'string') {
+                                    bankData.input = parsedData.input.map((input, index) => ({
+                                        id: index + 1,
+                                        content: input,
+                                        context: "Generated",
+                                        type: "transformed_input"
+                                    }));
+                                } else {
+                                    bankData.input = parsedData.input;
+                                }
+                                updateBankStatus('inputStatus', `Generated ${bankData.input.length} inputs`);
+                                updateProcessingLog(`Inputs processed: ${bankData.input.length} entries`);
+                            }
+                            
+                            if (parsedData.execution && Array.isArray(parsedData.execution)) {
+                                if (typeof parsedData.execution[0] === 'string') {
+                                    bankData.execution = parsedData.execution.map((exec, index) => ({
+                                        id: index + 1,
+                                        bot_number: index + 1,
+                                        role: exec.split(':')[0] || `Bot ${index + 1}`,
+                                        instructions: exec
+                                    }));
+                                } else {
+                                    bankData.execution = parsedData.execution;
+                                }
+                                updateBankStatus('executionStatus', `Generated ${bankData.execution.length} executions`);
+                                updateProcessingLog(`Execution roles processed: ${bankData.execution.length} entries`);
+                                populateBotsFromExecution();
+                            }
+                            
+                            updatePreview(description, bankData.keys, bankData.input, bankData.execution);
+                            enableRandomButtons();
+                            updateProcessingLog("Magic Box parsing completed successfully!");
+                            
+                        } else {
+                            updateProcessingLog("Warning: Could not extract JSON from Magic Box response");
+                            status.textContent = "Could not parse engine structure from response";
+                            
+                            // Show raw response for debugging
+                            console.log("Magic Box raw response:", content);
+                        }
+                        
+                    } catch (parseError) {
+                        console.error('Magic Box parsing error:', parseError);
+                        updateProcessingLog(`Magic Box parsing error: ${parseError.message}`);
+                        status.textContent = "Error parsing Magic Box response";
+                    }
+                }
+            }
+        }
+
+        // Update bank status display
+        function updateBankStatus(statusId, message) {
+            const statusElement = document.getElementById(statusId);
+            if (statusElement) {
+                statusElement.innerHTML = `<span class="text-green-600">${message}</span>`;
+            }
+        }
+
+        // Enable random/load buttons after data is loaded
+        function enableRandomButtons() {
+            const buttons = [
+                'loadRandomKey', 'loadSpecificKey', 
+                'loadRandomInput', 'loadSpecificInput'
+            ];
+            
+            buttons.forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.disabled = false;
+                    button.classList.remove('opacity-50');
+                }
+            });
+        }
+
+        // Populate bots from execution bank
+        function populateBotsFromExecution() {
+            if (bankData.execution && bankData.execution.length > 0) {
+                updateProcessingLog("Populating bot prompts from execution bank...");
+                
+                bankData.execution.forEach((execution) => {
+                    const botNumber = execution.bot_number || execution.id;
+                    if (botNumber >= 1 && botNumber <= 10) {
+                        const promptStatus = document.getElementById(`bot${botNumber}PromptStatus`);
+                        if (promptStatus) {
+                            promptStatus.innerHTML = `<span class="text-green-600">Loaded: ${execution.role}</span>`;
+                        }
+                        
+                        // Store the execution instructions for later use
+                        const botContainer = document.getElementById(`bot${botNumber}Container`);
+                        if (botContainer) {
+                            botContainer.dataset.executionPrompt = execution.instructions;
+                            botContainer.dataset.executionRole = execution.role;
+                        }
+                    }
+                });
+                
+                updateProcessingLog("Bot prompts populated successfully");
+            }
+        }
+
+        // Load random key from Bank 1
+        function loadRandomKey() {
+            if (bankData.keys && bankData.keys.length > 0) {
+                const randomKey = bankData.keys[Math.floor(Math.random() * bankData.keys.length)];
+                const currentKeyTextarea = document.getElementById('currentKey');
+                const statusElement = document.getElementById('currentKeyStatus');
+                
+                if (currentKeyTextarea && statusElement) {
+                    currentKeyTextarea.value = `${randomKey.name}: ${randomKey.method}`;
+                    statusElement.innerHTML = `<span class="text-green-600">Loaded key ID ${randomKey.id}</span>`;
+                    updateProcessingLog(`Random key loaded: ${randomKey.name}`);
+                }
+            }
+        }
+
+        // Load random input from Bank 2  
+        function loadRandomInput() {
+            if (bankData.input && bankData.input.length > 0) {
+                const randomInput = bankData.input[Math.floor(Math.random() * bankData.input.length)];
+                const currentInputTextarea = document.getElementById('currentInput');
+                const statusElement = document.getElementById('currentInputStatus');
+                
+                if (currentInputTextarea && statusElement) {
+                    currentInputTextarea.value = randomInput.content;
+                    statusElement.innerHTML = `<span class="text-green-600">Loaded input ID ${randomInput.id}</span>`;
+                    updateProcessingLog(`Random input loaded: ID ${randomInput.id}`);
+                }
+            }
+        }
+
+        // Load specific key by ID
+        function loadSpecificKey() {
+            const keyId = showPromptDialog("Enter Key ID:", "1");
+            if (keyId && bankData.keys) {
+                const key = bankData.keys.find(k => k.id.toString() === keyId.toString());
+                if (key) {
+                    const currentKeyTextarea = document.getElementById('currentKey');
+                    const statusElement = document.getElementById('currentKeyStatus');
+                    
+                    if (currentKeyTextarea && statusElement) {
+                        currentKeyTextarea.value = `${key.name}: ${key.method}`;
+                        statusElement.innerHTML = `<span class="text-green-600">Loaded key ID ${key.id}</span>`;
+                        updateProcessingLog(`Specific key loaded: ${key.name}`);
+                    }
+                } else {
+                    showAlert(`Key with ID ${keyId} not found`);
+                }
+            }
+        }
+
+        // Load specific input by ID
+        function loadSpecificInput() {
+            const inputId = showPromptDialog("Enter Input ID:", "1");
+            if (inputId && bankData.input) {
+                const input = bankData.input.find(i => i.id.toString() === inputId.toString());
+                if (input) {
+                    const currentInputTextarea = document.getElementById('currentInput');
+                    const statusElement = document.getElementById('currentInputStatus');
+                    
+                    if (currentInputTextarea && statusElement) {
+                        currentInputTextarea.value = input.content;
+                        statusElement.innerHTML = `<span class="text-green-600">Loaded input ID ${input.id}</span>`;
+                        updateProcessingLog(`Specific input loaded: ID ${input.id}`);
+                    }
+                } else {
+                    showAlert(`Input with ID ${inputId} not found`);
+                }
+            }
+        }
+
+        // Save current state to clipboard
+        function saveState() {
+            const currentState = {
+                bankData: bankData,
+                botCount: parseInt(document.getElementById('botCountSelector')?.value || 6),
+                currentKey: document.getElementById('currentKey')?.value || '',
+                currentInput: document.getElementById('currentInput')?.value || '',
+                magicBoxInput: document.getElementById('magicBoxInput')?.value || '',
+                selectedModels: {}
+            };
+            
+            // Save selected models for each component
+            const selectors = ['magicBoxModel', 'jsonifyModel'];
+            for (let i = 1; i <= 10; i++) {
+                selectors.push(`bot${i}Model`);
+            }
+            selectors.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    currentState.selectedModels[id] = select.value;
+                }
+            });
+            
+            const stateString = JSON.stringify(currentState, null, 2);
+            navigator.clipboard.writeText(stateString).then(() => {
+                showAlert('State saved to clipboard successfully!');
+                updateProcessingLog('State saved to clipboard');
+            }).catch(err => {
+                showAlert('Failed to save to clipboard: ' + err.message);
+            });
+        }
+
+        // Load state from clipboard/input
+        async function loadState() {
+            const stateString = await showPromptDialog('Paste state JSON:', '');
+            if (!stateString) return;
+            
+            try {
+                const state = JSON.parse(stateString);
+                
+                // Restore bank data
+                if (state.bankData) {
+                    bankData = state.bankData;
+                    
+                    // Update bank status displays
+                    if (bankData.keys && bankData.keys.length > 0) {
+                        updateBankStatus('keysStatus', `Loaded ${bankData.keys.length} keys`);
+                    }
+                    if (bankData.input && bankData.input.length > 0) {
+                        updateBankStatus('inputStatus', `Loaded ${bankData.input.length} inputs`);
+                    }
+                    if (bankData.execution && bankData.execution.length > 0) {
+                        updateBankStatus('executionStatus', `Loaded ${bankData.execution.length} executions`);
+                        populateBotsFromExecution();
+                    }
+                    
+                    enableRandomButtons();
+                    updatePreview("State loaded", bankData.keys, bankData.input, bankData.execution);
+                }
+                
+                // Restore UI state
+                if (state.botCount) {
+                    const botCountSelector = document.getElementById('botCountSelector');
+                    if (botCountSelector) {
+                        botCountSelector.value = state.botCount;
+                        updateBotVisibility(state.botCount);
+                    }
+                }
+                
+                if (state.currentKey) {
+                    const currentKeyTextarea = document.getElementById('currentKey');
+                    if (currentKeyTextarea) currentKeyTextarea.value = state.currentKey;
+                }
+                
+                if (state.currentInput) {
+                    const currentInputTextarea = document.getElementById('currentInput');
+                    if (currentInputTextarea) currentInputTextarea.value = state.currentInput;
+                }
+                
+                if (state.magicBoxInput) {
+                    const magicBoxInput = document.getElementById('magicBoxInput');
+                    if (magicBoxInput) magicBoxInput.value = state.magicBoxInput;
+                }
+                
+                // Restore model selections
+                if (state.selectedModels) {
+                    Object.entries(state.selectedModels).forEach(([id, value]) => {
+                        const select = document.getElementById(id);
+                        if (select) select.value = value;
+                    });
+                }
+                
+                showAlert('State loaded successfully!');
+                updateProcessingLog('State loaded from input');
+                
+            } catch (error) {
+                showAlert('Failed to parse state JSON: ' + error.message);
+            }
+        }
+
+        // Custom modal dialogs (replacing alert/prompt)
+        function showAlert(message) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                    <div class="flex justify-end">
+                        <button class="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded" onclick="this.closest('.fixed').remove()">OK</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showPromptDialog(message, defaultValue = "") {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                        <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                        <input type="text" value="${defaultValue}" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-base mb-4" id="promptInput">
+                        <div class="flex justify-end space-x-3">
+                            <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" onclick="this.closest('.fixed').remove(); resolve(null)">Cancel</button>
+                            <button class="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded" onclick="const val = this.closest('.fixed').querySelector('#promptInput').value; this.closest('.fixed').remove(); resolve(val)">OK</button>
+                        </div>
+                    </div>
+                `;
+                
+                // Attach event listeners
+                const okButton = modal.querySelector('button:last-child');
+                const cancelButton = modal.querySelector('button:first-of-type');
+                const input = modal.querySelector('#promptInput');
+                
+                okButton.onclick = () => {
+                    const val = input.value;
+                    modal.remove();
+                    resolve(val);
+                };
+                
+                cancelButton.onclick = () => {
+                    modal.remove();
+                    resolve(null);
+                };
+                
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        okButton.click();
+                    }
+                });
+                
+                document.body.appendChild(modal);
+                input.focus();
+            });
+        }
+
+        // Register handlers for all bots
+        window.addEventListener('DOMContentLoaded', () => {
+            populateModelDropdowns();
+            
+            // Setup tab switching
+            document.getElementById('tab-config').addEventListener('click', () => switchTab('config'));
+            document.getElementById('tab-execution').addEventListener('click', () => switchTab('execution'));
+            
+            // Setup bot count selector
+            const botCountSelector = document.getElementById('botCountSelector');
+            if (botCountSelector) {
+                botCountSelector.addEventListener('change', (e) => {
+                    const botCount = parseInt(e.target.value);
+                    updateBotVisibility(botCount);
+                });
+                // Initialize with default value (6)
+                updateBotVisibility(6);
+            }
+
+            // Setup Magic Box button
+            const executeMagicBoxBtn = document.getElementById('executeMagicBox');
+            if (executeMagicBoxBtn) {
+                executeMagicBoxBtn.addEventListener('click', executeMagicBox);
+            }
+
+            // Setup JSONify button
+            const executeJSONifyBtn = document.getElementById('executeJSONify');
+            if (executeJSONifyBtn) {
+                executeJSONifyBtn.addEventListener('click', executeJSONify);
+            }
+
+            // Setup random/load buttons
+            document.getElementById('loadRandomKey')?.addEventListener('click', loadRandomKey);
+            document.getElementById('loadRandomInput')?.addEventListener('click', loadRandomInput);
+            document.getElementById('loadSpecificKey')?.addEventListener('click', loadSpecificKey);
+            document.getElementById('loadSpecificInput')?.addEventListener('click', loadSpecificInput);
+            
+            // Register handlers for all bots (1-10)
+            for (let i = 1; i <= 10; i++) {
+                window.Poe.registerHandler(`bot${i}-handler`, (result) => {
+                    handleBotResponse(result, i);
+                });
+            }
+
+            // Register JSONify handler
+            window.Poe.registerHandler('jsonify-handler', handleJSONifyResponse);
+
+            // Register Magic Box handler
+            window.Poe.registerHandler('magic-box-handler', handleMagicBoxResponse);
+        });
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-[#5D5CDE] mb-2">⚡ VG-AnythingEngine</h1>
+            <p class="text-gray-600 dark:text-gray-400">Universal Transformation Framework - Phase 1.5 Bare Bones</p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200 dark:border-gray-700">
+                <nav class="-mb-px flex space-x-8">
+                    <button id="tab-config" class="tab-button active py-2 px-1 border-b-2 border-[#5D5CDE] font-medium text-sm text-[#5D5CDE]">
+                        📝 Input Configuration
+                    </button>
+                    <button id="tab-execution" class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300">
+                        ⚡ Execution & Results
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Page 1: Input Configuration -->
+        <div id="page-config" class="page-content">
+            <h2 class="text-xl font-semibold mb-4">📝 Input Configuration</h2>
+
+            <!-- Magic Box Section -->
+            <div class="mb-6 p-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                <h3 class="font-semibold mb-4 text-purple-800 dark:text-purple-200 text-lg">⚡ Magic Box - Universal Input Processor</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Input Area -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Input Text or Description</label>
+                            <textarea 
+                                id="magicBoxInput" 
+                                class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-vertical"
+                                rows="8"
+                                placeholder="Enter any text, problem, idea, or description. The Magic Box will convert it into a complete transformation system..."
+                            ></textarea>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">File Attachment (Optional)</label>
+                                <input type="file" id="magicBoxFile" class="w-full text-sm" accept="*/*">
+                            </div>
+                            <div class="flex-shrink-0">
+                                <label class="block text-sm font-medium mb-2">Processing Model</label>
+                                <select id="magicBoxModel" class="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm">
+                                    <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Controls -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Bot Count</label>
+                            <select id="botCountSelector" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-base">
+                                <option value="1">1 Bot</option>
+                                <option value="2">2 Bots</option>
+                                <option value="3">3 Bots</option>
+                                <option value="4">4 Bots</option>
+                                <option value="5">5 Bots</option>
+                                <option value="6" selected>6 Bots</option>
+                                <option value="7">7 Bots</option>
+                                <option value="8">8 Bots</option>
+                                <option value="9">9 Bots</option>
+                                <option value="10">10 Bots</option>
+                            </select>
+                        </div>
+                        <button 
+                            id="executeMagicBox"
+                            class="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium relative"
+                        >
+                            <span id="executeMagicBoxText">⚡ Generate Engine</span>
+                            <div id="executeMagicBoxSpinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <div id="magicBoxStatus" class="text-sm text-gray-600 dark:text-gray-400 min-h-[20px]"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- State Management -->
+            <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg border border-gray-200 dark:border-gray-800">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="font-medium text-gray-800 dark:text-gray-200 mb-1">💾 State Management</h4>
+                        <p class="text-xs text-gray-500">Save/load current system state for debugging</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button 
+                            id="saveState"
+                            class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                            onclick="saveState()"
+                        >
+                            💾 Save State
+                        </button>
+                        <button 
+                            id="loadState"
+                            class="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
+                            onclick="loadState()"
+                        >
+                            📂 Load State
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Three Banks System -->
+            <div class="mb-6 p-6 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <h3 class="font-semibold mb-4 text-green-800 dark:text-green-200 text-lg">🏦 Three Banks System</h3>
+                
+                <!-- Bank Upload Areas -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Bank 1: Keys -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <h4 class="font-medium mb-3 text-gray-800 dark:text-gray-200">🔑 Bank 1: Keys</h4>
+                        <div class="space-y-3">
+                            <input type="file" id="keysFile" class="w-full text-sm" accept="*/*">
+                            <div id="keysStatus" class="text-xs font-medium">
+                                <span class="text-gray-500">Empty</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Upload functions/transformation techniques</p>
+                        </div>
+                    </div>
+
+                    <!-- Bank 2: Input -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <h4 class="font-medium mb-3 text-gray-800 dark:text-gray-200">📝 Bank 2: Input</h4>
+                        <div class="space-y-3">
+                            <input type="file" id="inputFile" class="w-full text-sm" accept="*/*">
+                            <div id="inputStatus" class="text-xs font-medium">
+                                <span class="text-gray-500">Empty</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Upload raw material to process</p>
+                        </div>
+                    </div>
+
+                    <!-- Bank 3: Execution -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <h4 class="font-medium mb-3 text-gray-800 dark:text-gray-200">⚡ Bank 3: Execution</h4>
+                        <div class="space-y-3">
+                            <input type="file" id="executionFile" class="w-full text-sm" accept="*/*">
+                            <div id="executionStatus" class="text-xs font-medium">
+                                <span class="text-gray-500">Empty</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Upload AI roles and tasks</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JSONify Controls -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="font-medium text-gray-800 dark:text-gray-200 mb-1">🔄 JSONify Processing</h4>
+                            <p class="text-xs text-gray-500">Convert uploaded files to proper JSON structure</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <select id="jsonifyModel" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <button 
+                                id="executeJSONify"
+                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm relative"
+                            >
+                                <span id="executeJSONifyText">🔄 Process Banks</span>
+                                <div id="executeJSONifySpinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                    <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="jsonifyStatus" class="text-sm text-gray-600 dark:text-gray-400 mt-2 min-h-[20px]"></div>
+                </div>
+            </div>
+
+            <!-- Execution Input Section -->
+            <div class="mb-6 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 class="font-semibold mb-4 text-blue-800 dark:text-blue-200 text-lg">🎯 Execution Configuration</h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Current Key -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200">🔑 Current Key</label>
+                            <div class="flex space-x-1">
+                                <button 
+                                    id="loadRandomKey"
+                                    class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                    title="Load Random Key from Bank 1"
+                                >
+                                    🎲 Random
+                                </button>
+                                <button 
+                                    id="loadSpecificKey"
+                                    class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                    title="Load Specific Key by ID"
+                                >
+                                    📂 Load
+                                </button>
+                            </div>
+                        </div>
+                        <textarea 
+                            id="currentKey" 
+                            class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-vertical"
+                            rows="6"
+                            placeholder="Enter the transformation key/function to use for this execution, or load one from Bank 1..."
+                        ></textarea>
+                        <div id="currentKeyStatus" class="text-xs text-gray-500 mt-1">No key selected</div>
+                    </div>
+
+                    <!-- Current Input -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-800 dark:text-gray-200">📝 Current Input</label>
+                            <div class="flex space-x-1">
+                                <button 
+                                    id="loadRandomInput"
+                                    class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                    title="Load Random Input from Bank 2"
+                                >
+                                    🎲 Random
+                                </button>
+                                <button 
+                                    id="loadSpecificInput"
+                                    class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                    title="Load Specific Input by ID"
+                                >
+                                    📂 Load
+                                </button>
+                            </div>
+                        </div>
+                        <textarea 
+                            id="currentInput" 
+                            class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-vertical"
+                            rows="6"
+                            placeholder="Enter the input material to be transformed, or load one from Bank 2..."
+                        ></textarea>
+                        <div id="currentInputStatus" class="text-xs text-gray-500 mt-1">No input selected</div>
+                    </div>
+                </div>
+
+                <!-- Execute Button -->
+                <div class="mt-6 flex justify-center">
+                    <button 
+                        id="executeTransformation"
+                        class="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium relative"
+                    >
+                        <span id="executeTransformationText">🚀 Execute Transformation</span>
+                        <div id="executeTransformationSpinner" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preview & Log Section -->
+            <div class="mb-6 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <h3 class="font-semibold mb-4 text-yellow-800 dark:text-yellow-200 text-lg">📋 Engine Preview & Processing Log</h3>
+                
+                <!-- Engine Description -->
+                <div id="engineDescription" class="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hidden">
+                    <h4 class="font-medium text-gray-800 dark:text-gray-200 mb-2">🎯 Generated Engine Description</h4>
+                    <div id="engineDescriptionContent" class="prose dark:prose-invert max-w-none text-sm"></div>
+                </div>
+
+                <!-- Banks Preview -->
+                <div id="banksPreview" class="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-4 hidden">
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                        <h5 class="font-medium text-xs text-gray-600 dark:text-gray-400 mb-2">🔑 Keys Preview</h5>
+                        <div id="keysPreview" class="text-xs text-gray-700 dark:text-gray-300 max-h-20 overflow-y-auto"></div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                        <h5 class="font-medium text-xs text-gray-600 dark:text-gray-400 mb-2">📝 Input Preview</h5>
+                        <div id="inputPreview" class="text-xs text-gray-700 dark:text-gray-300 max-h-20 overflow-y-auto"></div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                        <h5 class="font-medium text-xs text-gray-600 dark:text-gray-400 mb-2">⚡ Execution Preview</h5>
+                        <div id="executionPreview" class="text-xs text-gray-700 dark:text-gray-300 max-h-20 overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <!-- Collapsible Full Log -->
+                <div class="border-t border-yellow-200 dark:border-yellow-700 pt-4">
+                    <button id="toggleLog" class="flex items-center justify-between w-full text-left" onclick="toggleProcessingLog()">
+                        <span class="font-medium text-yellow-800 dark:text-yellow-200">📜 Full Processing Log</span>
+                        <span id="logToggleIcon" class="text-yellow-600 dark:text-yellow-400">▼</span>
+                    </button>
+                    <div id="processingLog" class="mt-3 hidden">
+                        <div id="processingLogContent" class="bg-white dark:bg-gray-800 p-4 rounded border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto">
+                            <p class="text-sm text-gray-500 italic">No processing log yet...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: Execution & Results -->
+        <div id="page-execution" class="page-content hidden">
+            <h2 class="text-xl font-semibold mb-6">⚡ Execution & Results</h2>
+            <div class="space-y-6">
+            <!-- Bot 1 Results -->
+            <div id="bot1Container" class="bot-container bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm mr-3">1</span>
+                        🤖 Bot 1
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot1Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot1PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot1Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot1Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot1" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs relative" onclick="executeBot(1)">
+                            <span id="executeBot1Text">▶️ Run</span>
+                            <div id="executeBot1Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot1" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot1" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot1" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot1" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot1PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot1Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot1Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 2 Results -->
+            <div id="bot2Container" class="bot-container bg-green-50 dark:bg-green-900/20 rounded-lg p-6">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm mr-3">2</span>
+                        🤖 Bot 2
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot2Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot2PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot2Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot2Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot2" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs relative" onclick="executeBot(2)">
+                            <span id="executeBot2Text">▶️ Run</span>
+                            <div id="executeBot2Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot2" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot2" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot2" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot2" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot2PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot2Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot2Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 3 Results -->
+            <div id="bot3Container" class="bot-container bg-purple-50 dark:bg-purple-900/20 rounded-lg p-6">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm mr-3">3</span>
+                        🤖 Bot 3
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot3Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot3PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot3Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot3Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot3" class="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-xs relative" onclick="executeBot(3)">
+                            <span id="executeBot3Text">▶️ Run</span>
+                            <div id="executeBot3Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot3" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot3" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot3" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot3" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot3PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot3Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot3Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 4 Results -->
+            <div id="bot4Container" class="bot-container bg-red-50 dark:bg-red-900/20 rounded-lg p-6">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-sm mr-3">4</span>
+                        🤖 Bot 4
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot4Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot4PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot4Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot4Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot4" class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs relative" onclick="executeBot(4)">
+                            <span id="executeBot4Text">▶️ Run</span>
+                            <div id="executeBot4Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot4" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot4" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot4" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot4" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot4PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot4Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot4Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 5 Results -->
+            <div id="bot5Container" class="bot-container bg-teal-50 dark:bg-teal-900/20 rounded-lg p-6">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-teal-500 text-white rounded-full flex items-center justify-center text-sm mr-3">5</span>
+                        🤖 Bot 5
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot5Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot5PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot5Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot5Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot5" class="px-3 py-1 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors text-xs relative" onclick="executeBot(5)">
+                            <span id="executeBot5Text">▶️ Run</span>
+                            <div id="executeBot5Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot5" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot5" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot5" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot5" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot5PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot5Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot5Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 6 Results -->
+            <div id="bot6Container" class="bot-container bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-6">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center text-sm mr-3">6</span>
+                        🤖 Bot 6
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot6Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot6PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot6Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot6Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot6" class="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-xs relative" onclick="executeBot(6)">
+                            <span id="executeBot6Text">▶️ Run</span>
+                            <div id="executeBot6Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot6" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot6" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot6" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot6" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot6PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot6Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot6Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 7 Results -->
+            <div id="bot7Container" class="bot-container bg-orange-50 dark:bg-orange-900/20 rounded-lg p-6 hidden">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm mr-3">7</span>
+                        🤖 Bot 7
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot7Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot7PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot7Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot7Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot7" class="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors text-xs relative" onclick="executeBot(7)">
+                            <span id="executeBot7Text">▶️ Run</span>
+                            <div id="executeBot7Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot7" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot7" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot7" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot7" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot7PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot7Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot7Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 8 Results -->
+            <div id="bot8Container" class="bot-container bg-pink-50 dark:bg-pink-900/20 rounded-lg p-6 hidden">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-pink-500 text-white rounded-full flex items-center justify-center text-sm mr-3">8</span>
+                        🤖 Bot 8
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot8Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot8PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot8Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot8Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot8" class="px-3 py-1 bg-pink-600 text-white rounded hover:bg-pink-700 transition-colors text-xs relative" onclick="executeBot(8)">
+                            <span id="executeBot8Text">▶️ Run</span>
+                            <div id="executeBot8Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot8" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot8" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot8" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot8" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot8PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot8Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot8Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 9 Results -->
+            <div id="bot9Container" class="bot-container bg-cyan-50 dark:bg-cyan-900/20 rounded-lg p-6 hidden">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm mr-3">9</span>
+                        🤖 Bot 9
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot9Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot9PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot9Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot9Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot9" class="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition-colors text-xs relative" onclick="executeBot(9)">
+                            <span id="executeBot9Text">▶️ Run</span>
+                            <div id="executeBot9Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot9" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot9" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot9" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot9" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot9PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot9Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot9Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Bot 10 Results -->
+            <div id="bot10Container" class="bot-container bg-amber-50 dark:bg-amber-900/20 rounded-lg p-6 hidden">
+                <h3 class="text-lg font-semibold flex items-center justify-between mb-3">
+                    <div class="flex items-center">
+                        <span class="w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center text-sm mr-3">10</span>
+                        🤖 Bot 10
+                        <div class="ml-4 flex items-center space-x-2">
+                            <select id="bot10Model" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs">
+                                <option value="Claude-Sonnet-4" selected>Claude-Sonnet-4</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                id="bot10PromptSearch" 
+                                class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs"
+                                placeholder="ID"
+                            >
+                            <button 
+                                id="loadBot10Prompt"
+                                class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                                disabled
+                            >
+                                Load
+                            </button>
+                            <button 
+                                id="randomBot10Prompt"
+                                class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                                disabled
+                                title="Random Prompt"
+                            >
+                                🎲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button id="executeBot10" class="px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-xs relative" onclick="executeBot(10)">
+                            <span id="executeBot10Text">▶️ Run</span>
+                            <div id="executeBot10Spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+                            </div>
+                        </button>
+                        <button id="copyBot10" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Copy to Clipboard">📋</button>
+                        <button id="downloadBot10" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Download as Markdown">💾</button>
+                        <button id="feedBot10" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Feed to Preview">📤</button>
+                        <button id="clearBot10" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Clear Output">🗑️</button>
+                    </div>
+                </h3>
+                <div id="bot10PromptStatus" class="text-xs text-gray-500 mb-2">Empty prompt</div>
+                <div id="bot10Status" class="text-sm text-gray-600 dark:text-gray-400 mb-2"></div>
+                <div id="bot10Output" class="prose dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-4 rounded border min-h-[50px] max-h-[600px] overflow-y-auto"></div>
+            </div>
+        </div>
+        </div>
+    </div>
+</body>
+</html>
+
+

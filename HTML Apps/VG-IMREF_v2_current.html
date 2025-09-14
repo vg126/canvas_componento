@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grand Unified AI Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        secondary: '#059669', // From image generator
+                        accent: '#10B981',
+                        // Background colors (always dark)
+                        'app-bg-light': '#1a1a1a',
+                        'app-bg-dark': '#0f0f0f',
+                        // Box/container colors by theme
+                        'box-default': '#2a2a2a',
+                        'box-mint': '#1a2f26',
+                        'box-sky': '#1a2633',
+                        'box-lavender': '#2a1f33',
+                        'box-rose': '#331a26',
+                        // Font colors - always bright white
+                        'font-bright': '#FFFFFF',
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+    </script>
+    <style>
+        /* Theme-based styling */
+        .themed-box {
+            background-color: var(--box-color);
+            color: var(--font-color);
+        }
+
+        /* Default theme */
+        [data-theme="default"] {
+            --box-color: #2a2a2a;
+            --font-color: #FFFFFF;
+        }
+
+        /* Mint theme */
+        [data-theme="mint"] {
+            --box-color: #1a2f26;
+            --font-color: #FFFFFF;
+        }
+
+        /* Sky theme */
+        [data-theme="sky"] {
+            --box-color: #1a2633;
+            --font-color: #FFFFFF;
+        }
+
+        /* Lavender theme */
+        [data-theme="lavender"] {
+            --box-color: #2a1f33;
+            --font-color: #FFFFFF;
+        }
+
+        /* Rose theme */
+        [data-theme="rose"] {
+            --box-color: #331a26;
+            --font-color: #FFFFFF;
+        }
+
+        /* Form elements styling for themes */
+        .themed-box input,
+        .themed-box textarea,
+        .themed-box select {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-color: var(--font-color);
+            color: var(--font-color);
+        }
+
+        .themed-box input::placeholder,
+        .themed-box textarea::placeholder {
+            color: rgba(var(--font-color-rgb), 0.6);
+        }
+    </style>
+</head>
+<body class="bg-app-bg-light text-white min-h-screen transition-colors duration-300" data-theme="default">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-green-400">VG-AI Image Reference Studio</h1>
+            <p class="text-white">Advanced Prompt Engineering & Multi-Model Image Generation</p>
+            <!-- Color Theme Selector -->
+            <div id="themeSelector" class="flex justify-center gap-3 mt-4">
+                <!-- Theme buttons will be injected here by JS -->
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Left Panel: Prompt Engineering -->
+            <div class="themed-box rounded-2xl shadow-xl p-6 space-y-4">
+                <h2 class="text-xl font-semibold">1. Prompt Engineering</h2>
+
+                <!-- Image Upload -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Reference Image (Optional)</label>
+                    <div id="uploadArea" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 text-center hover:border-primary transition-colors cursor-pointer">
+                        <div id="uploadPrompt"><svg class="w-10 h-10 mx-auto mb-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><p class="text-sm font-medium">Drop image or click to upload</p></div>
+                        <div id="imagePreview" class="hidden"><img id="previewImg" class="max-w-full max-h-32 mx-auto rounded-lg mb-3"><div class="flex justify-center space-x-2 flex-wrap gap-1"><button id="replaceBtn" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs">Replace</button><button id="removeBgBtn" class="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs">🪄 Remove BG</button><button id="removeBtn" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs">Remove</button></div></div>
+                    </div>
+                    <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
+                    <button id="readImageBtn" class="w-full mt-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed">Read Image to Base Prompt</button>
+                </div>
+
+                <!-- Base Prompt -->
+                <div>
+                    <div class="flex justify-between items-center mb-2"><label class="block text-sm font-medium">Base Prompt</label><button id="clearPrompt" class="px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600">🗑️ Clear</button></div>
+                    <textarea id="originalPrompt" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base resize-none" rows="4" placeholder="Enter prompt, or generate one by reading an image..."></textarea>
+                </div>
+
+                <!-- Variable Creation Rules -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Variable Creation Rules (Optional)</label>
+                    <textarea id="variableRules" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base resize-none" rows="2" placeholder="e.g., 'Keep all variations within South Asian context' or 'Focus on modern urban settings only'"></textarea>
+                </div>
+
+                <!-- Analysis Controls -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Variable Analysis</label>
+                    <div class="flex items-center gap-3 mb-2"><label class="text-sm">Model:</label><select id="analysisModel" class="flex-1 px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"><option>Claude-Sonnet-4</option><option>GPT-4o</option><option>GPT-4o-mini</option><option>Grok-4</option></select></div>
+                    <div class="mb-4">
+                        <div class="flex gap-2 mb-2">
+                            <button id="analyzeBtn" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">🔍 Analyze Variables</button>
+                            <input type="number" id="analyzeVarCount" class="w-16 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-center" value="6" min="1" max="10" title="Number of variables to generate">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button id="feedBtn" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">⬇️ Feed</button>
+                        <button id="copyAllBtn" class="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">📋 Copy</button>
+                        <button id="saveState" class="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs">💾 Save</button>
+                        <button id="loadState" class="px-3 py-1 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 text-xs">📥 Load</button>
+                    </div>
+                </div>
+                <div id="analysisLoading" class="hidden"><div class="flex items-center text-blue-600"><div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div><span id="analysisStatus"></span></div></div>
+
+                <!-- Variable Controls (moved from right panel) -->
+                <div id="variableControls" class="hidden">
+                    <h3 class="text-lg font-medium mb-2">Rotation Variables</h3>
+                    <div id="variableList" class="space-y-3 mb-3 p-2 themed-box rounded-lg"></div>
+                    <div class="flex gap-3 items-center mb-3"><button id="prevCombo" class="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">←</button><span id="comboCounter" class="px-3 py-1 text-center bg-black bg-opacity-20 border border-current rounded-lg font-medium">1/1</span><button id="nextCombo" class="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">→</button></div>
+                    <div class="mb-3">
+                        <div class="flex gap-2">
+                            <button id="addMoreVariablesBtn" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">➕ Add More Variables</button>
+                            <input type="number" id="addMoreVarCount" class="w-16 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-center" value="3" min="1" max="6" title="Number of variables to add">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Generation -->
+            <div class="themed-box rounded-2xl shadow-xl p-6 space-y-4">
+                <h2 class="text-xl font-semibold">2. Generation</h2>
+
+
+                <div class="flex justify-between items-center mb-2">
+                    <label for="rotatedPrompt" class="block text-sm font-medium">Final Prompt (Editable)</label>
+                    <button id="refeedBtn" class="px-3 py-1 bg-orange-600 text-white text-xs rounded-lg hover:bg-orange-700">⬆️ Refeed</button>
+                </div>
+                <div>
+                    <textarea id="rotatedPrompt" rows="5" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-black bg-opacity-20 text-white text-base resize-none" placeholder="Final prompt for generation appears here..."></textarea>
+                </div>
+                <div class="p-3 themed-box rounded-lg space-y-3">
+                    <div class="flex items-center gap-3"><label class="text-sm text-white">Multimodal Model:</label><select id="enhancementBot" class="flex-1 px-3 py-1 border border-current rounded-lg text-sm bg-transparent text-white"><option>GPT-4o</option><option>Claude-Sonnet-4</option><option>Gemini-2.0-Flash-Preview</option></select></div>
+                    <div>
+                        <input type="file" id="techniquesFile" accept=".txt,.md" class="hidden"/>
+                        <div class="flex gap-2"><button onclick="document.getElementById('techniquesFile').click()" id="uploadBtn" class="flex-1 px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm">📁 Upload Techniques</button><button id="clearTechniques" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm hidden">✕</button></div>
+                        <div id="techniqueStatus" class="text-xs mt-1 text-white hidden"></div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button id="formatPromptBtn" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                            <span id="formatBtnText">🎯 Harmonize</span>
+                            <div id="formatBtnLoader" class="hidden"><div class="animate-spin rounded-full h-3 w-3 border-b-2 border-white mx-auto"></div></div>
+                        </button>
+                        <button id="fixPromptBtn" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                            <span id="fixBtnText">🔧 Fix</span>
+                            <div id="fixBtnLoader" class="hidden"><div class="animate-spin rounded-full h-3 w-3 border-b-2 border-white mx-auto"></div></div>
+                        </button>
+                        <button id="enhancePromptBtn" class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg">
+                            <span id="enhanceBtnText">🚀 Enhance</span>
+                            <div id="enhanceBtnLoader" class="hidden"><div class="animate-spin rounded-full h-3 w-3 border-b-2 border-white mx-auto"></div></div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Custom Enhancement Instructions -->
+                <div class="p-3 themed-box rounded-lg space-y-3">
+                    <h3 class="text-lg font-medium text-white">Custom Instructions</h3>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-white">Enhancement & Fix Instructions (Optional)</label>
+                        <textarea id="customInstructions" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base resize-none bg-transparent text-white border-current" rows="3" placeholder=""></textarea>
+                    </div>
+                </div>
+
+                <!-- Generation Models -->
+                <div class="p-3 themed-box rounded-lg space-y-3">
+                    <h3 class="text-lg font-medium text-white">Generation Models</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium mb-1 text-white">Model A</label>
+                            <select id="modelA" class="w-full px-3 py-2 text-sm border rounded-lg bg-transparent text-white border-current">
+                                <option>@GPT-Image-1</option>
+                                <option>@Ideogram-v3</option>
+                                <option>@FLUX-pro-1.1-ultra</option>
+                                <option>@Flux-Kontext-Pro</option>
+                                <option>@Flux-Kontext-Max</option>
+                                <option>@FLUX-schnell</option>
+                                <option>@FLUX-Krea</option>
+                                <option>@FLUX-dev</option>
+                                <option>@Gemini-2.5-Flash-Image</option>
+                                <option>@Gemini-2.0-Flash-Preview</option>
+                                <option>@Trellis-3D</option>
+                            </select>
+                            <div id="modelA-params" class="mt-2 space-y-2 hidden"></div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1 text-white">Model B</label>
+                            <select id="modelB" class="w-full px-3 py-2 text-sm border rounded-lg bg-transparent text-white border-current">
+                                <option>@Flux-Kontext-Pro</option>
+                                <option>@GPT-Image-1</option>
+                                <option>@Ideogram-v3</option>
+                                <option>@Seedream-4.0</option>
+                                <option>@Flux-Kontext-Max</option>
+                                <option>@FLUX-schnell</option>
+                                <option>@FLUX-Krea</option>
+                                <option>@FLUX-dev</option>
+                                <option>@Gemini-2.5-Flash-Image</option>
+                                <option>@Qwen-Edit</option>
+                            </select>
+                            <div id="modelB-params" class="mt-2 space-y-2 hidden"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button id="generateBtn" class="w-full bg-secondary hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
+                    <span id="btnText">GENERATE IMAGES</span>
+                    <div id="btnLoader" class="hidden"><div class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block"></div><span>Processing...</span></div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden mt-6">
+            <div class="themed-box rounded-2xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold">Generated Results</h2><div class="flex gap-2"><button id="downloadImages" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">📥 Download Images</button></div></div>
+                <div id="multiResultGrid" class="grid gap-6"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- STATE & DOM ---
+let currentVariables = [], uploadedFiles = [], loadedTechniques = null, techniqueFileName = '', basePromptForRotation = '', currentCombination = 0, totalCombinations = 0;
+
+// --- MODEL CONFIGURATION ---
+const modelConfigs = {
+    '@GPT-Image-1': {
+        displayName: 'GPT-Image-1',
+        aspectRatios: ['1:1', '3:2', '2:3'],
+        qualityOptions: ['high', 'medium', 'low'],
+        features: ['use_mask'],
+        syntax: '--'
+    },
+    '@Ideogram-v3': {
+        displayName: 'Ideogram v3',
+        aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16'],
+        styleOptions: ['AUTO', 'GENERAL', 'REALISTIC', 'DESIGN'],
+        features: ['use_mask'],
+        specialNote: 'Exceptional typography and text generation',
+        syntax: '--'
+    },
+    '@FLUX-pro-1.1-ultra': {
+        displayName: 'FLUX Pro 1.1 Ultra',
+        aspectRatios: ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16', '9:21'],
+        features: ['raw', 'strength'],
+        syntax: '--'
+    },
+    '@Flux-Kontext-Pro': {
+        displayName: 'FLUX Kontext Pro',
+        aspectRatios: ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16', '9:21'],
+        syntax: '--'
+    },
+    '@Flux-Kontext-Max': {
+        displayName: 'FLUX Kontext Max',
+        aspectRatios: ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16', '9:21'],
+        syntax: '--'
+    },
+    '@FLUX-schnell': {
+        displayName: 'FLUX Schnell',
+        aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16'],
+        syntax: '--'
+    },
+    '@FLUX-Krea': {
+        displayName: 'FLUX Krea',
+        aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16'],
+        syntax: '--'
+    },
+    '@FLUX-dev': {
+        displayName: 'FLUX Dev',
+        aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16'],
+        syntax: '--'
+    },
+    '@Gemini-2.5-Flash-Image': {
+        displayName: 'Gemini 2.5 Flash Image',
+        aspectRatios: [],
+        features: [],
+        syntax: '--'
+    },
+    '@Gemini-2.0-Flash-Preview': {
+        displayName: 'Gemini 2.0 Flash',
+        aspectRatios: [],
+        features: [],
+        syntax: '--'
+    },
+    '@Trellis-3D': {
+        displayName: 'Trellis 3D',
+        aspectRatios: [],
+        features: [],
+        specialNote: '3D model generation',
+        syntax: '--'
+    }
+};
+const dom = {
+    uploadArea: document.getElementById('uploadArea'), fileInput: document.getElementById('fileInput'), uploadPrompt: document.getElementById('uploadPrompt'), imagePreview: document.getElementById('imagePreview'), previewImg: document.getElementById('previewImg'), replaceBtn: document.getElementById('replaceBtn'), removeBgBtn: document.getElementById('removeBgBtn'), removeBtn: document.getElementById('removeBtn'), readImageBtn: document.getElementById('readImageBtn'),
+    originalPrompt: document.getElementById('originalPrompt'), clearPrompt: document.getElementById('clearPrompt'),
+    variableRules: document.getElementById('variableRules'),
+    analysisModel: document.getElementById('analysisModel'), analyzeBtn: document.getElementById('analyzeBtn'), copyAllBtn: document.getElementById('copyAllBtn'), analysisLoading: document.getElementById('analysisLoading'), analysisStatus: document.getElementById('analysisStatus'),
+    variableControls: document.getElementById('variableControls'), variableList: document.getElementById('variableList'), prevCombo: document.getElementById('prevCombo'), nextCombo: document.getElementById('nextCombo'), comboCounter: document.getElementById('comboCounter'), addMoreVariablesBtn: document.getElementById('addMoreVariablesBtn'),
+    rotatedPrompt: document.getElementById('rotatedPrompt'),
+    feedBtn: document.getElementById('feedBtn'), refeedBtn: document.getElementById('refeedBtn'),
+    enhancementBot: document.getElementById('enhancementBot'), techniquesFile: document.getElementById('techniquesFile'), uploadBtn: document.getElementById('uploadBtn'), clearTechniques: document.getElementById('clearTechniques'), techniqueStatus: document.getElementById('techniqueStatus'),
+    formatPromptBtn: document.getElementById('formatPromptBtn'), formatBtnText: document.getElementById('formatBtnText'), formatBtnLoader: document.getElementById('formatBtnLoader'),
+    fixPromptBtn: document.getElementById('fixPromptBtn'), fixBtnText: document.getElementById('fixBtnText'), fixBtnLoader: document.getElementById('fixBtnLoader'),
+    enhancePromptBtn: document.getElementById('enhancePromptBtn'), enhanceBtnText: document.getElementById('enhanceBtnText'), enhanceBtnLoader: document.getElementById('enhanceBtnLoader'),
+    modelA: document.getElementById('modelA'), modelB: document.getElementById('modelB'),
+    generateBtn: document.getElementById('generateBtn'), btnText: document.getElementById('btnText'), btnLoader: document.getElementById('btnLoader'),
+    resultsSection: document.getElementById('resultsSection'), multiResultGrid: document.getElementById('multiResultGrid'), downloadImages: document.getElementById('downloadImages'),
+    saveState: document.getElementById('saveState'), loadState: document.getElementById('loadState'),
+    themeSelector: document.getElementById('themeSelector'),
+    customInstructions: document.getElementById('customInstructions'),
+};
+
+// --- POE HANDLERS ---
+window.Poe.registerHandler("analysis-handler", (r, context) => handleAnalysisResponse(r, context));
+window.Poe.registerHandler("ai-expand-handler", r => handleAiExpandResponse(r));
+window.Poe.registerHandler("enhancement-handler", r => handleEnhancementResponse(r));
+window.Poe.registerHandler("harmonize-handler", r => handleHarmonizeResponse(r));
+window.Poe.registerHandler("fix-handler", r => handleFixResponse(r));
+window.Poe.registerHandler("image-read-handler", r => handleImageReadResponse(r));
+window.Poe.registerHandler("remove-bg-handler", r => handleRemoveBgResponse(r));
+
+// --- IMAGE HANDLING ---
+function handleFile(files) {
+    if (!files || files.length === 0) return;
+
+    // Convert FileList to Array and filter for images only
+    uploadedFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+
+    if (uploadedFiles.length === 0) {
+        showAlert('Please upload valid image files only.');
+        return;
+    }
+
+    // For backwards compatibility, set the first file as uploadedFile
+    uploadedFile = uploadedFiles[0];
+
+    // Update preview to show multiple images
+    updateImagePreview();
+    dom.readImageBtn.disabled = false;
+}
+
+function updateImagePreview() {
+    if (uploadedFiles.length === 0) return;
+
+    dom.uploadPrompt.classList.add('hidden');
+    dom.imagePreview.classList.remove('hidden');
+
+    // Create preview for multiple images
+    if (uploadedFiles.length === 1) {
+        // Single image - use existing preview
+        const reader = new FileReader();
+        reader.onload = e => {
+            dom.previewImg.src = e.target.result;
+        };
+        reader.readAsDataURL(uploadedFiles[0]);
+    } else {
+        // Multiple images - create side-by-side preview
+        const previewContainer = dom.imagePreview.querySelector('img').parentNode;
+        previewContainer.innerHTML = '';
+
+        const gridDiv = document.createElement('div');
+        gridDiv.className = 'grid grid-cols-2 gap-2 mb-3';
+
+        uploadedFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'w-full rounded-lg max-h-32 object-cover';
+                img.alt = `Image ${index + 1}`;
+                gridDiv.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        previewContainer.appendChild(gridDiv);
+
+        // Add count indicator
+        const countDiv = document.createElement('div');
+        countDiv.className = 'text-xs text-center mb-3 text-white bg-black bg-opacity-30 rounded px-2 py-1';
+        countDiv.textContent = `${uploadedFiles.length} images selected`;
+        previewContainer.appendChild(countDiv);
+
+        // Add action buttons
+        const buttonDiv = document.createElement('div');
+        buttonDiv.className = 'flex justify-center space-x-2 flex-wrap gap-1';
+        buttonDiv.innerHTML = `
+            <button id="replaceBtn" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs">Replace</button>
+            <button id="removeBgBtn" class="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-xs">🪄 Remove BG</button>
+            <button id="removeBtn" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs">Remove</button>
+        `;
+        previewContainer.appendChild(buttonDiv);
+
+        // Re-attach event listeners
+        document.getElementById('replaceBtn').addEventListener('click', () => dom.fileInput.click());
+        document.getElementById('removeBgBtn').addEventListener('click', removeBackground);
+        document.getElementById('removeBtn').addEventListener('click', removeImage);
+    }
+}
+function removeImage() {
+    uploadedFile = null;
+    uploadedFiles = [];
+    dom.uploadPrompt.classList.remove('hidden');
+    dom.imagePreview.classList.add('hidden');
+    dom.fileInput.value = '';
+    dom.readImageBtn.disabled = true;
+}
+async function readImage() {
+    if (!uploadedFile) { showAlert('Please upload an image first.'); return; }
+    const model = dom.enhancementBot.value;
+    setLoading(dom.readImageBtn, true, 'Reading...');
+    try {
+        await window.Poe.sendUserMessage(`@${model} Describe this image in detail for a generative art prompt. Focus on subject, style, colors, composition, and mood.`, {
+            handler: "image-read-handler", stream: false, openChat: false, attachments: [uploadedFile]
+        });
+    } catch (e) {
+        showAlert('Error reading image: ' + e.message);
+        setLoading(dom.readImageBtn, false, 'Read Image to Base Prompt');
+    }
+}
+function handleImageReadResponse(result) {
+    setLoading(dom.readImageBtn, false, 'Read Image to Base Prompt');
+    if (result.status === "complete") dom.originalPrompt.value = result.responses[0].content.trim();
+    else showAlert("Image read error: " + (result.responses[0].statusText || 'Unknown error'));
+}
+
+async function removeBackground() {
+    if (!uploadedFile) { showAlert('Please upload an image first.'); return; }
+    setLoading(dom.removeBgBtn, true, 'Removing...');
+    try {
+        await window.Poe.sendUserMessage(`@remove-background Remove background from this image`, {
+            handler: "remove-bg-handler", stream: false, openChat: false, attachments: [uploadedFile]
+        });
+    } catch (e) {
+        showAlert('Error removing background: ' + e.message);
+        setLoading(dom.removeBgBtn, false, '🪄 Remove BG');
+    }
+}
+
+function handleRemoveBgResponse(result) {
+    setLoading(dom.removeBgBtn, false, '🪄 Remove BG');
+    if (result.status === "complete") {
+        if (result.responses[0].attachments?.length > 0) {
+            // Convert the result to a new file and update the preview
+            fetch(result.responses[0].attachments[0].url)
+                .then(response => response.blob())
+                .then(blob => {
+                    uploadedFile = new File([blob], 'removed-bg.png', { type: 'image/png' });
+                    dom.previewImg.src = result.responses[0].attachments[0].url;
+                })
+                .catch(e => showAlert('Error processing removed background image: ' + e.message));
+        } else {
+            showAlert('No background-removed image was generated.');
+        }
+    } else {
+        showAlert("Background removal error: " + (result.responses[0].statusText || 'Unknown error'));
+    }
+}
+
+// --- PROMPT ROTATION ---
+async function analyzePrompt() {
+    const prompt = dom.originalPrompt.value.trim();
+    if (!prompt) { showAlert('Please enter a base prompt to analyze.'); return; }
+    basePromptForRotation = prompt;
+    showAnalysisLoading(true, 'Analyzing variables...');
+
+    // Get variable creation rules
+    const rules = dom.variableRules.value.trim();
+    const rulesInstruction = rules ? `\n\nIMPORTANT VARIABLE CREATION RULES: ${rules}` : '';
+
+    // Build multimodal context
+    const referenceImageContext = uploadedFile ? '\n\nREFERENCE IMAGE CONTEXT: There is a reference image attached to this prompt generation session. Consider the visual elements and style when generating variables.' : '';
+
+    // Get the requested number of variables
+    const requestedVarCount = parseInt(document.getElementById('analyzeVarCount').value) || 6;
+
+    const analysisPrompt = `
+You are an expert prompt analysis system. Your job is to analyze prompts and extract variables for systematic research.
+
+PROMPT TO ANALYZE: "${prompt}"${rulesInstruction}${referenceImageContext}
+
+TASK: Identify exactly ${requestedVarCount} key variables that could be varied in this prompt.
+
+REQUIREMENTS:
+1. For each variable, identify the EXACT text from the original prompt as current_value
+2. Generate exactly 5 diverse alternatives for each variable
+3. Variables should focus on nouns, adjectives, locations, styles, or conceptual elements
+4. Ensure alternatives are contextually appropriate and diverse
+5. Follow any Variable Creation Rules provided above
+
+CRITICAL: You MUST respond with ONLY pure JSON. No explanations, no markdown formatting, no additional text whatsoever.
+
+Expected JSON format:
+{
+  "variables": [
+    {
+      "name": "descriptive_variable_name",
+      "current_value": "exact_text_from_original_prompt",
+      "options": ["alternative1", "alternative2", "alternative3", "alternative4", "alternative5"]
+    }
+  ]
+}
+
+Generate exactly ${requestedVarCount} variables with exactly 5 options each. OUTPUT ONLY THE JSON.`;
+
+    try {
+        const opts = {
+            handler: "analysis-handler",
+            stream: false,
+            openChat: false,
+            handlerContext: { attempt: 1, maxAttempts: 3 }
+        };
+
+        // Include reference image if available
+        if (uploadedFile) {
+            opts.attachments = [uploadedFile];
+        }
+
+        await window.Poe.sendUserMessage(`@${dom.analysisModel.value} ${analysisPrompt}`, opts);
+    } catch (e) {
+        showAnalysisLoading(false);
+        showAlert('Error analyzing prompt: ' + e.message);
+        console.error('Analysis error:', e);
+    }
+}
+function handleAnalysisResponse(result, context) {
+    showAnalysisLoading(false);
+
+    console.log('Analysis response received:', result.status, result.responses[0].content.substring(0, 200));
+
+    if (result.status !== "complete") {
+        const errorMsg = result.responses[0].statusText || 'Unknown error';
+        showAlert("Analysis error: " + errorMsg);
+        console.error('Analysis failed:', errorMsg);
+        return;
+    }
+
+    const response = result.responses[0].content;
+
+    if (context?.type === 'addMore') {
+        // Handle adding more variables - add to existing ones
+        try {
+            console.log('Processing addMore variables...');
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                console.error('No JSON found in addMore response:', response);
+                throw new Error('No JSON found in response. Got: ' + response.substring(0, 100));
+            }
+
+            const data = JSON.parse(jsonMatch[0]);
+            console.log('Parsed addMore data:', data);
+
+            if (!data.variables || !Array.isArray(data.variables)) {
+                throw new Error('Invalid variables structure in response');
+            }
+
+            // CRITICAL: Store current variables before adding new ones
+            const oldVariablesCount = currentVariables.length;
+
+            // Get the requested number of variables to add
+            const requestedAddCount = parseInt(document.getElementById('addMoreVarCount').value) || 3;
+            const newVariables = data.variables.slice(0, requestedAddCount);
+
+            // Ensure we're actually adding, not replacing
+            currentVariables.push(...newVariables);
+
+            console.log(`Before adding: ${oldVariablesCount} variables, After adding: ${currentVariables.length} variables`);
+
+            setupVariableControls();
+            calculateCombinations();
+            updateRotatedPrompt();
+
+            showAlert(`${newVariables.length} new enrichment variable${newVariables.length !== 1 ? 's' : ''} added successfully! Total: ${currentVariables.length} variables.`);
+
+        } catch (error) {
+            console.error('Add variables error:', error, 'Response:', response);
+            showAlert('Error adding more variables: ' + error.message + '\n\nCheck browser console for details.');
+        }
+        return;
+    }
+
+    if (context?.type === 'replace') {
+        // Handle variable replacement
+        try {
+            console.log('Processing replace variable...');
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                console.error('No JSON found in replace response:', response);
+                throw new Error('No JSON found in response. Got: ' + response.substring(0, 100));
+            }
+
+            const data = JSON.parse(jsonMatch[0]);
+            console.log('Parsed replace data:', data);
+
+            if (!data.variable || !data.variable.name) {
+                throw new Error('Invalid variable structure in response');
+            }
+
+            const variableIndex = context.variableIndex;
+
+            // Replace the variable at the specified index
+            currentVariables[variableIndex] = data.variable;
+
+            // Refresh the UI
+            setupVariableControls();
+            calculateCombinations();
+            updateRotatedPrompt();
+
+            showAlert('Variable replaced successfully!');
+
+        } catch (error) {
+            console.error('Replace variable error:', error, 'Response:', response);
+            showAlert('Error parsing variable replacement: ' + error.message + '\n\nCheck browser console for details.');
+        }
+        return;
+    }
+
+    // Handle normal analysis - JSON response (default behavior)
+    try {
+        console.log('Processing normal analysis...');
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error('No JSON found in normal analysis response:', response);
+            throw new Error('No JSON found in response. Expected JSON format but got: ' + response.substring(0, 100));
+        }
+
+        const data = JSON.parse(jsonMatch[0]);
+        console.log('Parsed normal analysis data:', data);
+
+        if (!data.variables || !Array.isArray(data.variables)) {
+            throw new Error('Invalid JSON structure - missing variables array');
+        }
+
+        currentVariables = data.variables.slice(0, 10);
+        console.log('Set currentVariables:', currentVariables.length, 'variables');
+
+        setupVariableControls();
+        calculateCombinations();
+        updateRotatedPrompt();
+        dom.variableControls.classList.remove('hidden');
+
+        showAlert(`Successfully generated ${currentVariables.length} variables!`);
+
+    } catch (e) {
+        console.error('Normal analysis error:', e, 'Response:', response);
+        showAlert('Error parsing analysis: ' + e.message + '\n\nRaw response: ' + response.substring(0, 200) + '\n\nCheck browser console for full details.');
+    }
+}
+
+function handleAiExpandResponse(result, context) {
+    showAnalysisLoading(false);
+    if (result.status !== "complete") { showAlert("AI expand error: " + (result.responses[0].statusText || 'Unknown error')); return; }
+
+    // Handle AI expansion - plain text response
+    try {
+        const response = result.responses[0].content;
+        const expandedOptions = response.trim().split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+
+        // We need to know which variable this was for - store it globally during the call
+        if (window.currentExpandVariableIndex !== undefined) {
+            const variableIndex = window.currentExpandVariableIndex;
+            const originalOptions = window.currentExpandOriginalOptions || [];
+
+            // Combine original examples with AI-generated options
+            const allNewOptions = [...originalOptions, ...expandedOptions];
+
+            // Add to the textarea for user to review
+            const customTextArea = document.getElementById(`customText-${variableIndex}`);
+            if (customTextArea) {
+                customTextArea.value = allNewOptions.join('\n');
+                showAlert(`AI generated ${expandedOptions.length} additional options! Review and click "Add" to confirm.`);
+            } else {
+                showAlert('Error: Could not find textarea to update.');
+            }
+
+            // Clean up
+            delete window.currentExpandVariableIndex;
+            delete window.currentExpandOriginalOptions;
+        } else {
+            showAlert(`AI generated ${expandedOptions.length} options, but lost track of which variable this was for.`);
+        }
+    } catch (error) {
+        showAlert('Error processing AI expansion: ' + error.message);
+    }
+}
+function setupVariableControls() {
+    dom.variableList.innerHTML = '';
+    currentVariables.forEach((v, i) => {
+        const div = document.createElement('div');
+        div.className = 'p-3 border rounded-lg themed-box';
+        let opts = (v.options || []).filter(opt => opt !== v.current_value);
+        opts.unshift(v.current_value);
+        div.innerHTML = `
+            <div class="flex justify-between items-center mb-2">
+                <label class="block text-sm font-medium text-white">${v.name}:</label>
+                <button class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs transition-colors" onclick="removeVariable(${i})" title="Remove this variable">✕</button>
+            </div>
+            <div class="flex gap-2 mb-2">
+                <select class="flex-1 p-2 border rounded text-sm bg-transparent border-current text-white" data-variable-index="${i}">${opts.map(o => `<option value="${escapeHtml(o)}">${o === v.current_value ? `${escapeHtml(o)} (Original)` : escapeHtml(o)}</option>`).join('')}</select>
+                <button class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs transition-colors" onclick="addCustomOption(${i})" title="Add custom options">+</button>
+            </div>
+            <div id="customInput-${i}" class="hidden mt-2">
+                <div class="flex flex-col gap-1">
+                    <textarea id="customText-${i}" class="w-full p-2 border rounded text-xs resize-none bg-transparent border-current text-white" rows="2" placeholder="Add custom options (one per line)"></textarea>
+                    <div class="flex gap-1 flex-wrap">
+                        <button class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs" onclick="confirmCustomOptions(${i})">Add</button>
+                        <button class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs" onclick="aiExpandOptions(${i})">AI Expand</button>
+                        <button class="px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs" onclick="cancelCustomOptions(${i})">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        div.querySelector('select').addEventListener('change', updateRotatedPrompt);
+        dom.variableList.appendChild(div);
+    });
+}
+function updateRotatedPrompt() {
+    if (currentVariables.length === 0) { dom.rotatedPrompt.value = dom.originalPrompt.value; return; }
+    let p = basePromptForRotation;
+    currentVariables.forEach((v, i) => {
+        const s = document.querySelector(`[data-variable-index="${i}"]`);
+        if(s) p = p.replace(new RegExp(escapeRegExp(v.current_value), 'gi'), s.value);
+    });
+    dom.rotatedPrompt.value = p;
+}
+
+// --- FEED/REFEED & ENHANCEMENT ---
+function feedPrompt() {
+    const text = dom.originalPrompt.value.trim();
+    if (!text) { showAlert('Base prompt is empty.'); return; }
+    dom.rotatedPrompt.value = text;
+    basePromptForRotation = text;
+    dom.variableControls.classList.add('hidden');
+    currentVariables = [];
+}
+function refeedPrompt() {
+    const text = dom.rotatedPrompt.value.trim();
+    if (!text) { showAlert('Final prompt is empty.'); return; }
+    dom.originalPrompt.value = text;
+    basePromptForRotation = text;
+    // Keep variables and controls intact - refeed should just move the prompt back
+}
+function handleTechniqueFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => { loadedTechniques = e.target.result; techniqueFileName = file.name; updateTechniqueStatus(true); };
+    reader.readAsText(file);
+}
+function clearTechniqueFile() { loadedTechniques = null; techniqueFileName = ''; dom.techniquesFile.value = ''; updateTechniqueStatus(false); }
+function updateTechniqueStatus(loaded) {
+    dom.uploadBtn.textContent = loaded ? `📄 ${techniqueFileName}` : '📁 Upload Techniques';
+    dom.clearTechniques.classList.toggle('hidden', !loaded);
+    dom.techniqueStatus.classList.toggle('hidden', !loaded);
+    if(loaded) dom.techniqueStatus.textContent = `✓ Techniques loaded.`;
+    dom.enhanceBtnText.textContent = loaded ? '🚀 Enhance with Techniques' : '🚀 Enhance Prompt';
+}
+async function enhancePrompt() {
+    const prompt = dom.rotatedPrompt.value.trim();
+    if (!prompt) { showAlert('Prompt to enhance is empty.'); return; }
+    setLoading(dom.enhancePromptBtn, true);
+
+    // Get custom instructions
+    const customInstructions = dom.customInstructions.value.trim();
+    const customContext = customInstructions ? `\n\nCUSTOM INSTRUCTIONS: ${customInstructions}` : '';
+
+    let p;
+    const model = dom.enhancementBot.value;
+    const opts = { handler: "enhancement-handler", stream: false, openChat: false };
+    if (loadedTechniques) {
+        p = `Using these techniques:\n\n${loadedTechniques}${customContext}\n\nEnhance this prompt: "${prompt}"`;
+    } else {
+        if (uploadedFile) {
+            p = `As an expert multimodal prompt engineer, enhance the following prompt, taking inspiration from the attached reference image: "${prompt}"${customContext}\n\nMerge the text's intent with the image's style, subject, and mood. Provide only the final, enhanced prompt.`;
+            opts.attachments = [uploadedFile];
+        } else {
+            p = `Enhance this prompt for clarity and creative potential for a generative model: "${prompt}"${customContext}`;
+        }
+    }
+    try {
+        await window.Poe.sendUserMessage(`@${model} ${p}`, opts);
+    } catch (e) {
+        setLoading(dom.enhancePromptBtn, false);
+        showAlert('Error enhancing prompt: ' + e.message);
+    }
+}
+function handleEnhancementResponse(result) {
+    setLoading(dom.enhancePromptBtn, false);
+    if (result.status === "complete") dom.rotatedPrompt.value = result.responses[0].content.trim();
+    else showAlert("Enhancement error: " + (result.responses[0].statusText || 'Unknown error'));
+}
+
+function handleHarmonizeResponse(result) {
+    setLoading(dom.formatPromptBtn, false);
+    if (result.status === "complete") {
+        dom.rotatedPrompt.value = result.responses[0].content.trim();
+        showAlert('Prompt harmonized successfully! All variables have been integrated coherently.');
+    } else {
+        showAlert("Harmonize error: " + (result.responses[0].statusText || 'Unknown error'));
+    }
+}
+
+// --- FIX FUNCTIONALITY ---
+async function fixPrompt() {
+    const prompt = dom.rotatedPrompt.value.trim();
+    if (!prompt) { showAlert('Please enter a prompt to fix.'); return; }
+
+    setLoading(dom.fixPromptBtn, true);
+
+    // Get variable creation rules for context
+    const rules = dom.variableRules.value.trim();
+    const rulesContext = rules ? `\n\nVariable Creation Rules: ${rules}` : '';
+
+    // Get custom instructions
+    const customInstructions = dom.customInstructions.value.trim();
+    const customContext = customInstructions ? `\n\nCUSTOM INSTRUCTIONS: ${customInstructions}` : '';
+
+    // Build multimodal context
+    const referenceImageContext = uploadedFile ? '\n\nREFERENCE IMAGE: There is a reference image attached that should influence the fixing process.' : '';
+
+    const fixPrompt = `
+You are an expert prompt engineer. Your task is to fix this prompt by removing inconsistencies, improving coherence, and ensuring it will work well with image generation models.
+
+CURRENT PROMPT: "${prompt}"${rulesContext}${customContext}${referenceImageContext}
+
+FIX REQUIREMENTS:
+1. Remove any internal contradictions or conflicting elements
+2. Improve grammar, flow, and sentence structure
+3. Ensure all elements work together logically
+4. Fix any weird phrasing or awkward constructions
+5. Make sure the prompt won't confuse image generation models
+6. Maintain the core intent and all important details
+7. Optimize for clear, coherent visual generation
+
+Focus on structural fixes rather than creative enhancement. The goal is to make the prompt work properly, not to add new creative elements.
+
+OUTPUT: Provide ONLY the fixed prompt with no explanations, formatting, or additional text.`;
+
+    try {
+        const selectedModel = dom.enhancementBot.value;
+        const opts = { handler: "fix-handler", stream: false, openChat: false };
+
+        // Include reference image if available
+        if (uploadedFile) {
+            opts.attachments = [uploadedFile];
+        }
+
+        await window.Poe.sendUserMessage(`@${selectedModel} ${fixPrompt}`, opts);
+    } catch (error) {
+        setLoading(dom.fixPromptBtn, false);
+        showAlert('Error fixing prompt: ' + error.message);
+    }
+}
+
+function handleFixResponse(result) {
+    setLoading(dom.fixPromptBtn, false);
+    if (result.status === "complete") {
+        dom.rotatedPrompt.value = result.responses[0].content.trim();
+        showAlert('Prompt fixed successfully! Inconsistencies resolved and structure improved.');
+    } else {
+        showAlert("Fix error: " + (result.responses[0].statusText || 'Unknown error'));
+    }
+}
+
+// --- IMAGE GENERATION ---
+async function generateImages() {
+    const prompt = dom.rotatedPrompt.value.trim();
+    if (!prompt) { showAlert('Final prompt is empty. Please feed, rotate, or enhance a prompt first.'); return; }
+
+    console.log('Starting image generation with prompt:', prompt);
+    setLoading(dom.generateBtn, true);
+    dom.resultsSection.classList.remove('hidden');
+
+    const calls = [
+        { id: 'modelA', name: dom.modelA.value, bot: dom.modelA.value, prompt, imageFile: uploadedFile },
+        { id: 'modelB', name: dom.modelB.value, bot: dom.modelB.value, prompt, imageFile: uploadedFile }
+    ];
+
+    createMultipleResultBoxes(calls);
+
+    // Generate images in parallel as originally intended
+    try {
+        const results = await Promise.allSettled(calls.map(c => callBotWithResultBox(c.bot, c.prompt, c.imageFile, c.id, c.name)));
+
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+
+        if (successful > 0) {
+            showAlert(`${successful} image(s) generated successfully!`, 'success');
+        }
+        if (failed > 0) {
+            showAlert(`${failed} image(s) failed to generate. Check the results below.`, 'warning');
+        }
+
+        console.log(`Generation complete: ${successful} successful, ${failed} failed`);
+
+    } catch (error) {
+        console.error('Image generation error:', error);
+        showAlert('Error during image generation. Check the results below.', 'error');
+    } finally {
+        setLoading(dom.generateBtn, false);
+    }
+}
+
+function createMultipleResultBoxes(calls) {
+    const totalBoxes = calls.length + (uploadedFile ? 1 : 0);
+    dom.multiResultGrid.className = `grid gap-6 md:grid-cols-${Math.min(totalBoxes, 3)}`;
+    dom.multiResultGrid.innerHTML = '';
+
+    if (uploadedFile) {
+        const refBox = document.createElement('div');
+        refBox.innerHTML = `<h3 class="text-sm font-medium mb-3 text-white">Reference</h3><div class="bg-black bg-opacity-20 border border-current rounded-lg p-2"><img src="${dom.previewImg.src}" class="w-full rounded-lg"></div>`;
+        dom.multiResultGrid.appendChild(refBox);
+    }
+
+    calls.forEach(c => {
+        const box = document.createElement('div');
+        box.id = `result-${c.id}`;
+        box.innerHTML = `<h3 class="text-sm font-medium mb-3 text-white">${c.name}</h3><div id="content-${c.id}" class="bg-black bg-opacity-20 border border-current rounded-lg p-4 min-h-48 flex items-center justify-center"><div class="text-center text-white"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>Generating...</div></div>`;
+        dom.multiResultGrid.appendChild(box);
+    });
+}
+
+async function callBotWithResultBox(bot, prompt, image, id, name) {
+    return new Promise(async (resolve, reject) => {
+        const handler = `bot-handler-${id}-${Date.now()}`;
+        const el = document.getElementById(`content-${id}`);
+
+        if (!el) {
+            console.error(`Element content-${id} not found`);
+            reject(new Error(`Element content-${id} not found`));
+            return;
+        }
+
+        console.log(`Starting generation for ${name} (${id})`);
+
+        // Get model parameters and append them to the prompt
+        const modelParams = getModelParameters(id);
+        const finalPrompt = prompt + modelParams;
+
+        console.log(`Final prompt for ${name}: ${finalPrompt}`);
+
+        // Set up the handler
+        window.Poe.registerHandler(handler, (result) => {
+            console.log(`Handler called for ${name}:`, result.status);
+
+            if (result.status === "complete") {
+                if (result.responses[0].attachments?.length > 0) {
+                    el.innerHTML = `<img src="${result.responses[0].attachments[0].url}" class="w-full rounded-lg" alt="Generated by ${name}">`;
+                    console.log(`${name} generation successful`);
+                    resolve(result);
+                } else {
+                    el.innerHTML = `<div class="text-yellow-600 p-4 text-center">No image generated.<br><small>The model may have rejected the prompt.</small></div>`;
+                    console.warn(`${name} generated no image`);
+                    reject(new Error('No image generated'));
+                }
+            } else if (result.status === "error") {
+                const errorMsg = result.responses[0].statusText || 'Generation failed';
+                el.innerHTML = `<div class="text-red-600 p-4 text-center">Generation Failed<br><small>${errorMsg}</small></div>`;
+                console.error(`${name} generation error:`, errorMsg);
+                reject(new Error(errorMsg));
+            } else if (result.status === "incomplete") {
+                // Show progress for incomplete status
+                el.innerHTML = `<div class="text-center text-white"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>Generating...</div>`;
+            }
+        });
+
+        // Send the message
+        try {
+            const opts = {
+                handler,
+                stream: false,
+                openChat: false
+            };
+
+            // Handle multiple images for Gemini-2.5-Flash-Image
+            if (bot === '@Gemini-2.5-Flash-Image' && uploadedFiles.length > 0) {
+                opts.attachments = uploadedFiles;
+                console.log(`Sending ${name} with ${uploadedFiles.length} image attachments`);
+            } else if (image) {
+                // For other models, use single image (first one)
+                opts.attachments = [image];
+                console.log(`Sending ${name} with single image attachment`);
+            }
+
+            await window.Poe.sendUserMessage(`${bot} ${finalPrompt}`, opts);
+            console.log(`Message sent to ${name}`);
+
+        } catch (error) {
+            console.error(`Error sending message to ${name}:`, error);
+            el.innerHTML = `<div class="text-red-600 p-4 text-center">Connection Failed<br><small>${error.message}</small></div>`;
+            reject(error);
+        }
+    });
+}
+
+// --- THEME SELECTOR ---
+function initializeColorThemes() {
+    const themes = {
+        default: 'bg-gray-400',
+        mint: 'bg-emerald-400',
+        sky: 'bg-sky-400',
+        lavender: 'bg-violet-400',
+        rose: 'bg-rose-400',
+    };
+    Object.entries(themes).forEach(([themeName, colorClass]) => {
+        const button = document.createElement('button');
+        button.className = `w-6 h-6 rounded-full ${colorClass} border-2 border-transparent focus:outline-none transition-transform hover:scale-110`;
+        button.dataset.theme = themeName;
+        button.title = themeName.charAt(0).toUpperCase() + themeName.slice(1);
+        button.addEventListener('click', () => setColorTheme(themeName));
+        dom.themeSelector.appendChild(button);
+    });
+    setColorTheme('default'); // Set initial theme
+}
+function setColorTheme(themeName) {
+    // Set the theme data attribute on body
+    document.body.setAttribute('data-theme', themeName);
+
+    // Update active button indicator
+    document.querySelectorAll('#themeSelector button').forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-primary');
+        if (btn.dataset.theme === themeName) {
+            btn.classList.add('ring-2', 'ring-primary');
+        }
+    });
+}
+
+// --- CUSTOM VARIABLE OPTIONS ---
+function addCustomOption(variableIndex) {
+    // Shows the hidden input area for the selected variable
+    const customInput = document.getElementById(`customInput-${variableIndex}`);
+    customInput.classList.remove('hidden');
+    document.getElementById(`customText-${variableIndex}`).focus();
+}
+
+function cancelCustomOptions(variableIndex) {
+    // Hides the input area and clears the textarea
+    const customInput = document.getElementById(`customInput-${variableIndex}`);
+    customInput.classList.add('hidden');
+    document.getElementById(`customText-${variableIndex}`).value = '';
+}
+
+function confirmCustomOptions(variableIndex) {
+    // Takes text from the textarea, adds it to the variable's options, and refreshes the dropdown
+    const customText = document.getElementById(`customText-${variableIndex}`).value.trim();
+    if (!customText) {
+        showAlert('Please enter some custom options.');
+        return;
+    }
+
+    const newOptions = customText.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+    if (newOptions.length === 0) {
+        showAlert('Please enter valid options.');
+        return;
+    }
+
+    const variable = currentVariables[variableIndex];
+    newOptions.forEach(option => {
+        if (!variable.options.includes(option)) {
+            variable.options.push(option);
+        }
+    });
+
+    // Refresh the dropdown
+    const select = document.querySelector(`[data-variable-index="${variableIndex}"]`);
+    const currentValue = select.value;
+
+    // Rebuild options
+    let allOptions = (variable.options || []).filter(opt => opt !== variable.current_value);
+    allOptions.unshift(variable.current_value);
+    select.innerHTML = allOptions.map(option => `<option value="${escapeHtml(option)}">${option === variable.current_value ? `${escapeHtml(option)} (Original)` : escapeHtml(option)}</option>`).join('');
+    select.value = currentValue; // Keep the previously selected value
+
+    calculateCombinations();
+    cancelCustomOptions(variableIndex);
+    showAlert(`Added ${newOptions.length} new option(s)!`);
+}
+
+async function aiExpandOptions(variableIndex) {
+    const customText = document.getElementById(`customText-${variableIndex}`).value.trim();
+    if (!customText) {
+        showAlert('Please enter at least one example option for AI to expand on.');
+        return;
+    }
+
+    const variable = currentVariables[variableIndex];
+    const examples = customText.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+
+    // Store info globally so the handler can access it
+    window.currentExpandVariableIndex = variableIndex;
+    window.currentExpandOriginalOptions = examples;
+
+    showAnalysisLoading(true, 'AI expanding your options...');
+
+    const expandPrompt = `
+Based on these examples: ${examples.join(', ')}
+And this variable context: "${variable.name}" from original prompt "${basePromptForRotation}"
+
+Generate exactly 5 more similar options that follow the same pattern/style/category.
+
+Output ONLY a simple list, one option per line, no explanations or formatting:`;
+
+    try {
+        const selectedModel = dom.analysisModel.value;
+        await window.Poe.sendUserMessage(`@${selectedModel} ${expandPrompt}`, {
+            handler: "ai-expand-handler",
+            stream: false,
+            openChat: false
+        });
+    } catch (error) {
+        showAnalysisLoading(false);
+        showAlert('Error expanding options: ' + error.message);
+    }
+}
+
+function showAlert(message, type = 'info') {
+    // Custom alert replacement using a simple toast
+    const colors = {
+        info: 'bg-blue-600',
+        success: 'bg-green-600',
+        warning: 'bg-amber-600',
+        error: 'bg-red-600'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 ${colors[type]} text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-sm whitespace-pre-line`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // Auto-remove after 5 seconds for errors/warnings, 3 seconds for others
+    const timeout = (type === 'error' || type === 'warning') ? 5000 : 3000;
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, timeout);
+
+    // Add click to dismiss
+    toast.addEventListener('click', () => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    });
+}
+
+// --- HELPERS & UTILITIES ---
+function escapeHtml(s) { const p = document.createElement("p"); p.textContent = s; return p.innerHTML; }
+function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function showAnalysisLoading(loading, status = 'Analyzing...') { dom.analysisLoading.classList.toggle('hidden', !loading); if(loading) dom.analysisStatus.textContent = status; }
+function setLoading(btn, loading, text) {
+    btn.disabled = loading;
+    if (text) {
+        btn.textContent = text;
+    } else {
+        btn.querySelector('span').classList.toggle('hidden', loading);
+        btn.querySelector('div').classList.toggle('hidden', !loading);
+    }
+}
+function calculateCombinations() { totalCombinations = currentVariables.reduce((t, v) => t * (v.options?.length || 1), 1); currentCombination = 0; updateComboCounter(); }
+function navigateCombination(dir) {
+    if (totalCombinations <= 1) return;
+    currentCombination = (currentCombination + dir + totalCombinations) % totalCombinations;
+    let temp = currentCombination;
+    for (let i = currentVariables.length - 1; i >= 0; i--) {
+        const v = currentVariables[i], c = v.options?.length || 1, s = document.querySelector(`[data-variable-index="${i}"]`);
+        if (s) { s.selectedIndex = temp % c; temp = Math.floor(temp / c); }
+    }
+    updateRotatedPrompt(); updateComboCounter();
+}
+function updateComboCounter() { dom.comboCounter.textContent = `${currentCombination + 1}/${totalCombinations}`; }
+
+function clearPrompt() {
+    dom.originalPrompt.value = ''; dom.rotatedPrompt.value = ''; dom.variableControls.classList.add('hidden');
+    currentVariables = []; basePromptForRotation = ''; removeImage(); clearTechniqueFile();
+}
+function resetGeneration() { dom.resultsSection.classList.add('hidden'); setLoading(dom.generateBtn, false, 'GENERATE IMAGES'); }
+
+// --- COPY ALL FUNCTION ---
+function copyAllData() {
+    if (currentVariables.length === 0 && !dom.originalPrompt.value.trim() && !dom.rotatedPrompt.value.trim()) {
+        showAlert('No data to copy. Please create some prompts and variables first.');
+        return;
+    }
+
+    let copyText = '';
+
+    // Add prompts
+    if (dom.originalPrompt.value.trim()) {
+        copyText += `Base Prompt: ${dom.originalPrompt.value.trim()}\n\n`;
+    }
+
+    if (dom.rotatedPrompt.value.trim() && dom.rotatedPrompt.value.trim() !== dom.originalPrompt.value.trim()) {
+        copyText += `Final Prompt: ${dom.rotatedPrompt.value.trim()}\n\n`;
+    }
+
+    // Add current variable states
+    if (currentVariables.length > 0) {
+        copyText += 'Variables:\n';
+        currentVariables.forEach((variable, index) => {
+            const select = document.querySelector(`[data-variable-index="${index}"]`);
+            const currentValue = select ? select.value : variable.current_value;
+            copyText += `${index + 1}. ${variable.name}: ${currentValue}\n`;
+        });
+        copyText += '\n';
+
+        // Add all available options
+        copyText += 'Available Options:\n';
+        currentVariables.forEach((variable, index) => {
+            copyText += `${index + 1}. ${variable.name}: ${variable.options.join(', ')}\n`;
+        });
+    }
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(copyText).then(() => {
+        showAlert('All data copied to clipboard!');
+    }).catch(err => {
+        showAlert('Failed to copy to clipboard. Please try again.');
+        console.error('Copy failed:', err);
+    });
+}
+
+// --- SAVE STATE FUNCTIONALITY ---
+async function saveState() {
+    try {
+        // Get current variable selections
+        const variableSelections = {};
+        currentVariables.forEach((variable, index) => {
+            const select = document.querySelector(`[data-variable-index="${index}"]`);
+            if (select) {
+                variableSelections[index] = select.selectedIndex;
+            }
+        });
+
+        const state = {
+            version: "1.0",
+            timestamp: new Date().toISOString(),
+            originalPrompt: dom.originalPrompt.value.trim(),
+            variableRules: dom.variableRules.value.trim(),
+            customInstructions: dom.customInstructions.value.trim(),
+            analysisModel: dom.analysisModel.value,
+            enhancementBot: dom.enhancementBot.value,
+            currentVariables: currentVariables,
+            variableSelections: variableSelections,
+            currentCombination: currentCombination,
+            totalCombinations: totalCombinations,
+            rotatedPrompt: dom.rotatedPrompt.value.trim(),
+            modelA: dom.modelA.value,
+            modelB: dom.modelB.value,
+            loadedTechniques: loadedTechniques,
+            techniqueFileName: techniqueFileName,
+            basePromptForRotation: basePromptForRotation
+        };
+
+        const stateJson = JSON.stringify(state);
+
+        await navigator.clipboard.writeText(stateJson);
+
+        // Visual feedback
+        const btn = dom.saveState;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = `💾 Saved!`;
+        btn.classList.add('bg-green-700');
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('bg-green-700');
+        }, 2000);
+
+        showAlert('Complete app state saved to clipboard! Paste this to restore your exact setup later.');
+    } catch (error) {
+        showAlert('Failed to save state: ' + error.message);
+    }
+}
+
+// --- LOAD STATE FUNCTIONALITY ---
+async function loadState() {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-lg w-full mx-4">
+            <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Load Saved State</h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">Paste your saved state JSON here to restore your exact setup:</p>
+            <textarea
+                id="stateInput"
+                class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm resize-none"
+                rows="8"
+                placeholder="Paste your saved state JSON here..."
+            ></textarea>
+            <div class="flex justify-end gap-3 mt-4">
+                <button
+                    class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    onclick="this.closest('.fixed').remove()"
+                >
+                    Cancel
+                </button>
+                <button
+                    class="px-4 py-2 bg-cyan-600 text-white hover:bg-cyan-700 rounded transition-colors"
+                    onclick="processLoadState()"
+                >
+                    Load State
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Focus the textarea
+    setTimeout(() => {
+        const textarea = document.getElementById('stateInput');
+        textarea.focus();
+    }, 100);
+}
+
+function processLoadState() {
+    const stateInput = document.getElementById('stateInput').value.trim();
+
+    if (!stateInput) {
+        showAlert('Please paste your saved state JSON.');
+        return;
+    }
+
+    try {
+        const state = JSON.parse(stateInput);
+
+        // Validate state structure
+        if (!state.version || !state.originalPrompt) {
+            throw new Error('Invalid state format');
+        }
+
+        // Restore prompts and rules
+        dom.originalPrompt.value = state.originalPrompt || '';
+        dom.variableRules.value = state.variableRules || '';
+        dom.customInstructions.value = state.customInstructions || '';
+        dom.rotatedPrompt.value = state.rotatedPrompt || '';
+
+        // Restore model selections
+        if (state.analysisModel) dom.analysisModel.value = state.analysisModel;
+        if (state.enhancementBot) dom.enhancementBot.value = state.enhancementBot;
+        if (state.modelA) dom.modelA.value = state.modelA;
+        if (state.modelB) dom.modelB.value = state.modelB;
+
+        // Restore techniques
+        loadedTechniques = state.loadedTechniques || null;
+        techniqueFileName = state.techniqueFileName || '';
+        updateTechniqueStatus(!!loadedTechniques);
+
+        // Restore variables
+        if (state.currentVariables && Array.isArray(state.currentVariables)) {
+            currentVariables = state.currentVariables;
+            basePromptForRotation = state.basePromptForRotation || state.originalPrompt;
+
+            if (currentVariables.length > 0) {
+                setupVariableControls();
+
+                // Show variable controls section
+                dom.variableControls.classList.remove('hidden');
+
+                // Restore variable selections with a slight delay to ensure DOM is ready
+                setTimeout(() => {
+                    if (state.variableSelections) {
+                        Object.entries(state.variableSelections).forEach(([index, selectedIndex]) => {
+                            const select = document.querySelector(`[data-variable-index="${index}"]`);
+                            if (select && selectedIndex < select.options.length) {
+                                select.selectedIndex = selectedIndex;
+                            }
+                        });
+                        // Update rotated prompt after restoring selections
+                        updateRotatedPrompt();
+                    }
+                }, 100);
+
+                // Restore combination state
+                currentCombination = state.currentCombination || 0;
+                totalCombinations = state.totalCombinations || 1;
+                updateComboCounter();
+            }
+        }
+
+        // Close modal
+        document.querySelector('.fixed').remove();
+
+        showAlert(`State restored successfully! From: ${new Date(state.timestamp).toLocaleString()}`);
+
+    } catch (error) {
+        showAlert('Failed to load state: ' + error.message + '\n\nPlease check that you pasted valid state JSON.');
+    }
+}
+
+// Make processLoadState globally available
+window.processLoadState = processLoadState;
+
+// --- DOWNLOAD IMAGES FUNCTION ---
+async function downloadImages() {
+    const images = [];
+
+    // Find all generated images
+    const modelAImg = document.querySelector('#content-modelA img');
+    const modelBImg = document.querySelector('#content-modelB img');
+
+    if (!modelAImg && !modelBImg) {
+        showAlert('No images to download. Please generate images first.');
+        return;
+    }
+
+    try {
+        // Download Model A image
+        if (modelAImg) {
+            const response = await fetch(modelAImg.src);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${dom.modelA.value.replace('@', '')}_image.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Download Model B image
+        if (modelBImg) {
+            const response = await fetch(modelBImg.src);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${dom.modelB.value.replace('@', '')}_image.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        const downloadCount = (modelAImg ? 1 : 0) + (modelBImg ? 1 : 0);
+        showAlert(`Successfully downloaded ${downloadCount} image${downloadCount !== 1 ? 's' : ''}!`);
+
+    } catch (error) {
+        showAlert('Failed to download images. Please try again.');
+        console.error('Download failed:', error);
+    }
+}
+
+// --- EVENT LISTENERS ---
+dom.uploadArea.addEventListener('click', () => dom.fileInput.click());
+dom.fileInput.addEventListener('change', e => handleFile(e.target.files));
+dom.replaceBtn.addEventListener('click', () => dom.fileInput.click());
+dom.removeBgBtn.addEventListener('click', removeBackground);
+dom.removeBtn.addEventListener('click', removeImage);
+dom.readImageBtn.addEventListener('click', readImage);
+dom.analyzeBtn.addEventListener('click', analyzePrompt);
+dom.copyAllBtn.addEventListener('click', copyAllData);
+dom.clearPrompt.addEventListener('click', clearPrompt);
+dom.prevCombo.addEventListener('click', () => navigateCombination(-1));
+dom.nextCombo.addEventListener('click', () => navigateCombination(1));
+dom.feedBtn.addEventListener('click', feedPrompt);
+dom.refeedBtn.addEventListener('click', refeedPrompt);
+dom.techniquesFile.addEventListener('change', handleTechniqueFile);
+dom.clearTechniques.addEventListener('click', clearTechniqueFile);
+dom.formatPromptBtn.addEventListener('click', formatPrompt);
+
+// --- HARMONIZE FUNCTIONALITY ---
+async function formatPrompt() {
+    const prompt = dom.rotatedPrompt.value.trim();
+    if (!prompt) { showAlert('Please enter a prompt to harmonize.'); return; }
+
+    if (currentVariables.length === 0) {
+        showAlert('No variables to harmonize. Please analyze a prompt first.');
+        return;
+    }
+
+    setLoading(dom.formatPromptBtn, true);
+
+    // Collect all current variable selections
+    const variableSelections = [];
+    currentVariables.forEach((variable, index) => {
+        const select = document.querySelector(`[data-variable-index="${index}"]`);
+        if (select) {
+            const selectedValue = select.value;
+            // Only include variables that have been changed from their original or are enrichment variables with selections
+            if (selectedValue !== variable.current_value || (variable.current_value === "Not specified" && selectedValue !== "Not specified")) {
+                variableSelections.push({
+                    name: variable.name,
+                    originalValue: variable.current_value,
+                    selectedValue: selectedValue,
+                    isEnrichment: variable.current_value === "Not specified"
+                });
+            }
+        }
+    });
+
+    if (variableSelections.length === 0) {
+        setLoading(dom.formatPromptBtn, false);
+        showAlert('No variable changes to harmonize. Try selecting different options first.');
+        return;
+    }
+
+    // Get variable creation rules for context
+    const rules = dom.variableRules.value.trim();
+    const rulesContext = rules ? `\n\nVariable Creation Rules: ${rules}` : '';
+
+    // Build multimodal context
+    const referenceImageContext = uploadedFile ? '\n\nREFERENCE IMAGE: There is a reference image attached that should influence the harmonization.' : '';
+
+    const harmonizePrompt = `
+You are an expert prompt engineer. Your task is to harmonize this prompt by intelligently incorporating all the selected variables while maintaining coherent structure and resolving any conflicts.
+
+CURRENT PROMPT: "${prompt}"${rulesContext}${referenceImageContext}
+
+VARIABLE CHANGES TO INCORPORATE:
+${variableSelections.map(v => {
+    if (v.isEnrichment) {
+        return `• ADD: ${v.name} → ${v.selectedValue}`;
+    } else {
+        return `• CHANGE: ${v.name} from "${v.originalValue}" to "${v.selectedValue}"`;
+    }
+}).join('\n')}
+
+HARMONIZATION REQUIREMENTS:
+1. Create a coherent, well-structured prompt that naturally incorporates ALL the variable changes listed above
+2. If there are conflicts between variables, intelligently resolve them by choosing the most compatible combination or finding creative ways to blend them
+3. For CHANGE variables: Replace the original values with the selected ones seamlessly
+4. For ADD variables: Integrate them naturally into the prompt structure where they fit best
+5. Maintain proper grammar, flow, and logical structure
+6. Ensure the prompt makes visual and contextual sense
+7. Keep the core intent and subject of the original prompt while incorporating all changes
+
+OUTPUT: Provide ONLY the final harmonized prompt with no explanations, formatting, or additional text.`;
+
+    try {
+        const selectedModel = dom.enhancementBot.value;
+        const opts = { handler: "harmonize-handler", stream: false, openChat: false };
+
+        // Include reference image if available
+        if (uploadedFile) {
+            opts.attachments = [uploadedFile];
+        }
+
+        await window.Poe.sendUserMessage(`@${selectedModel} ${harmonizePrompt}`, opts);
+    } catch (error) {
+        setLoading(dom.formatPromptBtn, false);
+        showAlert('Error harmonizing prompt: ' + error.message);
+    }
+}
+dom.fixPromptBtn.addEventListener('click', fixPrompt);
+dom.enhancePromptBtn.addEventListener('click', enhancePrompt);
+dom.generateBtn.addEventListener('click', generateImages);
+dom.downloadImages.addEventListener('click', downloadImages);
+dom.saveState.addEventListener('click', saveState);
+dom.loadState.addEventListener('click', loadState);
+dom.addMoreVariablesBtn.addEventListener('click', addMoreVariables);
+
+// --- PHASE 2: ENHANCED VARIABLE SYSTEM ---
+
+// Add More Variables functionality
+async function addMoreVariables() {
+    if (currentVariables.length === 0) {
+        showAlert('Please analyze a prompt first to generate initial variables.');
+        return;
+    }
+
+    const prompt = dom.originalPrompt.value.trim();
+    if (!prompt) {
+        showAlert('Original prompt is required for adding more variables.');
+        return;
+    }
+
+    showAnalysisLoading(true, 'Adding more variables...');
+
+    // Get variable creation rules
+    const rules = dom.variableRules.value.trim();
+    const rulesInstruction = rules ? `\n\n🔥 CRITICAL VARIABLE CREATION RULES (HIGHEST PRIORITY): ${rules}\nThese rules MUST be followed above all else when creating any variables.` : '';
+
+    // List existing variables to avoid duplicates
+    const existingVariables = currentVariables.map(v => `"${v.name}" (focuses on: ${v.current_value})`).join(', ');
+
+    // Build multimodal context
+    const referenceImageContext = uploadedFile ? '\n\nREFERENCE IMAGE CONTEXT: There is a reference image attached to this prompt generation session. Consider the visual elements and style when generating variables.' : '';
+
+    // Get the requested number of variables to add
+    const requestedAddCount = parseInt(document.getElementById('addMoreVarCount').value) || 3;
+
+    const addVariablesPrompt = `
+You are an expert prompt analysis system. Analyze this prompt and identify exactly ${requestedAddCount} additional key variables that could be varied.
+
+PROMPT TO ANALYZE: "${prompt}"${rulesInstruction}${referenceImageContext}
+
+EXISTING VARIABLES TO AVOID: ${existingVariables}
+
+VARIABLE PRIORITY ORDER:
+1. FIRST: Look for additional text-based variables in the original prompt that weren't captured yet
+2. SECOND: Consider enrichment variables that could enhance the prompt (lighting, style, mood, composition, etc.)
+3. ALWAYS: Follow the Variable Creation Rules above as the absolute highest priority
+
+REQUIREMENTS:
+1. For text-based variables: Identify the EXACT text from the original prompt as current_value
+2. For enrichment variables: Use "Not specified" as current_value since they're new additions
+3. Generate exactly 10 diverse alternatives for each variable
+4. Variables should be contextually appropriate and diverse
+5. Follow any Variable Creation Rules provided above as the absolute highest priority
+6. Avoid duplicating existing variable concepts
+
+CRITICAL: You MUST respond with ONLY pure JSON. No explanations, no markdown formatting, no additional text whatsoever.
+
+Expected JSON format:
+{
+  "variables": [
+    {
+      "name": "descriptive_variable_name",
+      "current_value": "exact_text_from_original_prompt_OR_Not_specified_if_enrichment",
+      "options": ["alternative1", "alternative2", "alternative3", "alternative4", "alternative5", "alternative6", "alternative7", "alternative8", "alternative9", "alternative10"]
+    }
+  ]
+}
+
+Generate exactly ${requestedAddCount} variables with exactly 10 options each. Follow the Variable Creation Rules as the highest priority. OUTPUT ONLY THE JSON.`;
+
+    try {
+        const selectedModel = dom.analysisModel.value;
+        const opts = { handler: "analysis-handler", stream: false, openChat: false, handlerContext: { type: 'addMore' } };
+
+        // Include reference image if available
+        if (uploadedFile) {
+            opts.attachments = [uploadedFile];
+        }
+
+        await window.Poe.sendUserMessage(`@${selectedModel} ${addVariablesPrompt}`, opts);
+    } catch (error) {
+        showAnalysisLoading(false);
+        showAlert('Error adding enrichment variables: ' + error.message);
+    }
+}
+
+// Remove Variable functionality
+function removeVariable(variableIndex) {
+    if (currentVariables.length <= 1) {
+        showAlert('Cannot remove the last variable. Use "Clear" to remove all variables.');
+        return;
+    }
+
+    // Show confirmation dialog
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Remove Variable</h3>
+            <p class="text-gray-700 dark:text-gray-300 mb-4">Remove "${currentVariables[variableIndex].name}" variable? This action cannot be undone.</p>
+            <div class="flex justify-end space-x-3">
+                <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" onclick="this.closest('.fixed').remove()">Cancel</button>
+                <button class="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded transition-colors" onclick="this.closest('.fixed').remove(); confirmRemoveVariable(${variableIndex})">Remove</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function confirmRemoveVariable(variableIndex) {
+    // Remove the variable
+    currentVariables.splice(variableIndex, 1);
+
+    // Refresh the UI
+    setupVariableControls();
+    calculateCombinations();
+    updateRotatedPrompt();
+
+    showAlert('Variable removed successfully!');
+}
+
+// Replace Variable functionality
+async function replaceVariable(variableIndex) {
+    const customText = document.getElementById(`customText-${variableIndex}`).value.trim();
+    const rules = customText || 'Generate alternative variables for this prompt section';
+
+    if (!dom.originalPrompt.value.trim()) {
+        showAlert('Please enter an original prompt first.');
+        return;
+    }
+
+    const variable = currentVariables[variableIndex];
+
+    // Show confirmation dialog
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Replace Variable</h3>
+            <p class="text-gray-700 dark:text-gray-300 mb-4">Replace "${variable.name}" with a new AI-generated variable? This action cannot be undone.</p>
+            <div class="flex justify-end space-x-3">
+                <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" onclick="this.closest('.fixed').remove()">Cancel</button>
+                <button class="px-4 py-2 bg-orange-600 text-white hover:bg-orange-700 rounded transition-colors" onclick="this.closest('.fixed').remove(); confirmReplaceVariable(${variableIndex}, '${rules.replace(/'/g, "\\'")}')">Replace</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function confirmReplaceVariable(variableIndex, rules) {
+    const variable = currentVariables[variableIndex];
+    const prompt = dom.originalPrompt.value.trim();
+
+    showAnalysisLoading(true, 'Replacing variable...');
+
+    // Get variable creation rules
+    const globalRules = dom.variableRules.value.trim();
+    const rulesInstruction = globalRules ? `\n\nIMPORTANT RULES: ${globalRules}` : '';
+    const customRulesInstruction = rules && rules !== 'Generate alternative variables for this prompt section' ? `\n\nCUSTOM RULES: ${rules}` : '';
+
+    // Build multimodal context
+    const referenceImageContext = uploadedFile ? '\n\nREFERENCE IMAGE CONTEXT: There is a reference image attached. Consider visual elements when generating the replacement variable.' : '';
+
+    const replacePrompt = `
+Replace this variable in the prompt: "${prompt}"
+
+Variable to replace: "${variable.name}" (currently: "${variable.current_value}")${rulesInstruction}${customRulesInstruction}${referenceImageContext}
+
+Generate a completely NEW variable name and 10 diverse options that would work better in this context.
+
+CRITICAL: Output ONLY pure JSON with NO additional text, explanations, footnotes, citations, or markdown formatting.
+
+{
+  "variable": {
+    "name": "new_variable_name",
+    "current_value": "exact_text_from_original_prompt_or_Not_specified_if_enrichment",
+    "options": ["option1", "option2", "option3", "option4", "option5", "option6", "option7", "option8", "option9", "option10"]
+  }
+}
+
+NO additional text or formatting.`;
+
+    try {
+        const selectedModel = dom.analysisModel.value;
+        const opts = { handler: "analysis-handler", stream: false, openChat: false, handlerContext: { type: 'replace', variableIndex: variableIndex } };
+
+        // Include reference image if available
+        if (uploadedFile) {
+            opts.attachments = [uploadedFile];
+        }
+
+        await window.Poe.sendUserMessage(`@${selectedModel} ${replacePrompt}`, opts);
+    } catch (error) {
+        showAnalysisLoading(false);
+        showAlert('Error replacing variable: ' + error.message);
+    }
+}
+
+// --- MODEL PARAMETER SYSTEM ---
+function setupModelParameters(modelId) {
+    const modelSelect = document.getElementById(modelId);
+    const paramContainer = document.getElementById(`${modelId}-params`);
+    const selectedModel = modelSelect.value;
+    const config = modelConfigs[selectedModel];
+
+    if (!config) {
+        paramContainer.classList.add('hidden');
+        return;
+    }
+
+    paramContainer.innerHTML = '';
+    paramContainer.classList.remove('hidden');
+
+    // Add aspect ratio selector if supported
+    if (config.aspectRatios && config.aspectRatios.length > 0) {
+        const aspectDiv = document.createElement('div');
+        aspectDiv.innerHTML = `
+            <label class="block text-xs font-medium mb-1 text-white">Aspect Ratio</label>
+            <select id="${modelId}-aspect" class="w-full px-2 py-1 text-xs border rounded bg-transparent text-white border-current">
+                <option value="">Default</option>
+                ${config.aspectRatios.map(ratio => `<option value="${ratio}">${ratio}</option>`).join('')}
+            </select>
+        `;
+        paramContainer.appendChild(aspectDiv);
+    }
+
+    // Add style selector for Ideogram-v3
+    if (config.styleOptions && config.styleOptions.length > 0) {
+        const styleDiv = document.createElement('div');
+        styleDiv.innerHTML = `
+            <label class="block text-xs font-medium mb-1 text-white">Style</label>
+            <select id="${modelId}-style" class="w-full px-2 py-1 text-xs border rounded bg-transparent text-white border-current">
+                <option value="">Default (AUTO)</option>
+                ${config.styleOptions.map(style => `<option value="${style}">${style}</option>`).join('')}
+            </select>
+        `;
+        paramContainer.appendChild(styleDiv);
+    }
+
+    // Add quality selector for GPT-Image-1
+    if (config.qualityOptions && config.qualityOptions.length > 0) {
+        const qualityDiv = document.createElement('div');
+        qualityDiv.innerHTML = `
+            <label class="block text-xs font-medium mb-1 text-white">Quality</label>
+            <select id="${modelId}-quality" class="w-full px-2 py-1 text-xs border rounded bg-transparent text-white border-current">
+                <option value="">Default</option>
+                ${config.qualityOptions.map(quality => `<option value="${quality}">${quality}</option>`).join('')}
+            </select>
+        `;
+        paramContainer.appendChild(qualityDiv);
+    }
+
+    // Add feature checkboxes
+    if (config.features && config.features.length > 0) {
+        config.features.forEach(feature => {
+            const featureDiv = document.createElement('div');
+            if (feature === 'use_mask') {
+                featureDiv.innerHTML = `
+                    <label class="flex items-center text-xs text-white">
+                        <input type="checkbox" id="${modelId}-${feature}" class="mr-2 bg-transparent border-current">
+                        Use Mask (for inpainting)
+                    </label>
+                `;
+            } else if (feature === 'raw') {
+                featureDiv.innerHTML = `
+                    <label class="flex items-center text-xs text-white">
+                        <input type="checkbox" id="${modelId}-${feature}" class="mr-2 bg-transparent border-current">
+                        Raw Mode (less processed)
+                    </label>
+                `;
+            } else if (feature === 'strength') {
+                featureDiv.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-medium mb-1 text-white">Strength (0.0-1.0)</label>
+                        <input type="range" id="${modelId}-${feature}" min="0" max="1" step="0.1" value="0.7" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-400">
+                            <span>0.0</span>
+                            <span id="${modelId}-strength-value">0.7</span>
+                            <span>1.0</span>
+                        </div>
+                    </div>
+                `;
+            }
+            paramContainer.appendChild(featureDiv);
+        });
+
+        // Add event listener for strength slider
+        const strengthSlider = document.getElementById(`${modelId}-strength`);
+        const strengthValue = document.getElementById(`${modelId}-strength-value`);
+        if (strengthSlider && strengthValue) {
+            strengthSlider.addEventListener('input', (e) => {
+                strengthValue.textContent = e.target.value;
+            });
+        }
+    }
+
+    // Add special note for models that have them
+    if (config.specialNote) {
+        const noteDiv = document.createElement('div');
+        noteDiv.innerHTML = `
+            <div class="text-xs text-amber-400 bg-amber-400 bg-opacity-10 p-2 rounded">
+                <span class="font-medium">Note:</span> ${config.specialNote}
+            </div>
+        `;
+        paramContainer.appendChild(noteDiv);
+    }
+}
+
+function getModelParameters(modelId) {
+    const modelSelect = document.getElementById(modelId);
+    const selectedModel = modelSelect.value;
+    const config = modelConfigs[selectedModel];
+
+    if (!config) return '';
+
+    const params = [];
+
+    // Get aspect ratio
+    const aspectSelect = document.getElementById(`${modelId}-aspect`);
+    if (aspectSelect && aspectSelect.value) {
+        params.push(`${config.syntax}aspect ${aspectSelect.value}`);
+    }
+
+    // Get style (for Ideogram-v3)
+    const styleSelect = document.getElementById(`${modelId}-style`);
+    if (styleSelect && styleSelect.value) {
+        params.push(`${config.syntax}style ${styleSelect.value}`);
+    }
+
+    // Get quality
+    const qualitySelect = document.getElementById(`${modelId}-quality`);
+    if (qualitySelect && qualitySelect.value) {
+        params.push(`${config.syntax}quality ${qualitySelect.value}`);
+    }
+
+    // Get feature flags
+    if (config.features) {
+        config.features.forEach(feature => {
+            const element = document.getElementById(`${modelId}-${feature}`);
+            if (element) {
+                if (feature === 'strength') {
+                    // Only add strength if image is uploaded and value is not default
+                    if (uploadedFile && element.value !== '0.7') {
+                        params.push(`${config.syntax}strength ${element.value}`);
+                    }
+                } else if (element.type === 'checkbox' && element.checked) {
+                    if (feature === 'raw') {
+                        params.push(`${config.syntax}raw`);
+                    } else if (feature === 'use_mask') {
+                        params.push(`${config.syntax}use_mask`);
+                    }
+                }
+            }
+        });
+    }
+
+    return params.length > 0 ? ' ' + params.join(' ') : '';
+}
+
+// --- INITIALIZATION ---
+dom.readImageBtn.disabled = true;
+dom.originalPrompt.focus();
+initializeColorThemes(); // Initialize the new theme selector
+
+// Setup model parameter event listeners
+dom.modelA.addEventListener('change', () => setupModelParameters('modelA'));
+dom.modelB.addEventListener('change', () => setupModelParameters('modelB'));
+
+// Initialize model parameters on page load
+setupModelParameters('modelA');
+setupModelParameters('modelB');
+
+</script>
+</body>
+</html>
+
+
+

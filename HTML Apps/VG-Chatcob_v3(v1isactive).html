@@ -1,0 +1,3029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Chat Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@13.0.0/marked.min.js"></script>
+    <style>
+        /* Base theme definition */
+        :root {
+            --primary: #5D5CDE;
+            --primary-hover: #4F4ED1;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f7;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-tertiary: #94a3b8;
+            --border: #e0e0e0;
+            --border-light: #f1f5f9;
+            --accent: #5D5CDE;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --font-main: 'Inter', system-ui, sans-serif;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+
+        /* Dark theme */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-tertiary: #64748b;
+            --border: #374151;
+            --border-light: #475569;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+        }
+
+        /* Terminal theme */
+        [data-theme="terminal"] {
+            --primary: #00ff00;
+            --primary-hover: #00cc00;
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-tertiary: #1a1a1a;
+            --text-primary: #00ff00;
+            --text-secondary: #00cc00;
+            --text-tertiary: #008800;
+            --border: #003300;
+            --border-light: #004400;
+            --accent: #00ff00;
+            --font-main: 'Courier New', monospace;
+        }
+
+        /* Paper theme */
+        [data-theme="paper"] {
+            --primary: #8b5a2b;
+            --primary-hover: #7a4f26;
+            --bg-primary: #fefefe;
+            --bg-secondary: #f8f8f6;
+            --bg-tertiary: #f0f0ee;
+            --text-primary: #2d2d2d;
+            --text-secondary: #5a5a5a;
+            --text-tertiary: #8a8a8a;
+            --border: #e8e8e6;
+            --border-light: #f0f0ee;
+            --accent: #8b5a2b;
+        }
+
+        /* Sakura theme */
+        [data-theme="sakura"] {
+            --primary: #ff6b9d;
+            --primary-hover: #ff5588;
+            --bg-primary: #fff8fc;
+            --bg-secondary: #ffeef7;
+            --bg-tertiary: #ffe4f2;
+            --text-primary: #2d1b20;
+            --text-secondary: #6b4c57;
+            --text-tertiary: #9d7b87;
+            --border: #f0d0e0;
+            --border-light: #f8e4f0;
+            --accent: #ff6b9d;
+        }
+
+        /* Ayu theme - Dark black with yellow/orange */
+        [data-theme="ayu"] {
+            --primary: #ffcc02;
+            --primary-hover: #ffaa00;
+            --bg-primary: #0b0b0b;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #ffcc02;
+            --text-secondary: #ff8f40;
+            --text-tertiary: #ffa500;
+            --border: #333333;
+            --border-light: #404040;
+            --accent: #ffcc02;
+            --font-main: 'Inter', system-ui, sans-serif;
+        }
+
+        /* Custom theme - dynamically generated */
+        [data-theme="custom"] {
+            /* Will be populated by JavaScript */
+        }
+
+        /* Apply theme variables to body */
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Comprehensive Theme-aware Components */
+        .themed-bg-primary { background-color: var(--bg-primary); }
+        .themed-bg-secondary { background-color: var(--bg-secondary); }
+        .themed-bg-tertiary { background-color: var(--bg-tertiary); }
+        .themed-text-primary { color: var(--text-primary); }
+        .themed-text-secondary { color: var(--text-secondary); }
+        .themed-text-tertiary { color: var(--text-tertiary); }
+        .themed-border { border-color: var(--border); }
+        .themed-border-light { border-color: var(--border-light); }
+        .themed-primary { color: var(--primary); }
+        .themed-accent { color: var(--accent); }
+        
+        /* Button Themes */
+        .themed-btn {
+            background-color: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+        .themed-btn:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .themed-btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+        .themed-btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+        
+        /* Input Themes */
+        .themed-input {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .themed-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(93, 92, 222, 0.2);
+        }
+        .themed-input::placeholder {
+            color: var(--text-tertiary);
+        }
+        
+        /* Modal Themes */
+        .themed-modal {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+        }
+        .themed-modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Message Themes */
+        .themed-message-user {
+            background-color: var(--primary);
+            color: white;
+        }
+        .themed-message-ai {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+        }
+        
+        /* Special Terminal/Ayu Message Themes - Input Box Style */
+        [data-theme="terminal"] .themed-message-user,
+        [data-theme="terminal"] .themed-message-ai {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        [data-theme="ayu"] .themed-message-user,
+        [data-theme="ayu"] .themed-message-ai {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        /* Dropdown Themes */
+        .themed-dropdown {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+        }
+        .themed-dropdown-item {
+            color: var(--text-primary);
+        }
+        .themed-dropdown-item:hover {
+            background-color: var(--bg-tertiary);
+        }
+        .themed-dropdown-item.selected {
+            background-color: var(--primary)20;
+            color: var(--primary);
+        }
+        
+        /* Thinking Section Themes */
+        .themed-thinking {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+        }
+        .themed-thinking-header {
+            background-color: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+        .themed-thinking-header:hover {
+            background-color: var(--bg-tertiary);
+        }
+        .themed-thinking-content {
+            background-color: var(--bg-primary);
+            color: var(--text-tertiary);
+            border: 1px solid var(--border-light);
+        }
+        
+        /* Menu Themes */
+        .themed-menu {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .themed-menu-item {
+            color: var(--text-primary);
+        }
+        .themed-menu-item:hover {
+            background-color: var(--bg-tertiary);
+        }
+        .themed-menu-item.danger {
+            color: var(--error);
+        }
+        .themed-menu-item.danger:hover {
+            background-color: var(--error)10;
+        }
+        
+        /* File Preview Themes */
+        .themed-file-preview {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+        }
+        
+        /* Loading Spinner Theme */
+        .themed-spinner {
+            color: var(--primary);
+        }
+        
+        /* Scrollbar Themes */
+        .themed-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .themed-scroll::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        .themed-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        .themed-scroll::-webkit-scrollbar-thumb:hover {
+            background: var(--text-tertiary);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        'primary-hover': '#4F4ED1'
+                    }
+                }
+            },
+            corePlugins: {
+                preflight: false
+            }
+        }
+        
+        // Suppress Tailwind development warnings
+        if (typeof console !== 'undefined' && console.warn) {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                if (args[0] && typeof args[0] === 'string' && 
+                    (args[0].includes('Tailwind') || args[0].includes('production'))) {
+                    return; // Suppress Tailwind warnings
+                }
+                originalWarn.apply(console, args);
+            };
+        }
+    </script>
+</head>
+<body style="background-color: var(--bg-primary); color: var(--text-primary); font-family: var(--font-main); transition: background-color 0.3s ease, color 0.3s ease;">
+    <div class="w-full h-screen flex flex-col">
+        <!-- Header -->
+        <div style="background-color: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 12px;">
+            <div class="flex items-center justify-between">
+                <!-- Model Display with Loading Spinner -->
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm font-medium" style="color: var(--text-primary);">
+                        Current: <span style="color: var(--primary);" id="currentModelDisplay">Claude-Sonnet-4</span>
+                    </span>
+                    <!-- Loading Spinner -->
+                    <div id="loadingSpinner" class="themed-spinner hidden cursor-pointer" onclick="stopLoadingSpinner()" title="Click to stop loading indicator">
+                        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="color: currentColor;">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                </div>
+                
+                <!-- Control Buttons -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="clearContext()" 
+                            class="themed-btn w-8 h-8 flex items-center justify-center rounded"
+                            title="Clear Context">
+                        🧹
+                    </button>
+                    <button onclick="openThemeModal()" 
+                            class="themed-btn w-8 h-8 flex items-center justify-center rounded"
+                            title="Theme Customizer">
+                        🎨
+                    </button>
+                    <button id="flagBtn" onclick="openFlagModal()" 
+                            class="themed-btn w-8 h-8 flex items-center justify-center rounded"
+                            title="Model Flags">
+                        🏳️
+                    </button>
+                    <button onclick="copyStateToClipboard()" 
+                            class="themed-btn w-8 h-8 flex items-center justify-center rounded"
+                            title="Copy app state">
+                        📋
+                    </button>
+                    <button onclick="openPasteModal()" 
+                            class="themed-btn w-8 h-8 flex items-center justify-center rounded"
+                            title="Paste app state">
+                        📥
+                    </button>
+                    <button onclick="downloadState()" 
+                            class="themed-btn w-8 h-8 flex items-center justify-center rounded"
+                            title="Download state as JSON">
+                        💾
+                    </button>
+                    <button onclick="uploadState()" 
+                            class="themed-btn w-8 h-8 flex items-center justify-center rounded"
+                            title="Upload state from JSON">
+                        📂
+                    </button>
+                    <button onclick="downloadChat()" 
+                            class="themed-btn w-8 h-8 flex items-center justify-center rounded"
+                            title="Download chat conversation">
+                        💬
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chatContainer" class="flex-1 p-4 space-y-4" style="overflow-y: auto; height: 0;">
+            <div class="text-center text-sm" style="color: var(--text-secondary);">
+                Start a conversation with your selected model
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div style="background-color: var(--bg-secondary); border-top: 1px solid var(--border); padding: 16px;">
+            <!-- File Upload Area -->
+            <div id="filePreview" class="themed-file-preview hidden mb-3 p-3 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-5 h-5 themed-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                        </svg>
+                        <span id="fileName" class="text-sm themed-text-primary"></span>
+                    </div>
+                    <button id="removeFile" class="text-sm" style="color: var(--error); transition: color 0.2s ease;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Remove</button>
+                </div>
+            </div>
+
+            <!-- Input Row -->
+            <div class="flex items-end space-x-3">
+                <!-- Model Selector Button -->
+                <button id="modelSelectorBtn" onclick="openModelSelector()" class="themed-btn flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-lg" title="Select Model">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </button>
+
+                <!-- File Upload Button -->
+                <input type="file" id="fileInput" class="hidden" multiple>
+                <button id="attachBtn" class="themed-btn flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-lg" title="Attach File">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                    </svg>
+                </button>
+
+                <!-- Composite Input Area -->
+                <div class="themed-input flex-1 flex items-end p-1 rounded-lg transition-all duration-200" style="focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent;">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Type your message..." 
+                        class="themed-input flex-1 w-full min-h-[2.75rem] resize-none bg-transparent px-3 py-2 text-base border-none focus:ring-0"
+                        rows="1"
+                    ></textarea>
+                    <button 
+                        id="sendBtn" 
+                        class="themed-btn-primary flex-shrink-0 w-10 h-10 ml-1 flex items-center justify-center text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Send message"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple Model Dropdown -->
+    <div id="modelDropdown" class="themed-dropdown fixed z-50 hidden w-80 rounded-lg" style="max-height: 400px; box-shadow: var(--shadow-lg);">
+        <!-- Search Input -->
+        <div class="p-3 themed-border-light" style="border-bottom: 1px solid var(--border);">
+            <input 
+                id="dropdownModelSearch" 
+                class="themed-input w-full px-3 py-2 text-sm rounded focus:ring-1" 
+                style="focus:ring-color: var(--primary); focus:border-color: var(--primary);"
+                placeholder="Search models..."
+                oninput="handleDropdownModelSearch(this.value)" />
+        </div>
+        
+        <!-- Accordion Content -->
+        <div id="dropdownAccordionWrapper" class="themed-scroll overflow-y-auto" style="max-height: 320px;">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Flag Modal -->
+    <div id="flagModal" class="themed-modal-overlay fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="themed-modal rounded-lg w-96 max-w-90vw max-h-90vh overflow-y-auto">
+            <div class="flex items-center justify-between p-4" style="border-bottom: 1px solid var(--border);">
+                <h3 class="text-lg font-semibold themed-text-primary">Model Flags</h3>
+                <button onclick="closeFlagModal()" class="themed-text-secondary hover:themed-text-primary transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4">
+                <div id="flagContent" class="space-y-4">
+                    <!-- Flag controls will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Customizer Modal -->
+    <div id="themeModal" class="themed-modal-overlay fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="themed-modal rounded-lg w-96 max-w-90vw max-h-90vh overflow-y-auto">
+            <div class="flex items-center justify-between p-4" style="border-bottom: 1px solid var(--border);">
+                <h3 class="text-lg font-semibold themed-text-primary">Theme Customizer</h3>
+                <button onclick="closeThemeModal()" class="themed-text-secondary hover:themed-text-primary transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4">
+                <!-- Preset Themes -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium themed-text-primary mb-3">Preset Themes</h4>
+                    <div class="grid grid-cols-2 gap-2" id="presetThemes">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Custom Theme Builder -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium themed-text-primary mb-3">Custom Theme</h4>
+                    <div class="space-y-4">
+                        <!-- Primary Color -->
+                        <div>
+                            <label class="block text-xs font-medium themed-text-secondary mb-2">Primary Color</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" id="primaryColorPicker" value="#5D5CDE" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                                <input type="text" id="primaryColorHex" value="#5D5CDE" class="themed-input flex-1 px-2 py-1 text-sm rounded">
+                            </div>
+                        </div>
+
+                        <!-- Background Color -->
+                        <div>
+                            <label class="block text-xs font-medium themed-text-secondary mb-2">Background Color</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" id="backgroundColorPicker" value="#0f172a" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                                <input type="text" id="backgroundColorHex" value="#0f172a" class="themed-input flex-1 px-2 py-1 text-sm rounded">
+                            </div>
+                        </div>
+
+                        <!-- Text Color -->
+                        <div>
+                            <label class="block text-xs font-medium themed-text-secondary mb-2">Text Color</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" id="textColorPicker" value="#e2e8f0" class="w-8 h-8 rounded border border-gray-300 cursor-pointer">
+                                <input type="text" id="textColorHex" value="#e2e8f0" class="themed-input flex-1 px-2 py-1 text-sm rounded">
+                            </div>
+                        </div>
+
+                        <!-- Theme Preview -->
+                        <div id="themePreview" class="border rounded-lg p-3 transition-all duration-200" style="border-color: var(--border);">
+                            <div class="text-xs font-medium mb-2">Preview</div>
+                            <div class="flex gap-2 items-center">
+                                <div class="px-3 py-1 rounded text-xs" id="previewButton">Button</div>
+                                <div class="px-3 py-1 rounded text-xs" id="previewMessage">Message</div>
+                            </div>
+                        </div>
+
+                        <!-- Apply Custom Theme Button -->
+                        <button onclick="applyCustomTheme()" class="w-full themed-btn-primary px-4 py-2 rounded text-sm font-medium transition-colors">
+                            Apply Custom Theme
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Save/Load Custom Themes -->
+                <div>
+                    <h4 class="text-sm font-medium themed-text-primary mb-3">Saved Themes</h4>
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="themeNameInput" placeholder="Theme name..." class="themed-input flex-1 px-2 py-1 text-sm rounded">
+                        <button onclick="saveCustomTheme()" class="themed-btn px-3 py-1 text-sm rounded">Save</button>
+                    </div>
+                    <div id="savedThemesList" class="space-y-1">
+                        <!-- Saved themes will appear here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals will be created dynamically by StateModalManager -->
+
+    <script>
+        // Model Database - Complete list of ~200 models
+        const MODEL_DATABASE = {
+            "Favorites": [
+                "GPT-5", "App-Creator", "o3-pro", "o1", "Gemini-2.5-Pro", "Claude-Opus-4-Reasoning",
+                "Claude-Opus-4.1", "Claude-Opus-4-Search", "Claude-Sonnet-4-Search", "Grok-4", "Mistral-Large-2"
+            ],
+            "Web Search": [
+                "Web-Search", "Claude-Opus-4-Search", "Claude-Sonnet-4-Search", "Claude-Sonnet-3.7-Search",
+                "Claude-Sonnet-3.5-Search", "Claude-Haiku-3.5-Search", "Gemini-2.5-Pro", "Gemini-2.5-Flash",
+                "Gemini-1.5-Pro-Search", "Gemini-1.5-Flash-Search", "GPT-4o-Search", "GPT-4o-mini-Search",
+                "Grok-4", "Perplexity-Sonar", "Perplexity-Sonar-Pro", "Perplexity-Sonar-Rsn",
+                "Perplexity-Sonar-Rsn-Pro", "Linkup-Deep-Search", "Linkup-Standard", "Bagoodex-Web-Search",
+                "Reka-Research", "GPT-Researcher"
+            ],
+            "GPT": {
+                "GPT-5 Series": ["GPT-5", "GPT-5-Chat", "GPT-5-mini", "GPT-5-nano"],
+                "GPT-4 Series": [
+                    "GPT-4.1", "GPT-4.1-mini", "GPT-4.1-nano", "GPT-4o", "GPT-4o-Aug", "GPT-4o-Search",
+                    "GPT-4o-mini", "GPT-4o-mini-Search", "GPT-4-Classic", "GPT-4-Classic-0314",
+                    "GPT-4-Turbo", "ChatGPT-4o-Latest"
+                ],
+                "GPT-3.5 Series": ["GPT-3.5-Turbo", "GPT-3.5-Turbo-Instruct", "GPT-3.5-Turbo-Raw"],
+                "o-Series": ["o1", "o1-mini", "o3", "o3-pro", "o3-mini", "o3-mini-high", "o4-mini"]
+            },
+            "GPT - Open Weight": {
+                "120B Models": [
+                    "GPT-OSS-120B", "GPT-OSS-120B-T", "GPT-OSS-120B-CS", "GPT-OSS-120B-Omni", "OpenAI-GPT-OSS-120B"
+                ],
+                "20B Models": ["GPT-OSS-20B", "GPT-OSS-20B-T", "OpenAI-GPT-OSS-20B"]
+            },
+            "Google": {
+                "Gemini 2.5": ["Gemini-2.5-Pro", "Gemini-2.5-Flash", "Gemini-2.5-Flash-Lite", "Gemini-2.5-Flash-Image"],
+                "Gemini 2.0": ["Gemini-2.0-Flash", "Gemini-2.0-Flash-Lite", "Gemini-2.0-Flash-Preview"],
+                "Gemini 1.5": ["Gemini-1.5-Pro", "Gemini-1.5-Pro-Search", "Gemini-1.5-Flash", "Gemini-1.5-Flash-Search"],
+                "Gemma": ["Gemma-3-27B", "Gemma-2-27b-T"]
+            },
+            "Claude": {
+                "Opus": [
+                    "Claude-Opus-4.1", "Claude-Opus-4", "Claude-Opus-4-Reasoning",
+                    "Claude-Opus-4-Search", "Claude-Opus-3"
+                ],
+                "Sonnet": [
+                    "Claude-Sonnet-4", "Claude-Sonnet-4-Reasoning", "Claude-Sonnet-4-Search",
+                    "Claude-Sonnet-3.7", "Claude-Sonnet-3.7-Reasoning", "Claude-Sonnet-3.7-Search",
+                    "Claude-Sonnet-3.5", "Claude-Sonnet-3.5-June", "Claude-Sonnet-3.5-Search"
+                ],
+                "Haiku": ["Claude-Haiku-3.5", "Claude-Haiku-3.5-Search", "Claude-Haiku-3"]
+            },
+            "Grok": [
+                "Grok-4", "Grok-3", "Grok-3-Mini", "Grok-Code-Fast-1", "Grok-2"
+            ],
+            "Llama 4": [
+                "Llama-4-Scout-B10", "Llama-4-Scout", "Llama-4-Scout-T", "Llama-4-Scout-CS",
+                "Llama-4-Maverick", "Llama-4-Maverick-B10", "Llama-4-Maverick-T"
+            ],
+            "Llama 3.X": {
+                "405B Models": [
+                    "Llama-3.1-405B", "Llama-3.1-405B-T", "Llama-3.1-405B-FW", "Llama-3.1-405B-FP16"
+                ],
+                "70B Models": [
+                    "Llama-3.3-70B", "Llama-3.3-70B-CS", "Llama-3.3-70B-DI", "Llama-3.3-70B-FW",
+                    "Llama-3.3-70B-N", "Llama-3.3-70B-Omni", "Llama-3.1-70B", "Llama-3.1-70B-FP16",
+                    "Llama-3.1-70B-FW", "Llama-3.1-70B-T", "Llama-3.1-Nemotron", "Llama-3-70B-FP16", "Llama-3-70B-T"
+                ],
+                "8B Models": [
+                    "Llama-3.1-8B", "Llama-3.1-8B-CS", "Llama-3.1-8B-DI", "Llama-3.1-8B-FP16",
+                    "Llama-3.1-8B-FW", "Llama-3.1-8B-T-128k", "Llama-3-8B-T"
+                ]
+            },
+            "Qwen": {
+                "480B": [
+                    "Qwen3-480B-Coder-CS", "Qwen3-Coder-480B-T", "Qwen3-Coder-480B-N"
+                ],
+                "235B": [
+                    "Qwen-3-235B-2507-T", "Qwen3-235B-2507-FW", "Qwen3-235B-2507-CS",
+                    "Qwen3-235B-A22B", "Qwen3-235B-A22B-DI", "Qwen3-235B-A22B-N", "Qwen3-235B-Think-CS"
+                ],
+                "72B": [
+                    "Qwen-72B-T", "Qwen2-72B-Instruct-T", "Qwen2.5-VL-72B-T", "Qwen-2.5-72B-T"
+                ],
+                "32B": [
+                    "Qwen3-30B-A3B-Instruct", "Qwen2.5-Coder-32B", "Qwen-2.5-Coder-32B-T",
+                    "Qwen3-32B-CS", "Qwen3-Coder-30B-A3B"
+                ],
+                "Others": ["Qwen-2.5-7B-T", "Qwen-2.5-VL-32b", "Qwen3-Coder"]
+            },
+            "DeepSeek": {
+                "R1 Series": [
+                    "DeepSeek-R1", "DeepSeek-R1-FW", "DeepSeek-R1-DI", "DeepSeek-R1-N",
+                    "DeepSeek-R1-Distill", "DeepSeek-R1-Turbo-DI"
+                ],
+                "V3 Series": [
+                    "DeepSeek-V3.1", "DeepSeek-V3.1-Chat", "DeepSeek-V3.1-N", "DeepSeek-V3",
+                    "DeepSeek-V3-DI", "DeepSeek-V3-Turbo-DI", "Deepseek-V3-FW"
+                ],
+                "Specialized": ["DeepSeek-Prover-V2", "DeepClaude"]
+            },
+            "Mistral": {
+                "Large": ["Mistral-Large-2"],
+                "Medium": ["Mistral-Medium-3", "Mistral-Medium", "Magistral-Medium-2506-Thinking"],
+                "Small": [
+                    "Mistral-Small-3.2", "Mistral-Small-3.1", "Mistral-Small-3",
+                    "Mistral-7B-v0.3-DI", "Mistral-7B-v0.3-T"
+                ],
+                "Specialized": ["Mistral-NeMo", "Mixtral8x22b-Inst-FW"]
+            },
+            "Perplexity": [
+                "Perplexity-Sonar", "Perplexity-Sonar-Pro", "Perplexity-Sonar-Rsn", "Perplexity-Sonar-Rsn-Pro"
+            ],
+            "Reasoning Models": [
+                "QwQ-32B-B10", "QwQ-32B-Preview-T", "QwQ-32B-T"
+            ],
+            "Specialty Tools": [
+                "Assistant", "App-Creator", "GPT-Researcher", "Python", "MarkItDown",
+                "FLUX-pro-1.1-ultra", "Tako"
+            ],
+            "Wildcards": {
+                "Chinese Models": [
+                    "Kimi-K2", "Kimi-K2-0905-T", "Kimi-K2-Instruct", "Kimi-K2-T",
+                    "GLM-4.5", "GLM-4.5-Air", "GLM-4.5-Air-T", "GLM-4.5-FW", "GLM-4.5-Omni", "MiniMax-M1"
+                ],
+                "Others": [
+                    "Aya-Expanse-32B", "Aya-Vision", "Command-R", "Command-R-Plus", "Hermes-3-70B",
+                    "Inception-Mercury", "Inception-Mercury-Coder", "Phi-4-DI", "Reka-Core",
+                    "Reka-Flash", "Solar-Pro-2"
+                ]
+            }
+        };
+
+        // Model Flags Database (Corrected)
+        const MODEL_FLAGS = {
+            // Claude Models with corrected values
+            "Claude-Opus-4": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 30768],
+                    "default": "default"
+                }
+            },
+            "Claude-Opus-4-Reasoning": {
+                "thinking_budget": {
+                    "type": "stepped", 
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 30768],
+                    "default": "default"
+                }
+            },
+            "Claude-Opus-4-Search": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768],
+                    "default": "default"
+                }
+            },
+            "Claude-Opus-4.1": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 31999],
+                    "default": "default"
+                }
+            },
+            "Claude-Sonnet-3.7": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384],
+                    "default": "default"
+                }
+            },
+            "Claude-Sonnet-3.7-Reasoning": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768],
+                    "default": "default"
+                }
+            },
+            "Claude-Sonnet-3.7-Search": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768],
+                    "default": "default"
+                }
+            },
+            "Claude-Sonnet-4": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 30768],
+                    "default": "default"
+                }
+            },
+            "Claude-Sonnet-4-Reasoning": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768, 36864, 40960, 45056, 49152, 53248, 57344, 61440],
+                    "default": "default"
+                }
+            },
+            "Claude-Sonnet-4-Search": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768],
+                    "default": "default"
+                }
+            },
+            // Gemini Models
+            "Gemini-2.5-Flash": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576],
+                    "default": "default"
+                }
+            },
+            "Gemini-2.5-Flash-Lite": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576],
+                    "default": "default"
+                }
+            },
+            "Gemini-2.5-Pro": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768],
+                    "default": "default"
+                }
+            },
+            // O-Series Models
+            "o1": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["low", "medium", "high"],
+                    "default": "default"
+                }
+            },
+            "o3": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["low", "medium", "high"],
+                    "default": "default"
+                }
+            },
+            "o3-mini": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["low", "medium", "high"],
+                    "default": "default"
+                }
+            },
+            "o3-pro": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["low", "medium", "high"],
+                    "default": "default"
+                }
+            },
+            "o4-mini": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["low", "medium", "high"],
+                    "default": "default"
+                }
+            },
+            // GPT-5 Series
+            "GPT-5": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["minimal", "low", "medium", "high"],
+                    "default": "default"
+                }
+            },
+            "GPT-5-mini": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["minimal", "low", "medium", "high"],
+                    "default": "default"
+                }
+            },
+            "GPT-5-nano": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["minimal", "low", "medium", "high"],
+                    "default": "default"
+                }
+            },
+            // Grok Models
+            "Grok-3-Mini": {
+                "reasoning_effort": {
+                    "type": "stepped",
+                    "steps": ["low", "high"],
+                    "default": "default"
+                }
+            },
+            // Tako Model
+            "Tako": {
+                "specificity": {
+                    "type": "stepped",
+                    "steps": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+                    "default": "default"
+                }
+            },
+            // Linkup Models  
+            "Linkup-Deep-Search": {
+                "advanced_settings": {
+                    "type": "advanced",
+                    "fields": {
+                        "domain_filter_mode": {
+                            "type": "select",
+                            "options": ["none", "Include", "Exclude"],
+                            "default": "none"
+                        },
+                        "include_domains": {
+                            "type": "text",
+                            "placeholder": "e.g. github.com",
+                            "depends_on": "domain_filter_mode",
+                            "depends_value": "Include"
+                        },
+                        "exclude_domains": {
+                            "type": "text",
+                            "placeholder": "e.g. reddit.com",
+                            "depends_on": "domain_filter_mode",
+                            "depends_value": "Exclude"
+                        },
+                        "prioritize_domains": {
+                            "type": "text",
+                            "placeholder": "e.g. stackoverflow.com"
+                        },
+                        "from_date": {
+                            "type": "text",
+                            "placeholder": "YYYY-MM-DD"
+                        },
+                        "to_date": {
+                            "type": "text",
+                            "placeholder": "YYYY-MM-DD"
+                        },
+                        "include_images": {
+                            "type": "checkbox",
+                            "default": false
+                        },
+                        "image_count": {
+                            "type": "text",
+                            "placeholder": "Number (e.g. 5)"
+                        }
+                    }
+                }
+            },
+            "Linkup-Standard": {
+                "thinking_budget": {
+                    "type": "stepped",
+                    "steps": [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768],
+                    "default": "default"
+                },
+                "advanced_settings": {
+                    "type": "advanced",
+                    "fields": {
+                        "domain_filter_mode": {
+                            "type": "select",
+                            "options": ["none", "Include", "Exclude"],
+                            "default": "none"
+                        },
+                        "include_domains": {
+                            "type": "text",
+                            "placeholder": "e.g. github.com",
+                            "depends_on": "domain_filter_mode",
+                            "depends_value": "Include"
+                        },
+                        "exclude_domains": {
+                            "type": "text",
+                            "placeholder": "e.g. reddit.com",
+                            "depends_on": "domain_filter_mode",
+                            "depends_value": "Exclude"
+                        },
+                        "prioritize_domains": {
+                            "type": "text",
+                            "placeholder": "e.g. stackoverflow.com"
+                        },
+                        "from_date": {
+                            "type": "text",
+                            "placeholder": "YYYY-MM-DD"
+                        },
+                        "to_date": {
+                            "type": "text",
+                            "placeholder": "YYYY-MM-DD"
+                        },
+                        "include_images": {
+                            "type": "checkbox",
+                            "default": false
+                        },
+                        "image_count": {
+                            "type": "text",
+                            "placeholder": "Number (e.g. 5)"
+                        }
+                    }
+                }
+            }
+        };
+
+        // App State Management
+        let appState = {
+            selectedModel: 'Claude-Sonnet-4',
+            isAccordionExpanded: false,
+            expandedSections: new Set(),
+            searchTerm: '',
+            filteredData: MODEL_DATABASE,
+            chatHistory: [],
+            modelFlags: {}, // Store flag values per model
+            savedThemes: {} // Store custom themes instead of localStorage
+        };
+
+        // Render chat history to UI
+        function renderChatHistory() {
+            // Clear existing messages except the start message
+            const startMessage = chatContainer.querySelector('.text-center');
+            chatContainer.innerHTML = '';
+            
+            if (appState.chatHistory.length === 0) {
+                // Add back the start message if no history
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'text-center text-gray-500 dark:text-gray-400 text-sm';
+                emptyDiv.textContent = 'Start a conversation with your selected model';
+                chatContainer.appendChild(emptyDiv);
+                return;
+            }
+            
+            // Render all messages from history
+            appState.chatHistory.forEach(message => {
+                addMessageToUI(message.content, message.isUser, 'complete');
+            });
+        }
+
+        // Add message to UI only (separated from history management)
+        function addMessageToUI(content, isUser = false, status = 'complete') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 group`;
+            
+            // Create wrapper for message content and menu
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `relative flex items-start ${isUser ? 'flex-row-reverse' : 'flex-row'} gap-2`;
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = `max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                isUser 
+                    ? 'themed-message-user' 
+                    : 'themed-message-ai'
+            }`;
+
+            if (status === 'incomplete') {
+                if (isUser) {
+                    messageContent.textContent = content;
+                } else {
+                    messageContent.innerHTML = marked.parse(content) + '<span class="animate-pulse">|</span>';
+                }
+            } else {
+                if (isUser) {
+                    messageContent.textContent = content;
+                } else {
+                    messageContent.innerHTML = marked.parse(content);
+                }
+            }
+
+            messageWrapper.appendChild(messageContent);
+            
+            // Add three-dot menu if message is complete
+            if (status === 'complete') {
+                const menuButton = createMessageMenu(content, isUser);
+                messageWrapper.appendChild(menuButton);
+            }
+            
+            messageDiv.appendChild(messageWrapper);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            return messageContent;
+        }
+
+        // Simple notification system
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-3 rounded-lg text-white z-50 ${
+                type === 'error' ? 'bg-red-500' : 'bg-green-500'
+            }`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // Dark mode setup
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Elements
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const modelSelector = document.getElementById('modelSelector');
+        const fileInput = document.getElementById('fileInput');
+        const attachBtn = document.getElementById('attachBtn');
+        const filePreview = document.getElementById('filePreview');
+        const fileName = document.getElementById('fileName');
+        const removeFile = document.getElementById('removeFile');
+
+        let selectedFiles = [];
+
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // File handling
+        attachBtn.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', function(e) {
+            selectedFiles = Array.from(e.target.files);
+            if (selectedFiles.length > 0) {
+                const fileNames = selectedFiles.map(f => f.name).join(', ');
+                fileName.textContent = fileNames;
+                filePreview.classList.remove('hidden');
+            }
+        });
+
+        removeFile.addEventListener('click', function() {
+            selectedFiles = [];
+            fileInput.value = '';
+            filePreview.classList.add('hidden');
+        });
+
+        // Add message to chat
+        function addMessage(content, isUser = false, status = 'complete') {
+            // Clear the "start conversation" message if it exists
+            const startMessage = chatContainer.querySelector('.text-center');
+            if (startMessage && startMessage.textContent.includes('Start a conversation')) {
+                startMessage.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`;
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = `max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                isUser 
+                    ? 'themed-message-user' 
+                    : 'themed-message-ai'
+            }`;
+
+            if (status === 'incomplete') {
+                if (isUser) {
+                    messageContent.textContent = content;
+                } else {
+                    messageContent.innerHTML = marked.parse(content) + '<span class="animate-pulse">|</span>';
+                }
+            } else {
+                if (isUser) {
+                    messageContent.textContent = content;
+                } else {
+                    messageContent.innerHTML = marked.parse(content);
+                }
+            }
+
+            messageDiv.appendChild(messageContent);
+            
+            // Always append to the end of chat container
+            chatContainer.appendChild(messageDiv);
+            
+            // Store in chat history if complete
+            if (status === 'complete') {
+                appState.chatHistory.push({
+                    content: content,
+                    isUser: isUser,
+                    timestamp: new Date().toISOString(),
+                    model: isUser ? null : appState.selectedModel
+                });
+            }
+            
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            return messageContent;
+        }
+
+        // ============================================
+        // FIXED THINKING LOG PARSER AND FORMATTER
+        // ============================================
+        
+        function parseThinkingLog(content) {
+            // Check if content has clear thinking indicators
+            const hasThinkingTag = /<thinking>/i.test(content) && /<\/thinking>/i.test(content);
+            const hasItalicThinking = /^\*Thinking.*?\*/m.test(content);
+            
+            // Only process if we have clear thinking indicators
+            if (hasThinkingTag) {
+                // Extract XML-style thinking blocks
+                const match = content.match(/<thinking>([\s\S]*?)<\/thinking>/i);
+                if (match && match[1]) {
+                    const thinkingContent = match[1].trim();
+                    const actualResponse = content.replace(/<thinking>[\s\S]*?<\/thinking>/i, '').trim();
+                    
+                    // Only return as thinking if there's actual response content left
+                    if (actualResponse && actualResponse.length > 10) {
+                        return {
+                            hasThinking: true,
+                            thinkingContent: thinkingContent,
+                            actualResponse: actualResponse
+                        };
+                    }
+                }
+            } else if (hasItalicThinking) {
+                // Handle italic-style thinking (e.g., "*Thinking...*")
+                // This is a more conservative pattern to avoid false positives
+                const lines = content.split('\n');
+                let thinkingLines = [];
+                let responseLines = [];
+                let inThinking = false;
+                let foundActualResponse = false;
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    
+                    // Check if this line starts a thinking block
+                    if (!foundActualResponse && /^\*Thinking/i.test(line)) {
+                        inThinking = true;
+                        thinkingLines.push(line);
+                    }
+                    // Check if we're ending a thinking block (line ends with *)
+                    else if (inThinking && line.endsWith('*')) {
+                        thinkingLines.push(line);
+                        inThinking = false;
+                    }
+                    // Check if we're still in a thinking block
+                    else if (inThinking && !foundActualResponse) {
+                        // Check if this looks like the start of the actual response
+                        if (line.trim() && !line.startsWith('>') && !line.startsWith(' ')) {
+                            // This might be the start of the actual response
+                            inThinking = false;
+                            foundActualResponse = true;
+                            responseLines.push(line);
+                        } else {
+                            thinkingLines.push(line);
+                        }
+                    }
+                    // Everything else is part of the response
+                    else {
+                        foundActualResponse = true;
+                        responseLines.push(line);
+                    }
+                }
+                
+                const thinkingContent = thinkingLines.join('\n').trim();
+                const actualResponse = responseLines.join('\n').trim();
+                
+                // Only return as thinking if we have both thinking and response content
+                if (thinkingContent && actualResponse && actualResponse.length > 10) {
+                    return {
+                        hasThinking: true,
+                        thinkingContent: thinkingContent,
+                        actualResponse: actualResponse
+                    };
+                }
+            }
+            
+            // No thinking detected or extraction failed - return content as-is
+            return {
+                hasThinking: false,
+                thinkingContent: '',
+                actualResponse: content
+            };
+        }
+        
+        function createMessageWithThinking(content, isUser = false, status = 'complete') {
+            // Clear the "start conversation" message if it exists
+            const startMessage = chatContainer.querySelector('.text-center');
+            if (startMessage && startMessage.textContent.includes('Start a conversation')) {
+                startMessage.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 group`;
+            
+            // Create wrapper for message content and menu
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `relative flex items-start ${isUser ? 'flex-row-reverse' : 'flex-row'} gap-2`;
+            
+            if (isUser) {
+                // User messages - simple display
+                const messageContent = document.createElement('div');
+                messageContent.className = 'themed-message-user max-w-xs lg:max-w-md px-4 py-2 rounded-lg';
+                messageContent.textContent = content;
+                messageWrapper.appendChild(messageContent);
+            } else {
+                // AI messages - parse thinking log
+                const parsed = parseThinkingLog(content);
+                const messageContent = document.createElement('div');
+                messageContent.className = 'max-w-xs lg:max-w-md';
+                
+                let html = '';
+                
+                // Add thinking section if present
+                if (parsed.hasThinking && status === 'complete') {
+                    const thinkingId = 'thinking-' + Date.now();
+                    html += `
+                        <div class="themed-thinking mb-2 rounded-lg overflow-hidden">
+                            <button 
+                                onclick="toggleThinking('${thinkingId}')" 
+                                class="themed-thinking-header w-full px-3 py-2 text-left text-xs font-medium flex items-center justify-between transition-colors"
+                            >
+                                <span class="flex items-center">
+                                    🤔 <span class="ml-1">Thinking</span>
+                                </span>
+                                <span id="${thinkingId}-icon" class="transform transition-transform duration-200">▶</span>
+                            </button>
+                            <div id="${thinkingId}" class="hidden px-3 pb-3">
+                                <div class="themed-thinking-content text-xs font-mono whitespace-pre-wrap p-2 rounded">${parsed.thinkingContent}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Add actual response
+                const responseContent = status === 'incomplete' 
+                    ? (parsed.actualResponse || content) + '<span class="animate-pulse">|</span>'
+                    : marked.parse(parsed.actualResponse || content);
+                
+                html += `
+                    <div class="themed-message-ai px-4 py-2 rounded-lg">
+                        ${responseContent}
+                    </div>
+                `;
+                
+                messageContent.innerHTML = html;
+                messageWrapper.appendChild(messageContent);
+            }
+            
+            // Add three-dot menu if message is complete
+            if (status === 'complete') {
+                const menuButton = createMessageMenu(content, isUser);
+                messageWrapper.appendChild(menuButton);
+            }
+            
+            messageDiv.appendChild(messageWrapper);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            return messageDiv.querySelector(isUser ? '.themed-message-user' : '.themed-message-ai');
+        }
+        
+        function createMessageMenu(content, isUser) {
+            const menu = document.createElement('div');
+            menu.className = 'flex-shrink-0 self-start mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200';
+            
+            menu.innerHTML = `
+                <div class="relative">
+                    <button 
+                        class="themed-btn w-6 h-6 flex items-center justify-center rounded text-sm"
+                        onclick="toggleMessageMenu(this)"
+                        title="Message options"
+                    >
+                        ⋮
+                    </button>
+                    <div class="message-menu themed-menu hidden absolute top-full ${isUser ? 'right-0' : 'left-0'} mt-1 rounded-lg py-1 z-10 min-w-24">
+                        <button 
+                            onclick="copyMessage('${btoa(content)}'); hideMessageMenu()"
+                            class="themed-menu-item w-full px-3 py-1 text-left text-xs transition-colors"
+                        >
+                            📋 Copy
+                        </button>
+                        <button 
+                            onclick="removeMessage(this); hideMessageMenu()"
+                            class="themed-menu-item danger w-full px-3 py-1 text-left text-xs transition-colors"
+                        >
+                            🗑️ Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            return menu;
+        }
+        
+        // Global functions for message menu actions
+        window.toggleThinking = function(thinkingId) {
+            const thinkingDiv = document.getElementById(thinkingId);
+            const icon = document.getElementById(thinkingId + '-icon');
+            
+            if (thinkingDiv.classList.contains('hidden')) {
+                thinkingDiv.classList.remove('hidden');
+                icon.textContent = '▼';
+                icon.classList.add('rotate-90');
+            } else {
+                thinkingDiv.classList.add('hidden');
+                icon.textContent = '▶';
+                icon.classList.remove('rotate-90');
+            }
+        };
+        
+        window.toggleMessageMenu = function(button) {
+            const menu = button.parentElement.querySelector('.message-menu');
+            
+            // Close all other menus first
+            document.querySelectorAll('.message-menu').forEach(m => {
+                if (m !== menu) m.classList.add('hidden');
+            });
+            
+            menu.classList.toggle('hidden');
+        };
+        
+        window.hideMessageMenu = function() {
+            document.querySelectorAll('.message-menu').forEach(m => m.classList.add('hidden'));
+        };
+        
+        window.copyMessage = function(encodedContent) {
+            try {
+                const content = atob(encodedContent);
+                navigator.clipboard.writeText(content);
+                showNotification('Message copied to clipboard!');
+            } catch (err) {
+                showNotification('Failed to copy message', 'error');
+            }
+        };
+        
+        window.removeMessage = function(button) {
+            const messageDiv = button.closest('.flex');
+            if (messageDiv) {
+                // Find the message content to match against chat history
+                const messageContent = messageDiv.querySelector('.themed-message-user, .themed-message-ai');
+                if (messageContent) {
+                    const content = messageContent.textContent || messageContent.innerText;
+                    
+                    // Remove from appState.chatHistory by finding matching content
+                    const messageIndex = appState.chatHistory.findIndex(msg => msg.content === content.trim());
+                    if (messageIndex !== -1) {
+                        appState.chatHistory.splice(messageIndex, 1);
+                    }
+                }
+                
+                messageDiv.remove();
+                showNotification('Message removed');
+            }
+        };
+        
+        // Click outside to close menus
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.relative')) {
+                hideMessageMenu();
+            }
+        });
+
+        // Register handler for bot responses
+        window.Poe.registerHandler("chat-handler", (result) => {
+            const msg = result.responses[0];
+            
+            if (msg.status === "error") {
+                const errorElement = addMessage("Error: " + (msg.statusText || "Something went wrong"), false, 'complete');
+                hideLoadingSpinner();
+            } else if (msg.status === "incomplete") {
+                // Update existing response message
+                if (!window.currentResponseElement) {
+                    // Create new streaming message with simple content
+                    window.currentResponseElement = addMessage(msg.content, false, 'incomplete');
+                } else {
+                    // Update existing message content directly
+                    const responseContent = msg.content + '<span class="animate-pulse">|</span>';
+                    window.currentResponseElement.innerHTML = marked.parse(responseContent);
+                }
+            } else if (msg.status === "complete") {
+                // Final response - always create fresh message to avoid contamination
+                if (window.currentResponseElement) {
+                    // Remove incomplete message
+                    const messageContainer = window.currentResponseElement.closest('.flex');
+                    if (messageContainer) {
+                        messageContainer.remove();
+                    }
+                }
+                
+                // Create fresh complete message with thinking log support
+                createMessageWithThinking(msg.content, false, 'complete');
+                
+                // Save to chat history
+                appState.chatHistory.push({
+                    content: msg.content,
+                    isUser: false,
+                    timestamp: new Date().toISOString(),
+                    model: appState.selectedModel
+                });
+                
+                // Clear current response reference and hide spinner
+                window.currentResponseElement = null;
+                hideLoadingSpinner();
+            }
+        });
+
+        // Loading spinner control
+        let activeRequests = 0;
+
+        function showLoadingSpinner() {
+            activeRequests++;
+            document.getElementById('loadingSpinner').classList.remove('hidden');
+        }
+
+        function hideLoadingSpinner() {
+            activeRequests = Math.max(0, activeRequests - 1);
+            if (activeRequests === 0) {
+                document.getElementById('loadingSpinner').classList.add('hidden');
+            }
+        }
+
+        function stopLoadingSpinner() {
+            activeRequests = 0;
+            document.getElementById('loadingSpinner').classList.add('hidden');
+        }
+
+        // Send message
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            const selectedModel = appState.selectedModel;
+            
+            // Add user message to UI and history
+            createMessageWithThinking(message, true, 'complete');
+            
+            // Clear input and files
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            
+            // Save to history
+            appState.chatHistory.push({
+                content: message,
+                isUser: true,
+                timestamp: new Date().toISOString(),
+                model: null
+            });
+            
+            // Sync conversation manager with existing chat history (user messages only)
+            conversationManager.syncWithChatHistory(appState.chatHistory);
+            
+            // Generate context-aware prompt using conversation manager
+            const contextResult = conversationManager.generateContext(message, {
+                metadata: { 
+                    isUser: true, 
+                    model: selectedModel,
+                    timestamp: new Date().toISOString()
+                }
+            });
+            
+            // Generate flags and prepare the final prompt
+            const flagString = generateFlagString(selectedModel);
+            const finalPrompt = `@${selectedModel} ${contextResult.contextPrompt}${flagString}`;
+            
+            // Show loading spinner
+            showLoadingSpinner();
+
+            try {
+                await window.Poe.sendUserMessage(finalPrompt, {
+                    handler: "chat-handler",
+                    stream: true,
+                    openChat: false,
+                    attachments: selectedFiles.length > 0 ? selectedFiles : undefined
+                });
+                
+                // Clear files after sending
+                if (selectedFiles.length > 0) {
+                    selectedFiles = [];
+                    fileInput.value = '';
+                    filePreview.classList.add('hidden');
+                }
+                
+            } catch (err) {
+                addMessage("Error sending message: " + err.message, false, 'error');
+                hideLoadingSpinner();
+            }
+        }
+
+        // Process category items
+        function processCategoryItems(items, searchTerm) {
+            if (Array.isArray(items)) {
+                return filterItems(items, searchTerm);
+            } else {
+                const result = [];
+                Object.values(items).forEach(subitems => {
+                    if (Array.isArray(subitems)) {
+                        result.push(...filterItems(subitems, searchTerm));
+                    }
+                });
+                return result;
+            }
+        }
+
+        // Filter items based on search term
+        function filterItems(items, searchTerm) {
+            if (!searchTerm || !Array.isArray(items)) return items;
+            return items.filter(item => 
+                item.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        // Highlight search term in model names
+        function highlightSearchTerm(text, searchTerm) {
+            if (!searchTerm) return text;
+            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800">$1</mark>');
+        }
+
+        // Filter accordion data
+        function filterAccordionData(data, searchTerm) {
+            if (!searchTerm) return data;
+
+            const filtered = {};
+            
+            Object.entries(data).forEach(([category, items]) => {
+                if (Array.isArray(items)) {
+                    const filteredItems = filterItems(items, searchTerm);
+                    if (filteredItems.length > 0) {
+                        filtered[category] = filteredItems;
+                    }
+                } else {
+                    const filteredSubcategories = {};
+                    Object.entries(items).forEach(([subcat, subitems]) => {
+                        const filteredSub = filterItems(subitems, searchTerm);
+                        if (filteredSub.length > 0) {
+                            filteredSubcategories[subcat] = filteredSub;
+                        }
+                    });
+                    if (Object.keys(filteredSubcategories).length > 0) {
+                        filtered[category] = filteredSubcategories;
+                    }
+                }
+            });
+            
+            return filtered;
+        }
+
+        // Update model display
+        function updateModelDisplay() {
+            const searchInput = document.getElementById('modelSearch');
+            const currentModelDisplay = document.getElementById('currentModelDisplay');
+            
+            if (searchInput) {
+                searchInput.placeholder = `Search models... (Current: ${appState.selectedModel})`;
+                searchInput.value = '';
+            }
+            
+            if (currentModelDisplay) {
+                currentModelDisplay.textContent = appState.selectedModel;
+            }
+            
+            appState.searchTerm = '';
+            appState.filteredData = MODEL_DATABASE;
+        }
+
+        // Simple Dropdown Functions
+        function openModelSelector() {
+            const dropdown = document.getElementById('modelDropdown');
+            const button = document.getElementById('modelSelectorBtn');
+            const searchInput = document.getElementById('dropdownModelSearch');
+            
+            // Position dropdown above the button
+            const buttonRect = button.getBoundingClientRect();
+            const dropdownHeight = 400; // max height
+            
+            dropdown.style.left = (buttonRect.left) + 'px';
+            dropdown.style.bottom = (window.innerHeight - buttonRect.top + 10) + 'px';
+            
+            dropdown.classList.remove('hidden');
+            
+            // Focus search input and render content
+            setTimeout(() => {
+                searchInput.focus();
+                searchInput.value = '';
+                appState.searchTerm = '';
+                appState.filteredData = MODEL_DATABASE;
+                renderDropdownAccordionContent();
+            }, 50);
+        }
+
+        function closeModelSelector() {
+            const dropdown = document.getElementById('modelDropdown');
+            dropdown.classList.add('hidden');
+        }
+
+        // Debounced search to prevent excessive re-renders
+        let searchTimeout = null;
+        function handleDropdownModelSearch(searchTerm) {
+            // Clear previous timeout
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            
+            // Debounce search by 200ms
+            searchTimeout = setTimeout(() => {
+                appState.searchTerm = searchTerm;
+                appState.filteredData = filterAccordionData(MODEL_DATABASE, searchTerm);
+                
+                // Auto-expand sections with results when searching
+                if (searchTerm) {
+                    Object.keys(appState.filteredData).forEach(category => {
+                        appState.expandedSections.add(category);
+                    });
+                }
+                
+                // Use requestAnimationFrame for smooth rendering
+                requestAnimationFrame(() => {
+                    renderDropdownAccordionContent();
+                });
+            }, 200);
+        }
+
+        // Render dropdown accordion content
+        function renderDropdownAccordionContent() {
+            const wrapper = document.getElementById('dropdownAccordionWrapper');
+            if (!wrapper) return;
+
+            let html = '';
+            
+            Object.entries(appState.filteredData).forEach(([category, items]) => {
+                const isExpanded = appState.expandedSections.has(category);
+                const categoryItems = processCategoryItems(items, appState.searchTerm);
+                
+                if (categoryItems.length === 0 && appState.searchTerm) return;
+
+                html += `
+                    <div class="border-b border-gray-200 dark:border-gray-600">
+                        <div class="flex items-center justify-between p-2 cursor-pointer bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                             onclick="toggleDropdownSection('${category}', event)">
+                            <span class="font-medium text-xs text-gray-900 dark:text-white">${category}</span>
+                            <div class="flex items-center space-x-1">
+                                <span class="text-xs text-gray-500 dark:text-gray-400">(${categoryItems.length})</span>
+                                <span class="text-gray-500 dark:text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}">${isExpanded ? '▼' : '▶'}</span>
+                            </div>
+                        </div>
+                        <div class="transition-all duration-200 overflow-hidden ${isExpanded ? '' : 'max-h-0'}">
+                `;
+
+                if (Array.isArray(items)) {
+                    categoryItems.forEach(item => {
+                        html += renderDropdownModelItem(item);
+                    });
+                } else {
+                    Object.entries(items).forEach(([subcategory, subitems]) => {
+                        const filteredSubitems = filterItems(subitems, appState.searchTerm);
+                        if (filteredSubitems.length === 0 && appState.searchTerm) return;
+
+                        html += `
+                            <div class="pl-3 border-l border-gray-200 dark:border-gray-600">
+                                <div class="text-xs font-medium text-gray-600 dark:text-gray-400 p-1 bg-gray-25 dark:bg-gray-750">${subcategory}</div>
+                        `;
+                        
+                        filteredSubitems.forEach(item => {
+                            html += renderDropdownModelItem(item, true);
+                        });
+                        
+                        html += `</div>`;
+                    });
+                }
+
+                html += `</div></div>`;
+            });
+
+            if (html === '') {
+                html = '<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-xs">No models found</div>';
+            }
+
+            wrapper.innerHTML = html;
+        }
+
+        // Render individual dropdown model item (optimized - no transitions)
+        function renderDropdownModelItem(model, isSubcategory = false) {
+            const isSelected = appState.selectedModel === model;
+            const paddingClass = isSubcategory ? 'pl-6' : 'pl-4';
+            
+            return `
+                <div class="model-item ${paddingClass} pr-2 py-1 cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+                     data-model="${model}">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs ${isSelected ? 'font-medium' : ''}">${highlightSearchTerm(model, appState.searchTerm)}</span>
+                        ${isSelected ? '<span class="text-blue-500 text-xs">✓</span>' : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Toggle dropdown section
+        function toggleDropdownSection(category, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            if (appState.expandedSections.has(category)) {
+                appState.expandedSections.delete(category);
+            } else {
+                appState.expandedSections.add(category);
+            }
+            renderDropdownAccordionContent();
+        }
+
+        // Select model from dropdown
+        function selectDropdownModel(model) {
+            appState.selectedModel = model;
+            updateModelDisplay();
+            closeModelSelector(); // Close dropdown
+        }
+
+        // Global click handler - Close modals/dropdowns when clicking outside and handle model selection
+        document.addEventListener('click', function(event) {
+            // Handle model item clicks in dropdown
+            const dropdownModelItem = event.target.closest('#dropdownAccordionWrapper .model-item');
+            if (dropdownModelItem) {
+                const model = dropdownModelItem.dataset.model;
+                if (model) {
+                    selectDropdownModel(model);
+                }
+                return;
+            }
+
+            // Close model dropdown when clicking outside
+            const dropdown = document.getElementById('modelDropdown');
+            const button = document.getElementById('modelSelectorBtn');
+            
+            if (!dropdown.classList.contains('hidden') && 
+                !dropdown.contains(event.target) && 
+                !button.contains(event.target)) {
+                closeModelSelector();
+            }
+
+            // Close flag modal when clicking outside
+            const flagModal = document.getElementById('flagModal');
+            const flagBtn = document.getElementById('flagBtn');
+            const flagModalContent = flagModal.querySelector('div');
+            
+            if (!flagModal.classList.contains('hidden') && 
+                !flagModalContent.contains(event.target) && 
+                !flagBtn.contains(event.target)) {
+                closeFlagModal();
+            }
+
+            // Close theme modal when clicking outside
+            const themeModal = document.getElementById('themeModal');
+            const themeBtn = document.querySelector('button[onclick="openThemeModal()"]');
+            const themeModalContent = themeModal.querySelector('div');
+            
+            if (!themeModal.classList.contains('hidden') && 
+                !themeModalContent.contains(event.target) && 
+                !themeBtn.contains(event.target)) {
+                closeThemeModal();
+            }
+
+            // Close message menus when clicking outside
+            if (!event.target.closest('.relative')) {
+                hideMessageMenu();
+            }
+
+            // Dynamic modals are handled by their own click listeners
+        });
+
+        // ============================================
+        // FLAG SYSTEM FUNCTIONS
+        // ============================================
+
+        // Open flag modal
+        function openFlagModal() {
+            const modal = document.getElementById('flagModal');
+            const flagContent = document.getElementById('flagContent');
+            const selectedModel = appState.selectedModel;
+            
+            // Check if model has flags
+            const modelFlags = MODEL_FLAGS[selectedModel];
+            
+            if (!modelFlags) {
+                flagContent.innerHTML = `
+                    <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                        <div class="text-4xl mb-2">🚫</div>
+                        <p>No flags available for ${selectedModel}</p>
+                    </div>
+                `;
+            } else {
+                // Initialize model flags if not exists
+                if (!appState.modelFlags[selectedModel]) {
+                    appState.modelFlags[selectedModel] = {};
+                }
+                
+                // Render flag controls
+                let html = `<div class="mb-4"><h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Available flags for ${selectedModel}:</h4></div>`;
+                
+                Object.entries(modelFlags).forEach(([flagName, config]) => {
+                    html += createSteppedFlag(selectedModel, flagName, config);
+                });
+                
+                flagContent.innerHTML = html;
+                
+                // Add event listeners after rendering
+                setupFlagEventListeners(selectedModel, modelFlags);
+            }
+            
+            modal.classList.remove('hidden');
+        }
+
+        // Close flag modal
+        function closeFlagModal() {
+            document.getElementById('flagModal').classList.add('hidden');
+        }
+
+        // Create stepped flag HTML
+        function createSteppedFlag(model, flagName, config) {
+            if (config.type === 'stepped') {
+                const currentValue = appState.modelFlags[model][flagName] || config.default;
+                const steps = ['default', ...config.steps];
+                const currentIndex = steps.indexOf(currentValue);
+                
+                return `
+                    <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            ${flagName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <input 
+                                type="range" 
+                                id="flag-${flagName}" 
+                                min="0" 
+                                max="${steps.length - 1}" 
+                                value="${currentIndex >= 0 ? currentIndex : 0}" 
+                                step="1"
+                                class="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer flag-slider"
+                                data-model="${model}"
+                                data-flag="${flagName}"
+                                data-steps='${JSON.stringify(steps)}'
+                            />
+                            <span id="flag-value-${flagName}" class="text-sm font-mono text-gray-600 dark:text-gray-400 min-w-16 text-right">
+                                ${currentValue}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            } else if (config.type === 'advanced') {
+                return createAdvancedSettings(model, flagName, config);
+            }
+            return '';
+        }
+
+        // Create advanced settings HTML
+        function createAdvancedSettings(model, flagName, config) {
+            let html = `
+                <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Advanced Settings</h5>
+            `;
+
+            Object.entries(config.fields).forEach(([fieldName, fieldConfig]) => {
+                const fieldId = `${model}-${flagName}-${fieldName}`;
+                const currentValue = appState.modelFlags[model][fieldName] || fieldConfig.default;
+
+                if (fieldConfig.type === 'select') {
+                    html += `
+                        <div class="mb-3">
+                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                ${fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </label>
+                            <select 
+                                id="${fieldId}" 
+                                class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                data-model="${model}"
+                                data-field="${fieldName}"
+                            >
+                                ${fieldConfig.options.map(option => 
+                                    `<option value="${option}" ${currentValue === option ? 'selected' : ''}>${option}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                    `;
+                } else if (fieldConfig.type === 'text') {
+                    const isVisible = !fieldConfig.depends_on || 
+                                    appState.modelFlags[model][fieldConfig.depends_on] === fieldConfig.depends_value;
+                    
+                    html += `
+                        <div class="mb-3 ${isVisible ? '' : 'hidden'}" id="${fieldId}-container">
+                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                ${fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </label>
+                            <input 
+                                type="text" 
+                                id="${fieldId}" 
+                                placeholder="${fieldConfig.placeholder || ''}"
+                                value="${currentValue || ''}"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                data-model="${model}"
+                                data-field="${fieldName}"
+                            />
+                        </div>
+                    `;
+                } else if (fieldConfig.type === 'checkbox') {
+                    html += `
+                        <div class="mb-3">
+                            <label class="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                                <input 
+                                    type="checkbox" 
+                                    id="${fieldId}" 
+                                    ${currentValue ? 'checked' : ''}
+                                    class="mr-2"
+                                    data-model="${model}"
+                                    data-field="${fieldName}"
+                                />
+                                ${fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </label>
+                        </div>
+                    `;
+                }
+            });
+
+            html += `</div>`;
+            return html;
+        }
+
+        // Setup event listeners for flag sliders
+        function setupFlagEventListeners(model, modelFlags) {
+            Object.keys(modelFlags).forEach(flagName => {
+                const config = modelFlags[flagName];
+                
+                if (config.type === 'stepped') {
+                    const slider = document.getElementById(`flag-${flagName}`);
+                    const valueDisplay = document.getElementById(`flag-value-${flagName}`);
+                    
+                    if (slider && valueDisplay) {
+                        // Handle slider changes
+                        slider.addEventListener('input', (e) => {
+                            const steps = JSON.parse(e.target.dataset.steps);
+                            const index = parseInt(e.target.value);
+                            const value = steps[index];
+                            
+                            // Update display
+                            valueDisplay.textContent = value;
+                            
+                            // Update state
+                            appState.modelFlags[model][flagName] = value;
+                        });
+                        
+                        // Handle clicks anywhere on slider track for snapping
+                        slider.addEventListener('click', (e) => {
+                            const rect = slider.getBoundingClientRect();
+                            const percent = (e.clientX - rect.left) / rect.width;
+                            const steps = JSON.parse(e.target.dataset.steps);
+                            const nearestIndex = Math.round(percent * (steps.length - 1));
+                            
+                            slider.value = nearestIndex;
+                            const value = steps[nearestIndex];
+                            
+                            // Update display
+                            valueDisplay.textContent = value;
+                            
+                            // Update state
+                            appState.modelFlags[model][flagName] = value;
+                        });
+                    }
+                } else if (config.type === 'advanced') {
+                    // Setup advanced settings listeners
+                    Object.entries(config.fields).forEach(([fieldName, fieldConfig]) => {
+                        const fieldId = `${model}-${flagName}-${fieldName}`;
+                        const element = document.getElementById(fieldId);
+                        
+                        if (element) {
+                            if (fieldConfig.type === 'select') {
+                                element.addEventListener('change', (e) => {
+                                    appState.modelFlags[model][fieldName] = e.target.value;
+                                    handleConditionalFields(model, flagName, config);
+                                });
+                            } else if (fieldConfig.type === 'text') {
+                                element.addEventListener('input', (e) => {
+                                    appState.modelFlags[model][fieldName] = e.target.value;
+                                });
+                            } else if (fieldConfig.type === 'checkbox') {
+                                element.addEventListener('change', (e) => {
+                                    appState.modelFlags[model][fieldName] = e.target.checked;
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        // Handle conditional field visibility
+        function handleConditionalFields(model, flagName, config) {
+            Object.entries(config.fields).forEach(([fieldName, fieldConfig]) => {
+                if (fieldConfig.depends_on) {
+                    const fieldId = `${model}-${flagName}-${fieldName}`;
+                    const container = document.getElementById(`${fieldId}-container`);
+                    const dependentValue = appState.modelFlags[model][fieldConfig.depends_on];
+                    
+                    if (container) {
+                        if (dependentValue === fieldConfig.depends_value) {
+                            container.classList.remove('hidden');
+                        } else {
+                            container.classList.add('hidden');
+                            // Clear value when hidden
+                            appState.modelFlags[model][fieldName] = '';
+                        }
+                    }
+                }
+            });
+        }
+
+        // Generate flag string for message
+        function generateFlagString(model) {
+            const flags = appState.modelFlags[model];
+            if (!flags) return '';
+            
+            const flagParts = [];
+            Object.entries(flags).forEach(([flagName, value]) => {
+                if (value !== 'default') {
+                    flagParts.push(`--${flagName} ${value}`);
+                }
+            });
+            
+            return flagParts.length > 0 ? ' ' + flagParts.join(' ') : '';
+        }
+
+        // ============================================
+        // CONVERSATION CONTEXT MANAGER
+        // ============================================
+        
+        class ConversationContextManager {
+            constructor(options = {}) {
+                this.options = {
+                    maxHistoryLength: options.maxHistoryLength || 50,
+                    maxContextTokens: options.maxContextTokens || 8000,
+                    includeTimestamps: options.includeTimestamps || false,
+                    autoTruncate: options.autoTruncate !== false,
+                    contextSeparator: options.contextSeparator || '===',
+                    numberedHistory: options.numberedHistory !== false,
+                    ...options
+                };
+
+                this.conversationHistory = [];
+                this.contextHistory = [];
+                this.sessionId = this.generateSessionId();
+                this.contextChangeListeners = new Set();
+            }
+
+            // Add message to conversation history
+            addMessage(message, metadata = {}) {
+                const messageEntry = {
+                    content: message.trim(),
+                    timestamp: new Date().toISOString(),
+                    sessionId: this.sessionId,
+                    id: this.generateMessageId(),
+                    ...metadata
+                };
+
+                this.conversationHistory.push(messageEntry);
+
+                // Auto-truncate if enabled
+                if (this.options.autoTruncate && this.conversationHistory.length > this.options.maxHistoryLength) {
+                    this.truncateHistory(this.options.maxHistoryLength);
+                }
+
+                this.notifyContextChange('messageAdded', messageEntry);
+                return messageEntry;
+            }
+
+            // Generate context for current message
+            generateContext(currentMessage, options = {}) {
+                const contextOptions = { ...this.options, ...options };
+                
+                // Get previous messages (excluding the current one)
+                const previousMessages = this.conversationHistory;
+                
+                if (previousMessages.length === 0) {
+                    // No previous context, return just the current message
+                    return {
+                        contextPrompt: currentMessage,
+                        hasContext: false,
+                        messageCount: 1,
+                        contextLength: currentMessage.length
+                    };
+                }
+
+                // Format context with clear separation
+                const contextPrompt = this.formatContextPrompt(currentMessage, previousMessages, contextOptions);
+                
+                return {
+                    contextPrompt,
+                    hasContext: true,
+                    messageCount: this.conversationHistory.length + 1,
+                    previousMessageCount: previousMessages.length,
+                    contextLength: contextPrompt.length,
+                    estimatedTokens: this.estimateTokenCount(contextPrompt)
+                };
+            }
+
+            // Format context prompt with clear separation
+            formatContextPrompt(currentMessage, previousMessages, options = {}) {
+                const separator = options.contextSeparator || this.options.contextSeparator;
+                const useNumbers = options.numberedHistory !== false;
+                const includeTimestamps = options.includeTimestamps || this.options.includeTimestamps;
+                
+                let contextPrompt = '';
+
+                // Add conversational framing to help models understand the context
+                contextPrompt += `You are having a conversation with a user through a chat interface. Please respond naturally to their message below.\n\n`;
+
+                // Add previous conversation section
+                if (previousMessages.length > 0) {
+                    contextPrompt += `${separator} Previous Conversation ${separator}\n`;
+                    
+                    previousMessages.forEach((msg, index) => {
+                        let line = '';
+                        
+                        if (useNumbers) {
+                            line += `${index + 1}. `;
+                        }
+                        
+                        if (includeTimestamps) {
+                            const time = new Date(msg.timestamp).toLocaleTimeString();
+                            line += `[${time}] `;
+                        }
+                        
+                        line += msg.content;
+                        contextPrompt += line + '\n';
+                    });
+                    
+                    contextPrompt += '\n';
+                }
+
+                // Add current prompt section
+                contextPrompt += `${separator} Current Prompt ${separator}\n`;
+                contextPrompt += currentMessage;
+
+                return contextPrompt;
+            }
+
+            // Estimate token count (rough approximation)
+            estimateTokenCount(text) {
+                if (!text) return 0;
+                // Rough approximation: 1 token ≈ 4 characters for English text
+                return Math.ceil(text.length / 4);
+            }
+
+            // Truncate history to specified length
+            truncateHistory(maxLength) {
+                if (this.conversationHistory.length > maxLength) {
+                    const removed = this.conversationHistory.splice(0, this.conversationHistory.length - maxLength);
+                    this.notifyContextChange('historyTruncated', { removedCount: removed.length });
+                }
+            }
+
+            // Clear conversation history
+            clearHistory() {
+                const clearedCount = this.conversationHistory.length;
+                this.conversationHistory = [];
+                this.notifyContextChange('historyCleared', { clearedCount });
+            }
+
+            // Get context statistics
+            getContextStats() {
+                const totalMessages = this.conversationHistory.length;
+                const totalChars = this.conversationHistory.reduce((sum, msg) => sum + msg.content.length, 0);
+                const estimatedTokens = this.estimateTokenCount(this.conversationHistory.map(m => m.content).join(' '));
+                
+                return {
+                    totalMessages,
+                    totalCharacters: totalChars,
+                    estimatedTokens,
+                    averageMessageLength: totalMessages > 0 ? Math.round(totalChars / totalMessages) : 0,
+                    sessionId: this.sessionId,
+                    oldestMessage: totalMessages > 0 ? this.conversationHistory[0].timestamp : null,
+                    newestMessage: totalMessages > 0 ? this.conversationHistory[totalMessages - 1].timestamp : null
+                };
+            }
+
+            // Sync with existing chat history
+            syncWithChatHistory(chatHistory) {
+                this.conversationHistory = [];
+                chatHistory.forEach(historyItem => {
+                    if (historyItem.isUser) {
+                        this.addMessage(historyItem.content, {
+                            isUser: true,
+                            model: null,
+                            timestamp: historyItem.timestamp
+                        });
+                    }
+                });
+            }
+
+            // Event system methods
+            addContextChangeListener(callback) {
+                this.contextChangeListeners.add(callback);
+                return () => this.contextChangeListeners.delete(callback);
+            }
+
+            notifyContextChange(eventType, data) {
+                this.contextChangeListeners.forEach(callback => {
+                    try {
+                        callback(eventType, data, this.getContextStats());
+                    } catch (error) {
+                        console.error('Error in context change listener:', error);
+                    }
+                });
+            }
+
+            // Generate unique session ID
+            generateSessionId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            }
+
+            // Generate unique message ID
+            generateMessageId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            }
+        }
+
+        // ============================================
+        // CLEAN STATE MANAGEMENT SYSTEM FROM TEMPLATE
+        // ============================================
+
+        // Initialize StateManager from template
+        class StateManager {
+            constructor(options = {}) {
+                this.options = {
+                    appName: options.appName || 'ChatApp',
+                    version: options.version || '1.0',
+                    storageKey: options.storageKey || 'chatAppState',
+                    ...options
+                };
+                this.state = appState; // Use existing state
+            }
+
+            exportAsJSON(options = {}) {
+                const exportData = {
+                    appName: this.options.appName,
+                    version: this.options.version,
+                    selectedModel: this.state.selectedModel,
+                    modelFlags: this.state.modelFlags,
+                    chatHistory: this.state.chatHistory,
+                    timestamp: new Date().toISOString()
+                };
+                return JSON.stringify(exportData, null, options.prettify !== false ? 2 : 0);
+            }
+
+            async copyStateToClipboard() {
+                try {
+                    const jsonString = this.exportAsJSON();
+                    await navigator.clipboard.writeText(jsonString);
+                    showNotification('State copied to clipboard!');
+                    return true;
+                } catch (error) {
+                    showNotification('Failed to copy state: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            downloadState(filename = null) {
+                try {
+                    const jsonString = this.exportAsJSON();
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                    const defaultFilename = `${this.options.appName.toLowerCase()}_state_${timestamp}.json`;
+                    
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename || defaultFilename;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    showNotification('State downloaded successfully!');
+                    return true;
+                } catch (error) {
+                    showNotification('Failed to download state: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            importState(importData) {
+                try {
+                    if (!importData || typeof importData !== 'object') {
+                        throw new Error('Invalid import data format');
+                    }
+
+                    if (importData.selectedModel) {
+                        this.state.selectedModel = importData.selectedModel;
+                    }
+                    if (importData.modelFlags) {
+                        this.state.modelFlags = importData.modelFlags;
+                    }
+                    if (importData.chatHistory) {
+                        this.state.chatHistory = importData.chatHistory;
+                    }
+
+                    updateModelDisplay();
+                    renderChatHistory(); // Render chat history to UI
+                    showNotification('State imported successfully!');
+                    return true;
+                } catch (error) {
+                    showNotification('Failed to import state: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            importFromJSON(jsonString) {
+                try {
+                    const importData = JSON.parse(jsonString);
+                    return this.importState(importData);
+                } catch (error) {
+                    showNotification('Invalid JSON format: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            triggerFileUpload() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.style.display = 'none';
+                
+                input.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            stateModalManager.showImportModal(event.target.result);
+                        };
+                        reader.readAsText(file);
+                    }
+                });
+                
+                document.body.appendChild(input);
+                input.click();
+                document.body.removeChild(input);
+            }
+        }
+
+        // State Modal Manager from template  
+        class StateModalManager {
+            constructor(stateManager) {
+                this.stateManager = stateManager;
+                this.currentModal = null;
+            }
+
+            showImportModal(prefilledData = '') {
+                this.currentModal = this.createModal('import-modal', 'Import State', `
+                    <div class="p-4">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Paste your exported state JSON below:</p>
+                        <textarea 
+                            id="import-textarea" 
+                            class="w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-vertical"
+                            placeholder="Paste your JSON state here..."
+                        >${prefilledData}</textarea>
+                        <div class="flex justify-end gap-3 mt-4">
+                            <button onclick="stateModalManager.closeModal()" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                                Cancel
+                            </button>
+                            <button onclick="stateModalManager.executeImport()" class="px-4 py-2 bg-primary text-white hover:bg-primary-hover rounded">
+                                Import State
+                            </button>
+                        </div>
+                    </div>
+                `);
+            }
+
+            showExportModal() {
+                const exportData = this.stateManager.exportAsJSON({ prettify: true });
+                
+                this.currentModal = this.createModal('export-modal', 'Export State', `
+                    <div class="p-4">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Copy the JSON below or use the action buttons:</p>
+                        <textarea 
+                            id="export-textarea" 
+                            class="w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-vertical"
+                            readonly
+                        >${exportData}</textarea>
+                        <div class="flex gap-2 mt-3 mb-4">
+                            <button onclick="stateModalManager.copyExportData()" class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">
+                                📋 Copy to Clipboard
+                            </button>
+                            <button onclick="stateModalManager.downloadExport()" class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">
+                                💾 Download File
+                            </button>
+                        </div>
+                        <div class="flex justify-end">
+                            <button onclick="stateModalManager.closeModal()" class="px-4 py-2 bg-primary text-white hover:bg-primary-hover rounded">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `);
+                
+                setTimeout(() => {
+                    const textarea = document.getElementById('export-textarea');
+                    if (textarea) textarea.select();
+                }, 100);
+            }
+
+            createModal(id, title, content) {
+                this.closeModal();
+                
+                const modal = document.createElement('div');
+                modal.id = id;
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-96 max-w-90vw max-h-90vh overflow-y-auto">
+                        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${title}</h3>
+                            <button onclick="stateModalManager.closeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        ${content}
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        this.closeModal();
+                    }
+                });
+                
+                return modal;
+            }
+
+            executeImport() {
+                const textarea = document.getElementById('import-textarea');
+                if (!textarea.value.trim()) {
+                    showNotification('Please paste JSON state data', 'error');
+                    return;
+                }
+                
+                const success = this.stateManager.importFromJSON(textarea.value);
+                if (success) {
+                    this.closeModal();
+                }
+            }
+
+            async copyExportData() {
+                const textarea = document.getElementById('export-textarea');
+                if (textarea) {
+                    try {
+                        await navigator.clipboard.writeText(textarea.value);
+                        showNotification('Export data copied to clipboard!');
+                    } catch (err) {
+                        textarea.select();
+                        document.execCommand('copy');
+                        showNotification('Export data copied to clipboard!');
+                    }
+                }
+            }
+
+            downloadExport() {
+                this.stateManager.downloadState();
+                this.closeModal();
+            }
+
+            closeModal() {
+                if (this.currentModal) {
+                    document.body.removeChild(this.currentModal);
+                    this.currentModal = null;
+                }
+            }
+        }
+
+        // ============================================
+        // THEMING SYSTEM
+        // ============================================
+        
+        const THEMES = ['dark', 'terminal', 'paper', 'sakura', 'ayu'];
+        let currentTheme = 'dark';
+
+        function applyTheme(themeName) {
+            // Disable transitions during theme change
+            document.body.style.transition = 'none';
+            
+            document.documentElement.setAttribute('data-theme', themeName);
+            
+            // Update mobile browser theme color
+            const metaTheme = document.querySelector('meta[name="theme-color"]');
+            if (metaTheme) {
+                const accentColor = getComputedStyle(document.documentElement)
+                    .getPropertyValue('--accent').trim();
+                metaTheme.content = accentColor;
+            }
+            
+            // Re-enable transitions after paint
+            requestAnimationFrame(() => {
+                document.body.style.transition = '';
+            });
+            
+            currentTheme = themeName;
+        }
+
+        function cycleTheme() {
+            const currentIndex = THEMES.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % THEMES.length;
+            applyTheme(THEMES[nextIndex]);
+        }
+
+        // ============================================
+        // DYNAMIC THEME CUSTOMIZER
+        // ============================================
+
+        // Convert hex to HSL for color calculations
+        function hexToHsl(hex) {
+            const r = parseInt(hex.slice(1, 3), 16) / 255;
+            const g = parseInt(hex.slice(3, 5), 16) / 255;
+            const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+
+            return [h * 360, s * 100, l * 100];
+        }
+
+        // Convert HSL to hex
+        function hslToHex(h, s, l) {
+            h /= 360;
+            s /= 100;
+            l /= 100;
+
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs((h * 6) % 2 - 1));
+            const m = l - c / 2;
+            let r = 0, g = 0, b = 0;
+
+            if (0 <= h * 6 && h * 6 < 1) {
+                r = c; g = x; b = 0;
+            } else if (1 <= h * 6 && h * 6 < 2) {
+                r = x; g = c; b = 0;
+            } else if (2 <= h * 6 && h * 6 < 3) {
+                r = 0; g = c; b = x;
+            } else if (3 <= h * 6 && h * 6 < 4) {
+                r = 0; g = x; b = c;
+            } else if (4 <= h * 6 && h * 6 < 5) {
+                r = x; g = 0; b = c;
+            } else if (5 <= h * 6 && h * 6 < 6) {
+                r = c; g = 0; b = x;
+            }
+
+            r = Math.round((r + m) * 255);
+            g = Math.round((g + m) * 255);
+            b = Math.round((b + m) * 255);
+
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+
+        // Generate theme colors based on primary, background, and text colors
+        function generateThemeColors(primaryColor, backgroundColor, textColor) {
+            const [primaryH, primaryS, primaryL] = hexToHsl(primaryColor);
+            const [bgH, bgS, bgL] = hexToHsl(backgroundColor);
+            const [textH, textS, textL] = hexToHsl(textColor);
+
+            // Generate variations of primary color
+            const primaryHover = hslToHex(primaryH, primaryS, Math.max(primaryL - 10, 0));
+            
+            // Generate background variations
+            const bgSecondary = hslToHex(bgH, bgS, Math.min(bgL + (bgL < 50 ? 5 : -5), 100));
+            const bgTertiary = hslToHex(bgH, bgS, Math.min(bgL + (bgL < 50 ? 10 : -10), 100));
+            
+            // Generate text variations
+            const textSecondary = hslToHex(textH, Math.max(textS - 20, 0), textL > 50 ? textL - 15 : textL + 15);
+            const textTertiary = hslToHex(textH, Math.max(textS - 30, 0), textL > 50 ? textL - 25 : textL + 25);
+            
+            // Generate border colors
+            const border = hslToHex(bgH, bgS, textL > 50 ? bgL + 15 : bgL - 15);
+            const borderLight = hslToHex(bgH, bgS, textL > 50 ? bgL + 10 : bgL - 10);
+
+            return {
+                primary: primaryColor,
+                primaryHover: primaryHover,
+                bgPrimary: backgroundColor,
+                bgSecondary: bgSecondary,
+                bgTertiary: bgTertiary,
+                textPrimary: textColor,
+                textSecondary: textSecondary,
+                textTertiary: textTertiary,
+                border: border,
+                borderLight: borderLight,
+                accent: primaryColor
+            };
+        }
+
+        // Apply custom theme
+        function applyCustomTheme() {
+            const primaryColor = document.getElementById('primaryColorPicker').value;
+            const backgroundColor = document.getElementById('backgroundColorPicker').value;
+            const textColor = document.getElementById('textColorPicker').value;
+
+            const themeColors = generateThemeColors(primaryColor, backgroundColor, textColor);
+            
+            // Create dynamic CSS for custom theme
+            const customThemeCSS = `
+                [data-theme="custom"] {
+                    --primary: ${themeColors.primary};
+                    --primary-hover: ${themeColors.primaryHover};
+                    --bg-primary: ${themeColors.bgPrimary};
+                    --bg-secondary: ${themeColors.bgSecondary};
+                    --bg-tertiary: ${themeColors.bgTertiary};
+                    --text-primary: ${themeColors.textPrimary};
+                    --text-secondary: ${themeColors.textSecondary};
+                    --text-tertiary: ${themeColors.textTertiary};
+                    --border: ${themeColors.border};
+                    --border-light: ${themeColors.borderLight};
+                    --accent: ${themeColors.accent};
+                    --font-main: 'Inter', system-ui, sans-serif;
+                    --success: #10b981;
+                    --error: #ef4444;
+                    --warning: #f59e0b;
+                    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+                    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+                }
+            `;
+
+            // Update or create custom theme style element
+            let customStyleElement = document.getElementById('custom-theme-style');
+            if (!customStyleElement) {
+                customStyleElement = document.createElement('style');
+                customStyleElement.id = 'custom-theme-style';
+                document.head.appendChild(customStyleElement);
+            }
+            customStyleElement.textContent = customThemeCSS;
+
+            // Apply the custom theme
+            applyTheme('custom');
+            
+            showNotification('Custom theme applied!');
+            
+            // Auto-close the modal
+            closeThemeModal();
+        }
+
+        // Save custom theme
+        function saveCustomTheme() {
+            const themeName = document.getElementById('themeNameInput').value.trim();
+            if (!themeName) {
+                showNotification('Please enter a theme name', 'error');
+                return;
+            }
+
+            const primaryColor = document.getElementById('primaryColorPicker').value;
+            const backgroundColor = document.getElementById('backgroundColorPicker').value;
+            const textColor = document.getElementById('textColorPicker').value;
+
+            appState.savedThemes[themeName] = {
+                primary: primaryColor,
+                background: backgroundColor,
+                text: textColor
+            };
+
+            document.getElementById('themeNameInput').value = '';
+            
+            renderSavedThemes();
+            showNotification(`Theme "${themeName}" saved!`);
+        }
+
+        // Load custom theme
+        function loadCustomTheme(themeName) {
+            const theme = appState.savedThemes[themeName];
+            if (!theme) return;
+
+            document.getElementById('primaryColorPicker').value = theme.primary;
+            document.getElementById('primaryColorHex').value = theme.primary;
+            document.getElementById('backgroundColorPicker').value = theme.background;
+            document.getElementById('backgroundColorHex').value = theme.background;
+            document.getElementById('textColorPicker').value = theme.text;
+            document.getElementById('textColorHex').value = theme.text;
+
+            updateThemePreview();
+            showNotification(`Theme "${themeName}" loaded!`);
+        }
+
+        // Delete custom theme
+        function deleteCustomTheme(themeName) {
+            delete appState.savedThemes[themeName];
+            renderSavedThemes();
+            showNotification(`Theme "${themeName}" deleted!`);
+        }
+
+        // Render saved themes list
+        function renderSavedThemes() {
+            const container = document.getElementById('savedThemesList');
+            if (!container) return;
+
+            if (Object.keys(appState.savedThemes).length === 0) {
+                container.innerHTML = '<div class="text-xs themed-text-tertiary">No saved themes</div>';
+                return;
+            }
+
+            let html = '';
+            Object.keys(appState.savedThemes).forEach(themeName => {
+                const theme = appState.savedThemes[themeName];
+                html += `
+                    <div class="flex items-center justify-between p-2 themed-bg-tertiary rounded text-xs">
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 rounded border" style="background: linear-gradient(45deg, ${theme.primary}, ${theme.background});"></div>
+                            <span class="themed-text-primary">${themeName}</span>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="loadCustomTheme('${themeName}')" class="themed-btn px-2 py-1 text-xs rounded">Load</button>
+                            <button onclick="deleteCustomTheme('${themeName}')" class="themed-btn px-2 py-1 text-xs rounded" style="color: var(--error);">Del</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Update theme preview
+        function updateThemePreview() {
+            const primaryColor = document.getElementById('primaryColorPicker').value;
+            const backgroundColor = document.getElementById('backgroundColorPicker').value;
+            const textColor = document.getElementById('textColorPicker').value;
+
+            const previewContainer = document.getElementById('themePreview');
+            const previewButton = document.getElementById('previewButton');
+            const previewMessage = document.getElementById('previewMessage');
+
+            if (previewContainer && previewButton && previewMessage) {
+                previewContainer.style.backgroundColor = backgroundColor;
+                previewContainer.style.color = textColor;
+                
+                previewButton.style.backgroundColor = primaryColor;
+                previewButton.style.color = 'white';
+                
+                const themeColors = generateThemeColors(primaryColor, backgroundColor, textColor);
+                previewMessage.style.backgroundColor = themeColors.bgSecondary;
+                previewMessage.style.color = textColor;
+                previewMessage.style.border = `1px solid ${themeColors.border}`;
+            }
+        }
+
+        // Render preset themes
+        function renderPresetThemes() {
+            const container = document.getElementById('presetThemes');
+            if (!container) return;
+
+            const presetThemeData = {
+                'dark': { name: '🌙 Dark', colors: ['#5D5CDE', '#0f172a', '#e2e8f0'] },
+                'terminal': { name: '💻 Terminal', colors: ['#00ff00', '#000000', '#00ff00'] },
+                'paper': { name: '📄 Paper', colors: ['#8b5a2b', '#fefefe', '#2d2d2d'] },
+                'sakura': { name: '🌸 Sakura', colors: ['#ff6b9d', '#fff8fc', '#2d1b20'] },
+                'ayu': { name: '🔥 Ayu', colors: ['#ffcc02', '#0b0b0b', '#ffcc02'] }
+            };
+
+            let html = '';
+            Object.entries(presetThemeData).forEach(([themeKey, themeInfo]) => {
+                const [primary, bg, text] = themeInfo.colors;
+                html += `
+                    <button 
+                        onclick="applyTheme('${themeKey}'); closeThemeModal();" 
+                        class="flex items-center gap-2 p-2 themed-btn rounded text-xs transition-colors"
+                        title="Apply ${themeInfo.name} theme"
+                    >
+                        <div class="w-4 h-4 rounded border" style="background: linear-gradient(45deg, ${primary}, ${bg});"></div>
+                        <span>${themeInfo.name}</span>
+                    </button>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Open theme modal
+        function openThemeModal() {
+            const modal = document.getElementById('themeModal');
+            
+            // Initialize color pickers with current theme colors (if custom)
+            if (currentTheme === 'custom') {
+                // Keep current values
+            } else {
+                // Set default values
+                document.getElementById('primaryColorPicker').value = '#5D5CDE';
+                document.getElementById('primaryColorHex').value = '#5D5CDE';
+                document.getElementById('backgroundColorPicker').value = '#0f172a';
+                document.getElementById('backgroundColorHex').value = '#0f172a';
+                document.getElementById('textColorPicker').value = '#e2e8f0';
+                document.getElementById('textColorHex').value = '#e2e8f0';
+            }
+
+            renderPresetThemes();
+            renderSavedThemes();
+            updateThemePreview();
+            setupThemeEventListeners();
+            
+            modal.classList.remove('hidden');
+        }
+
+        // Close theme modal
+        function closeThemeModal() {
+            document.getElementById('themeModal').classList.add('hidden');
+        }
+
+        // Setup theme event listeners
+        function setupThemeEventListeners() {
+            // Color picker sync
+            const colorInputs = [
+                { picker: 'primaryColorPicker', hex: 'primaryColorHex' },
+                { picker: 'backgroundColorPicker', hex: 'backgroundColorHex' },
+                { picker: 'textColorPicker', hex: 'textColorHex' }
+            ];
+
+            colorInputs.forEach(({ picker, hex }) => {
+                const pickerEl = document.getElementById(picker);
+                const hexEl = document.getElementById(hex);
+                
+                if (pickerEl && hexEl) {
+                    pickerEl.addEventListener('input', (e) => {
+                        hexEl.value = e.target.value;
+                        updateThemePreview();
+                    });
+                    
+                    hexEl.addEventListener('input', (e) => {
+                        if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                            pickerEl.value = e.target.value;
+                            updateThemePreview();
+                        }
+                    });
+                }
+            });
+        }
+
+        // Clear context function - EXPERIMENTAL: To be implemented later
+        // This requires complex DOM manipulation of the underlying Poe chat context
+        // that exists beneath the Canvas UI. Needs network API calls and chat selectors.
+        function clearContext() {
+            // Clear conversation manager history
+            conversationManager.clearHistory();
+            
+            // Clear chat history in app state
+            appState.chatHistory = [];
+            
+            // Re-render chat UI
+            renderChatHistory();
+            
+            showNotification('Chat context cleared!');
+        }
+
+        // Initialize context manager
+        const conversationManager = new ConversationContextManager({
+            maxHistoryLength: 30,
+            maxContextTokens: 8000,
+            includeTimestamps: false,
+            numberedHistory: true
+        });
+
+        // Initialize state management system
+        const stateManagerInstance = new StateManager({
+            appName: 'ChatApp',
+            version: '1.0',
+            storageKey: 'chatAppState'
+        });
+        
+        const stateModalManager = new StateModalManager(stateManagerInstance);
+
+        // Replace old functions with new system
+        function copyStateToClipboard() {
+            stateManagerInstance.copyStateToClipboard();
+        }
+
+        function openPasteModal() {
+            stateModalManager.showImportModal();
+        }
+
+        function downloadState() {
+            stateManagerInstance.downloadState();
+        }
+
+        function uploadState() {
+            stateManagerInstance.triggerFileUpload();
+        }
+
+        function downloadChat() {
+            if (appState.chatHistory.length === 0) {
+                showNotification('No chat history to download', 'error');
+                return;
+            }
+
+            let chatText = `# Chat Conversation\n`;
+            chatText += `**Generated:** ${new Date().toLocaleString()}\n`;
+            chatText += `**Selected Model:** ${appState.selectedModel}\n\n`;
+            chatText += `---\n\n`;
+
+            appState.chatHistory.forEach((message) => {
+                const time = new Date(message.timestamp).toLocaleTimeString();
+                if (message.isUser) {
+                    chatText += `**[${time}] You:**\n${message.content}\n\n`;
+                } else {
+                    const modelName = message.model || 'AI';
+                    chatText += `**[${time}] ${modelName}:**\n${message.content}\n\n`;
+                }
+            });
+
+            const blob = new Blob([chatText], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            link.download = `chat_conversation_${timestamp}.md`;
+            
+            link.click();
+            URL.revokeObjectURL(url);
+            showNotification('Chat conversation downloaded!');
+        }
+
+        // Global functions for onclick handlers
+        window.copyStateToClipboard = copyStateToClipboard;
+        window.openModelSelector = openModelSelector;
+        window.closeModelSelector = closeModelSelector;
+        window.handleDropdownModelSearch = handleDropdownModelSearch;
+        window.toggleDropdownSection = toggleDropdownSection;
+        window.selectDropdownModel = selectDropdownModel;
+        window.openFlagModal = openFlagModal;
+        window.closeFlagModal = closeFlagModal;
+        window.stopLoadingSpinner = stopLoadingSpinner;
+        window.openPasteModal = openPasteModal;
+        window.downloadState = downloadState;
+        window.uploadState = uploadState;
+        window.downloadChat = downloadChat;
+        window.cycleTheme = cycleTheme;
+        window.clearContext = clearContext;
+        window.stateModalManager = stateModalManager;
+        
+        // Theme system global functions
+        window.openThemeModal = openThemeModal;
+        window.closeThemeModal = closeThemeModal;
+        window.applyCustomTheme = applyCustomTheme;
+        window.saveCustomTheme = saveCustomTheme;
+        window.loadCustomTheme = loadCustomTheme;
+        window.deleteCustomTheme = deleteCustomTheme;
+
+        // Initialize app
+        function initializeApp() {
+            updateModelDisplay();
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            // Apply dark theme by default
+            applyTheme('dark');
+        });
+    </script>
+</body>
+</html>

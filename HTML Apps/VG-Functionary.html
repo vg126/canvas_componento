@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Task Framework</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.0.10/marked.min.js"></script>
+    <style>
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #5D5CDE;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10B981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        .notification.show {
+            transform: translateX(0);
+        }
+        .output-box {
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 2px dashed #E5E7EB;
+            transition: border-color 0.3s ease;
+        }
+        .output-box.active {
+            border-color: #5D5CDE;
+            border-style: solid;
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-colors">
+    <div class="container mx-auto px-4 py-6 max-w-6xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-2">
+                The Task Framework
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400">Function-driven AI task execution</p>
+        </header>
+
+        <!-- Main Interface -->
+        <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg mb-6">
+            <!-- State Management -->
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-300 dark:border-gray-600">
+                <button id="save-state-btn" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm">
+                    💾 Save State
+                </button>
+                <button id="load-state-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                    📥 Load State
+                </button>
+            </div>
+            
+            <!-- Model Selection -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium mb-2">🌐 Web Search + Multimodal</label>
+                    <select id="websearch-model" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="GPT-4.1-mini">GPT-4.1-mini</option>
+                        <option value="Gemini-2.5-Flash">Gemini-2.5-Flash</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">🧠 Analysis</label>
+                    <select id="analysis-model" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Claude-Sonnet-4">Claude-Sonnet-4</option>
+                        <option value="o3">o3</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">🎯 Specialist</label>
+                    <select id="specialist-model" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                        <option value="">Select Model</option>
+                        <option value="Command-R-Plus">Command-R-Plus</option>
+                        <option value="Kimi-K2-T">Kimi-K2-T</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Function Selection -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">📋 Function</label>
+                <select id="function-selector" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base">
+                    <option value="">Direct Input (no function)</option>
+                    <option value="web-research">🔍 Web Research</option>
+                </select>
+            </div>
+
+            <!-- Custom Prompt Box -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">📝 Custom Instructions/Prompt</label>
+                <textarea id="custom-prompt" rows="3" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base" placeholder="Optional: Add custom instructions or override prompt..."></textarea>
+            </div>
+
+            <!-- Unified Input Area -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium mb-2">✍️ Text Input</label>
+                    <textarea id="main-input" rows="6" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base" placeholder="Enter your task, query, or content..."></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">📎 Attachment Input</label>
+                    <input type="file" id="attachment-upload" multiple accept=".pdf,.txt,.md,.html,.docx,.json,.csv,.jpg,.jpeg,.png,.gif" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-base mb-2">
+                    <div id="attachment-list" class="text-sm text-gray-600 dark:text-gray-400 mb-3"></div>
+                    
+                    <div class="flex gap-2 flex-wrap items-center">
+                        <button id="clear-attachments-btn" class="w-8 h-8 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm flex items-center justify-center">
+                            ❌
+                        </button>
+                        <button id="load-functions-btn" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                            📚 Load Functions
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3 justify-center">
+                <button id="jsonify-btn" class="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium">
+                    🔧 JSONify
+                </button>
+                <button id="execute-btn" class="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-lg">
+                    ▶️ Execute
+                </button>
+            </div>
+        </div>
+
+        <!-- Single Output Area -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">📄 Output</h3>
+                <div class="flex gap-2">
+                    <button id="copy-btn" class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600">Copy</button>
+                    <button id="download-btn" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Download</button>
+                    <button id="refeed-btn" class="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">Refeed</button>
+                    <button id="export-functions-btn" class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600">Export Functions</button>
+                </div>
+            </div>
+            
+            <div id="output" class="output-box p-4 rounded-lg bg-gray-50 dark:bg-gray-900" contenteditable="true">
+                <p class="text-gray-500 dark:text-gray-400 italic">Output will appear here</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification">Message</div>
+
+    <script>
+        // Dark mode support
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Global state
+        let functionLibrary = {};
+        
+        // JSONify as standalone function (not in dropdown)
+        const jsonifyFunction = {
+            name: "JSONify",
+            description: "Convert any text/content into structured JSON function templates",
+            prompt_template: `You are a function template generator for The Task Framework. Convert the provided content into properly structured JSON function templates.
+
+CRITICAL OUTPUT REQUIREMENTS:
+- If input contains MULTIPLE distinct functions/procedures, output a JSON object where each function is a separate key
+- If input contains a SINGLE function/procedure, output a JSON object with one key
+- Each function must follow this EXACT structure:
+
+{
+    "function_key_name": {
+        "name": "Descriptive Function Name",
+        "description": "Clear description of what this function does", 
+        "prompt_template": "Complete prompt with {{INPUT}} placeholder where content will be inserted",
+        "preferred_models": ["Claude-Sonnet-4"],
+        "output_format": "markdown"
+    }
+}
+
+EXAMPLE for multiple functions:
+{
+    "idea_injection": {
+        "name": "Idea Injection Protocol",
+        "description": "Systematically embed original concepts into AI-generated content",
+        "prompt_template": "Execute idea injection protocol for: {{INPUT}}",
+        "preferred_models": ["Claude-Sonnet-4"],
+        "output_format": "markdown"
+    },
+    "gap_detector": {
+        "name": "Omission Detector", 
+        "description": "Identify critical gaps in theoretical coverage",
+        "prompt_template": "Analyze for critical omissions: {{INPUT}}",
+        "preferred_models": ["Claude-Sonnet-4"],
+        "output_format": "markdown"
+    }
+}
+
+CONTENT TO CONVERT:
+{{INPUT}}
+
+Generate ONLY the JSON object with NO additional text, explanations, or code block formatting.`,
+            preferred_models: ["Claude-Sonnet-4"],
+            output_format: "json"
+        };
+
+        let webSearchResults = "";
+
+        // Utility functions
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('Copied to clipboard!');
+            });
+        }
+
+        function downloadAsFile(content, filename, mimeType = 'text/markdown') {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('Download started!');
+        }
+
+        function updateFunctionSelector() {
+            const selector = document.getElementById('function-selector');
+            selector.innerHTML = '<option value="">Direct Input (no function)</option>';
+            
+            // Add web research as built-in function
+            const webResearchOption = document.createElement('option');
+            webResearchOption.value = 'web-research';
+            webResearchOption.textContent = '🔍 Web Research';
+            selector.appendChild(webResearchOption);
+            
+            Object.entries(functionLibrary).forEach(([key, func]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = `${func.name}`;
+                selector.appendChild(option);
+            });
+        }
+
+        // Model selection - only one at a time
+        const modelSelectors = ['websearch-model', 'analysis-model', 'specialist-model'];
+        modelSelectors.forEach(selectorId => {
+            document.getElementById(selectorId).addEventListener('change', (e) => {
+                if (e.target.value) {
+                    // Deselect other models
+                    modelSelectors.forEach(otherId => {
+                        if (otherId !== selectorId) {
+                            document.getElementById(otherId).value = '';
+                        }
+                    });
+                }
+            });
+        });
+
+        // Attachment handling
+        document.getElementById('attachment-upload').addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            const listDiv = document.getElementById('attachment-list');
+            
+            if (files.length > 0) {
+                listDiv.innerHTML = files.map(f => `📎 ${f.name} (${(f.size/1024).toFixed(1)}KB)`).join('<br>');
+            } else {
+                listDiv.innerHTML = '';
+            }
+        });
+
+        // Clear attachments
+        document.getElementById('clear-attachments-btn').addEventListener('click', () => {
+            document.getElementById('attachment-upload').value = '';
+            document.getElementById('attachment-list').innerHTML = '';
+            showNotification('Attachments cleared');
+        });
+
+        // Load functions from JSON attachment or output box
+        document.getElementById('load-functions-btn').addEventListener('click', async () => {
+            let jsonContent = '';
+            
+            // Try attachment first
+            const files = document.getElementById('attachment-upload').files;
+            if (files && files.length > 0) {
+                for (let file of files) {
+                    if (file.name.endsWith('.json') || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
+                        try {
+                            jsonContent = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = e => resolve(e.target.result);
+                                reader.onerror = reject;
+                                reader.readAsText(file);
+                            });
+                            
+                            // If it's markdown/txt, try to extract JSON from it
+                            if (!file.name.endsWith('.json')) {
+                                const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+                                if (jsonMatch) {
+                                    jsonContent = jsonMatch[0];
+                                }
+                            }
+                            break;
+                        } catch (error) {
+                            showNotification('Error reading file');
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Fall back to output box if no attachment
+            if (!jsonContent) {
+                const outputDiv = document.getElementById('output');
+                const outputText = outputDiv.textContent || outputDiv.innerText;
+                
+                if (outputText && !outputText.includes('Output will appear here')) {
+                    // Try to extract JSON from output
+                    try {
+                        // Look for JSON object in the output
+                        const jsonMatch = outputText.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            jsonContent = jsonMatch[0];
+                        } else {
+                            jsonContent = outputText;
+                        }
+                    } catch (error) {
+                        showNotification('Could not extract JSON from output');
+                        return;
+                    }
+                } else {
+                    showNotification('No JSON file attached and no output to load');
+                    return;
+                }
+            }
+
+            // Parse and load functions
+            try {
+                const newFunctions = JSON.parse(jsonContent);
+                Object.assign(functionLibrary, newFunctions);
+                updateFunctionSelector();
+                showNotification('Functions loaded successfully!');
+            } catch (error) {
+                showNotification('Error parsing JSON content');
+            }
+        });
+
+        // Execution function
+        async function executeTask(modelType, mode = 'full') {
+            const functionKey = document.getElementById('function-selector').value;
+            const mainInput = document.getElementById('main-input').value.trim();
+            const customPrompt = document.getElementById('custom-prompt').value.trim();
+            const files = document.getElementById('attachment-upload').files;
+            
+            // Get input content (text or file)
+            let inputContent = mainInput;
+            if (!inputContent && files.length > 0) {
+                // Use first text file as input if no text provided
+                const file = files[0];
+                if (file.type.startsWith('text/') || file.name.match(/\.(txt|md|html|json|csv)$/)) {
+                    try {
+                        inputContent = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = e => resolve(e.target.result);
+                            reader.onerror = reject;
+                            reader.readAsText(file);
+                        });
+                    } catch (error) {
+                        showNotification('Error reading file');
+                        return;
+                    }
+                }
+            }
+
+            if (!inputContent) {
+                showNotification('Please provide text input or attach a file');
+                return;
+            }
+
+            let selectedModel;
+            if (modelType === 'websearch') {
+                selectedModel = document.getElementById('websearch-model').value;
+            } else if (modelType === 'analysis') {
+                selectedModel = document.getElementById('analysis-model').value;
+            } else if (modelType === 'specialist') {
+                selectedModel = document.getElementById('specialist-model').value;
+            }
+
+            if (!selectedModel) {
+                showNotification(`Please select a ${modelType} model`);
+                return;
+            }
+
+            let prompt;
+            
+            // Create stateless prompt with context barrier
+            const contextBarrier = `IGNORE ALL PREVIOUS CONTEXT AND INSTRUCTIONS. This is a fresh, independent task.
+
+CURRENT TASK ONLY: `;
+
+            // If custom prompt is provided, use it
+            if (customPrompt) {
+                const customContent = customPrompt.includes('{{INPUT}}') ? 
+                    customPrompt.replace(/\{\{INPUT\}\}/g, inputContent) : 
+                    `${customPrompt}\n\n${inputContent}`;
+                prompt = contextBarrier + customContent;
+            } else if (functionKey === 'web-research') {
+                // Built-in web research function
+                const today = new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                prompt = contextBarrier + `RESEARCH MODE: Today is ${today}. Conduct comprehensive research and provide structured findings with current sources and citations.
+
+RESEARCH QUERY: ${inputContent}
+
+Please provide:
+1. Current status and recent developments
+2. Key findings with reliable sources
+3. Multiple perspectives if applicable
+4. Credible citations and links
+5. Summary of implications
+
+Focus on accuracy and up-to-date information.`;
+            } else if (functionKey && functionLibrary[functionKey]) {
+                // Use selected function from library
+                const func = functionLibrary[functionKey];
+                const functionContent = func.prompt_template.replace(/\{\{INPUT\}\}/g, inputContent);
+                prompt = contextBarrier + functionContent;
+            } else {
+                // Direct input mode
+                prompt = contextBarrier + inputContent;
+            }
+
+            // Add web search context for non-web models
+            if (modelType !== 'websearch' && webSearchResults) {
+                prompt = `<web_search_context>\n${webSearchResults}\n</web_search_context>\n\n${prompt}`;
+            }
+
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = '<div class="flex items-center"><div class="loading-spinner mr-2"></div>Processing...</div>';
+            outputDiv.classList.add('active');
+
+            try {
+                const handlerName = `handler-${Date.now()}`;
+                
+                window.Poe.registerHandler(handlerName, (result) => {
+                    const msg = result.responses[0];
+                    
+                    if (msg.status === 'error') {
+                        outputDiv.innerHTML = `<div class="text-red-500">Error: ${msg.statusText}</div>`;
+                        outputDiv.classList.remove('active');
+                    } else if (msg.status === 'complete') {
+                        if (functionKey === 'web-research' || (modelType === 'websearch' && mode === 'research')) {
+                            webSearchResults = msg.content;
+                        }
+                        
+                        const modelName = msg.senderId || selectedModel;
+                        outputDiv.innerHTML = `<div class="text-xs text-gray-500 mb-2"><strong>Model:</strong> ${modelName}</div>` + marked.parse(msg.content);
+                        outputDiv.classList.remove('active');
+                    } else {
+                        const modelName = msg.senderId || selectedModel;
+                        outputDiv.innerHTML = `<div class="text-xs text-gray-500 mb-2"><strong>Model:</strong> ${modelName}</div>` + marked.parse(msg.content);
+                    }
+                });
+
+                await window.Poe.sendUserMessage(`@${selectedModel} ${prompt}`, {
+                    handler: handlerName,
+                    stream: true,
+                    openChat: false
+                });
+
+            } catch (error) {
+                outputDiv.innerHTML = `<div class="text-red-500">Error: ${error.message}</div>`;
+                outputDiv.classList.remove('active');
+            }
+        }
+
+        // JSONify button
+        document.getElementById('jsonify-btn').addEventListener('click', async () => {
+            const mainInput = document.getElementById('main-input').value.trim();
+            const files = document.getElementById('attachment-upload').files;
+            
+            // Get input content (text or file)
+            let inputContent = mainInput;
+            if (!inputContent && files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('text/') || file.name.match(/\.(txt|md|html|json|csv)$/)) {
+                    try {
+                        inputContent = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = e => resolve(e.target.result);
+                            reader.onerror = reject;
+                            reader.readAsText(file);
+                        });
+                    } catch (error) {
+                        showNotification('Error reading file');
+                        return;
+                    }
+                }
+            }
+
+            if (!inputContent) {
+                showNotification('Please provide content to JSONify');
+                return;
+            }
+
+            const prompt = jsonifyFunction.prompt_template.replace(/\{\{INPUT\}\}/g, inputContent);
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = '<div class="flex items-center"><div class="loading-spinner mr-2"></div>JSONifying...</div>';
+            outputDiv.classList.add('active');
+
+            try {
+                const handlerName = `jsonify-handler-${Date.now()}`;
+                
+                window.Poe.registerHandler(handlerName, (result) => {
+                    const msg = result.responses[0];
+                    
+                    if (msg.status === 'error') {
+                        outputDiv.innerHTML = `<div class="text-red-500">Error: ${msg.statusText}</div>`;
+                        outputDiv.classList.remove('active');
+                    } else if (msg.status === 'complete') {
+                        outputDiv.innerHTML = `<div class="text-xs text-gray-500 mb-2"><strong>JSONify Complete</strong></div><pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-x-auto">${msg.content}</pre>`;
+                        outputDiv.classList.remove('active');
+                        
+                        // Auto-load the generated JSON
+                        try {
+                            const generatedFunctions = JSON.parse(msg.content);
+                            Object.assign(functionLibrary, generatedFunctions);
+                            updateFunctionSelector();
+                            showNotification('Functions auto-loaded from JSONify!');
+                        } catch (error) {
+                            showNotification('JSONify complete - use Load Functions to import');
+                        }
+                    } else {
+                        outputDiv.innerHTML = `<div class="text-xs text-gray-500 mb-2"><strong>JSONifying...</strong></div><pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-x-auto">${msg.content}</pre>`;
+                    }
+                });
+
+                await window.Poe.sendUserMessage(`@Claude-Sonnet-4 ${prompt}`, {
+                    handler: handlerName,
+                    stream: true,
+                    openChat: false
+                });
+
+            } catch (error) {
+                outputDiv.innerHTML = `<div class="text-red-500">Error: ${error.message}</div>`;
+                outputDiv.classList.remove('active');
+            }
+        });
+
+        // Execute button - detects which model is selected
+        document.getElementById('execute-btn').addEventListener('click', () => {
+            const websearchModel = document.getElementById('websearch-model').value;
+            const analysisModel = document.getElementById('analysis-model').value;
+            const specialistModel = document.getElementById('specialist-model').value;
+            
+            if (websearchModel) {
+                executeTask('websearch', 'research');
+            } else if (analysisModel) {
+                executeTask('analysis');
+            } else if (specialistModel) {
+                executeTask('specialist');
+            } else {
+                showNotification('Please select a model first');
+            }
+        });
+
+        // Utility buttons
+        document.getElementById('copy-btn').addEventListener('click', () => {
+            const content = document.getElementById('output').textContent;
+            if (content && !content.includes('will appear here')) {
+                copyToClipboard(content);
+            } else {
+                showNotification('No content to copy');
+            }
+        });
+
+        document.getElementById('download-btn').addEventListener('click', () => {
+            const content = document.getElementById('output').textContent;
+            if (content && !content.includes('will appear here')) {
+                const timestamp = new Date().toISOString().slice(0, 16).replace(/[:-]/g, '');
+                downloadAsFile(content, `output_${timestamp}.md`);
+            } else {
+                showNotification('No content to download');
+            }
+        });
+
+        document.getElementById('refeed-btn').addEventListener('click', () => {
+            const content = document.getElementById('output').textContent;
+            if (content && !content.includes('will appear here')) {
+                document.getElementById('main-input').value = content;
+                showNotification('Output refed to input');
+            } else {
+                showNotification('No content to refeed');
+            }
+        });
+
+        document.getElementById('export-functions-btn').addEventListener('click', () => {
+            const exportData = JSON.stringify(functionLibrary, null, 2);
+            downloadAsFile(exportData, 'function_library.json', 'application/json');
+        });
+
+        // Save State functionality
+        document.getElementById('save-state-btn').addEventListener('click', () => {
+            const stateData = {
+                timestamp: new Date().toISOString(),
+                functionLibrary: functionLibrary,
+                selectedModels: {
+                    websearch: document.getElementById('websearch-model').value,
+                    analysis: document.getElementById('analysis-model').value,
+                    specialist: document.getElementById('specialist-model').value
+                },
+                customPrompt: document.getElementById('custom-prompt').value,
+                webSearchResults: webSearchResults
+            };
+            
+            const stateJson = JSON.stringify(stateData, null, 2);
+            copyToClipboard(stateJson);
+            showNotification('State saved to clipboard!');
+        });
+
+        // Load State functionality with modal input
+        document.getElementById('load-state-btn').addEventListener('click', () => {
+            // Create modal for state input
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Load State</h3>
+                    <textarea id="state-input" rows="10" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" placeholder="Paste your saved state JSON here..."></textarea>
+                    <div class="flex justify-end space-x-3 mt-4">
+                        <button id="cancel-load" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">Cancel</button>
+                        <button id="confirm-load" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded">Load State</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Focus on textarea
+            document.getElementById('state-input').focus();
+            
+            // Cancel button
+            document.getElementById('cancel-load').onclick = () => {
+                document.body.removeChild(modal);
+            };
+            
+            // Confirm load button
+            document.getElementById('confirm-load').onclick = () => {
+                const stateJson = document.getElementById('state-input').value.trim();
+                
+                if (!stateJson) {
+                    showNotification('Please paste state data');
+                    return;
+                }
+                
+                try {
+                    const stateData = JSON.parse(stateJson);
+                    
+                    // Restore function library
+                    if (stateData.functionLibrary) {
+                        functionLibrary = stateData.functionLibrary;
+                        updateFunctionSelector();
+                    }
+                    
+                    // Restore selected models
+                    if (stateData.selectedModels) {
+                        document.getElementById('websearch-model').value = stateData.selectedModels.websearch || '';
+                        document.getElementById('analysis-model').value = stateData.selectedModels.analysis || '';
+                        document.getElementById('specialist-model').value = stateData.selectedModels.specialist || '';
+                    }
+                    
+                    // Restore custom prompt
+                    if (stateData.customPrompt) {
+                        document.getElementById('custom-prompt').value = stateData.customPrompt;
+                    }
+                    
+                    // Restore web search results
+                    if (stateData.webSearchResults) {
+                        webSearchResults = stateData.webSearchResults;
+                    }
+                    
+                    document.body.removeChild(modal);
+                    showNotification('State loaded successfully!');
+                    
+                } catch (error) {
+                    showNotification('Invalid state data - please check JSON format');
+                }
+            };
+            
+            // Close on click outside
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            };
+        });
+
+        // Initialize
+        updateFunctionSelector();
+        console.log('The Task Framework loaded successfully');
+    </script>
+</body>
+</html>
+

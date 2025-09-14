@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS Comparator App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        /* Custom slider styling */
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            height: 16px;
+            width: 16px;
+            background: #5D5CDE;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            height: 16px;
+            width: 16px;
+            background: #5D5CDE;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
+    <div class="container mx-auto p-4 max-w-7xl">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold mb-2">TTS Comparator</h1>
+            <p class="text-gray-600 dark:text-gray-400">Compare Text-to-Speech engines with parallel testing</p>
+        </div>
+
+        <!-- Input Section -->
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-6">
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-sm font-medium">Text Input & Attachments</label>
+                    <div class="flex gap-1">
+                        <button 
+                            id="copyStateBtn" 
+                            class="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-xs"
+                            title="Copy state to clipboard"
+                        >
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button 
+                            id="downloadStateBtn" 
+                            class="p-1.5 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors text-xs"
+                            title="Download state as JSON file"
+                        >
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button 
+                            id="pasteStateBtn" 
+                            class="p-1.5 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-xs"
+                            title="Load state from clipboard"
+                        >
+                            <i class="fas fa-paste"></i>
+                        </button>
+                        <button 
+                            id="uploadStateBtn" 
+                            class="p-1.5 bg-cyan-500 text-white rounded hover:bg-cyan-600 transition-colors text-xs"
+                            title="Upload state from JSON file"
+                        >
+                            <i class="fas fa-upload"></i>
+                        </button>
+                    </div>
+                </div>
+                <textarea 
+                    id="inputText" 
+                    class="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none text-base bg-white dark:bg-gray-700"
+                    placeholder="Enter your text here for TTS comparison..."
+                ></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <input 
+                    type="file" 
+                    id="fileInput" 
+                    multiple 
+                    accept=".pdf,.txt,.doc,.docx"
+                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
+                >
+            </div>
+
+
+
+            <!-- Control Buttons -->
+            <div class="flex gap-3 justify-center flex-wrap">
+                <button 
+                    id="checkBtn" 
+                    class="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    title="Check compatibility and calculate costs"
+                >
+                    <i class="fas fa-check-circle"></i>
+                    Check
+                </button>
+                
+                <button 
+                    id="executeBtn" 
+                    class="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    title="Execute selected engines"
+                >
+                    <i class="fas fa-play"></i>
+                    Execute
+                </button>
+                
+                <button 
+                    id="selectAllBtn" 
+                    class="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    title="Select all engines"
+                >
+                    <i class="fas fa-check-double"></i>
+                </button>
+                
+                <button 
+                    id="uncheckAllBtn" 
+                    class="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                    title="Uncheck all selections"
+                >
+                    <i class="fas fa-square-check"></i>
+                </button>
+                
+                <button 
+                    id="clearAllAudioBtn" 
+                    class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    title="Clear all generated audio"
+                >
+                    <i class="fas fa-trash"></i>
+                </button>
+                
+                <button 
+                    id="downloadAllBtn" 
+                    class="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                    title="Download all generated audio"
+                >
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- TTS Engines Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="enginesGrid">
+            <!-- Engine cards will be populated by JavaScript -->
+        </div>
+
+        <!-- Status Display -->
+        <div id="statusDisplay" class="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg hidden">
+            <h3 class="font-semibold mb-2">Status:</h3>
+            <div id="statusContent"></div>
+        </div>
+
+        <!-- Debug Log -->
+        <div class="mt-6">
+            <button 
+                id="toggleLog" 
+                class="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                onclick="toggleDebugLog()"
+            >
+                <i class="fas fa-terminal"></i>
+                <span id="logToggleText">Show Debug Log</span>
+                <i id="logToggleIcon" class="fas fa-chevron-down"></i>
+            </button>
+            
+            <div id="debugLog" class="hidden mt-4 bg-black text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-green-300">Debug Log:</span>
+                    <button 
+                        onclick="copyLogToClipboard()" 
+                        class="px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
+                        title="Copy log to clipboard"
+                    >
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div id="logContent"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        // TTS Engine Configurations
+        const ttsEngines = {
+            'ElevenLabs-v3': {
+                botName: '@ElevenLabs-v3',
+                cost: { type: 'per_char', rate: 2 },
+                color: 'blue',
+                settings: {
+                    speaker_count: ['1', '2', '3', '4', '5'],
+                    voice: ['Default', 'Sarah', 'George', 'River', 'Matilda', 'Will', 'Jessica', 'Brian', 'Lily', 'Monika Sogam']
+                },
+                supports: ['text', 'pdf', 'multi_speaker'],
+                description: 'Cutting-edge TTS with performance-level control and audio tags'
+            },
+            
+            'Hailuo-Speech-02': {
+                botName: '@Hailuo-Speech-02',
+                cost: { type: 'per_1k_char', rate_turbo: 2000, rate_hd: 3334 },
+                color: 'green',
+                settings: {
+                    hd: ['No', 'Yes'],
+                    speed: { type: 'slider', min: 0.5, max: 2.0, step: 0.1, default: 1.0 },
+                    volume: { type: 'slider', min: 0, max: 10, step: 1, default: 5 },
+                    pitch: { type: 'slider', min: -12, max: 12, step: 1, default: 0 },
+                    emotion: ['None', 'happy', 'sad', 'angry', 'fearful', 'disgusted', 'surprised', 'neutral'],
+                    language: ['None', 'Chinese', 'English', 'Arabic', 'Russian', 'Spanish', 'French', 'Portuguese', 'German', 'Turkish', 'Dutch', 'Ukrainian', 'Vietnamese', 'Indonesian', 'Japanese', 'Italian', 'Korean', 'Thai', 'Polish', 'Romanian', 'Greek', 'Czech', 'Finnish', 'Hindi', 'auto'],
+                    voice: ['None', 'Wise_Woman', 'Friendly_Person', 'Inspirational_Girl', 'Deep_Voice_Man', 'Calm_Woman', 'Casual_Guy', 'Lively_Girl', 'Patient_Man', 'Young_Knight', 'Determined_Man', 'Lovely_Girl', 'Decent_Boy', 'Imposing_Manner', 'Elegant_Man', 'Abbess', 'Sweet_Girl_2', 'Exuberant_Girl']
+                },
+                supports: ['text'],
+                description: 'High-quality TTS with language detection and HD output'
+            },
+            
+            'Cartesia-Sonic': {
+                botName: '@Cartesia-Sonic',
+                cost: { type: 'per_1k_char', rate: 934 },
+                color: 'purple',
+                settings: {
+                    language: ['English', 'Spanish', 'French', 'German', 'Russian', 'Chinese', 'Japanese', 'Hindi', 'Italian', 'Korean', 'Dutch', 'Polish', 'Portuguese', 'Swedish', 'Turkish'],
+                    voice_by_language: {
+                        'English': [
+                            '1920\'s Radioman', 'ASMR Lady', 'Aditi', 'Alabama Man', 'American Ad Read Man', 'American Narrator Lady', 'American Voicover Man',
+                            'Anime Girl', 'Annabel', 'Announcer Man', 'Anu', 'Arbuckle', 'Australian Customer Support Man', 'Australian Man',
+                            'Australian Narrator Lady', 'Australian Promoter Man', 'Australian Salesman', 'Australian Support Agent', 'Chongji', 'Clare',
+                            'Clarion', 'Classy British Man', 'Commercial Lady', 'Commercial Man', 'Confident British Man', 'Connie', 'Corey', 'Corinne',
+                            'Customer Service Man', 'Customer Support Lady', 'Dallas', 'Dave', 'David', 'Ianvi', 'Jeff', 'Joan', 'Joan of Ark', 'John',
+                            'Jordan', 'Keith', 'Kenneth', 'Kenneth Angry', 'Kenneth Curious', 'Kenneth Disgusted', 'Kenneth Happy', 'Kenneth Sad',
+                            'Kenneth Scared', 'Kenneth Surprised', 'Kentucky Man', 'Kentucky Woman', 'Laidback Woman', 'Lena', 'Lenny', 'Luke',
+                            'Luke Angry', 'Luke Curious', 'Luke Disgusted', 'Luke Happy', 'Luke Sad', 'Luke Scared', 'Luke Surprised',
+                            'Madame Mischief', 'Madison', 'Madison Angry', 'Madison Curious', 'Madison Disgusted', 'Madison Happy', 'Madison Sad',
+                            'Madison Surprised', 'Maria', 'Matt', 'Meditation Lady', 'Mia', 'Middle Eastern Woman', 'Midwestern Man', 'Midwestern Woman',
+                            'Movieman', 'Nathan', 'Neil', 'New York Man', 'Newman', 'Newsday Man', 'Night Warden', 'Nonfiction Man', 'Old Timey Radio Man',
+                            'Olivia', 'Orion', 'Overlord', 'Pilot over Intercom', 'Pleasant Man', 'Polite Man', 'Pooja', 'Positive Shy Man', 'Princess',
+                            'Priya', 'Professional Woman', 'Reading Lady', 'Reading Man', 'Rebecca', 'Reflective Woman', 'Robotic Male', 'Ronald',
+                            'Sally', 'Samantha', 'Samantha Angry', 'Samantha Happy', 'Samantha Sad', 'Samantha Yelling', 'Sarah 2025-02-09',
+                            'Sarah Curious', 'Savannah', 'Silas', 'Sophia', 'Southern Man', 'Southern Woman', 'Sportsman', 'Squeaky Matt', 'Stacy',
+                            'Steve', 'Steve Angry', 'Steve Curious', 'Steve Disgusted', 'Steve Happy', 'Steve Sad', 'Steve Scared', 'Steve Surprised',
+                            'Storyteller Lady', 'Sweet Lady', 'Tall Man', 'Taylor', 'Teacher Lady', 'The Merchant', 'The Oracle', 'Tori', 'Tutorial Man',
+                            'Wise Guide Man', 'Wise Lady', 'Wise Man', 'Wizardman', 'Yippy', 'Young Female Character', 'Zia'
+                        ],
+                        'Spanish': [
+                            'Juan', 'Mario', 'Marta', 'Mateo', 'Mexican Woman', 'Peninsular Spanish Narrator Lady', 'Spanish Narrator Lady',
+                            'Spanish Narrator Man', 'Spanish Narrator Woman', 'Spanish Reporter Woman', 'Spanish Storyteller Man',
+                            'Spanish-speaking Reporter Man', 'Teresa'
+                        ],
+                        'French': [
+                            'Stern French Man'
+                        ],
+                        'German': [
+                            'Adele', 'Alina', 'Klara', 'Klaus', 'Lena', 'Nico', 'Sabine', 'Sebastian'
+                        ],
+                        'Russian': [
+                            'Nikolai', 'Russian Calm Woman', 'Russian Narrator Man', 'Russian Narrator Woman', 'Russian Storyteller Man', 'Tatiana'
+                        ],
+                        'Chinese': [
+                            'Chinese Commercial Woman', 'Chinese Female Conversational', 'Chinese Lecturer Man', 'Chinese Lisa',
+                            'Chinese Reading Woman', 'Chinese Woman Narrator', 'Mr. Liu'
+                        ],
+                        'Japanese': [
+                            'Commanding Japanese Man', 'Japanese Children Book', 'Japanese Male Conversational', 'Japanese Narration Man',
+                            'Japanese Woman Conversational', 'Kenji', 'Lily Whisper', 'Ren the Fury', 'Takeshi', 'Young Shy Japanese Woman', 'Yuki'
+                        ],
+                        'Hindi': [
+                            'Aadhya', 'Amit', 'Ananya', 'Apoorva', 'Mehul', 'Mihir', 'Parvati', 'Pavan', 'Shreya'
+                        ],
+                        'Italian': [
+                            'Marco'
+                        ],
+                        'Korean': [
+                            'Korean Calm Woman', 'Korean Narrator Man', 'Korean Narrator Woman', 'Korean Support Woman'
+                        ],
+                        'Dutch': [
+                            'Sanne'
+                        ],
+                        'Polish': [
+                            'Polish Confident Man', 'Polish Narrator Man', 'Polish Narrator Woman', 'Polish Young Man', 'Zofia'
+                        ],
+                        'Portuguese': [
+                            'Clara', 'Conversational Brazilian Woman', 'Pleasant Brazilian Lady', 'Tiago'
+                        ],
+                        'Swedish': [
+                            'Lars', 'Swedish Calm Lady', 'Swedish Narrator Man'
+                        ],
+                        'Turkish': [
+                            'Layla', 'Taylan', 'Turkish Calm Man', 'Turkish Narrator Lady', 'Turkish Narrator Man'
+                        ]
+                    }
+                },
+                supports: ['text'],
+                description: 'Sonic 2.0 TTS covering 15 languages with diverse voices'
+            },
+            
+            'Unreal-Speech-TTS': {
+                botName: '@Unreal-Speech-TTS',
+                cost: { type: 'per_char', rate: 0.2 },
+                color: 'red',
+                settings: {
+                    voice: [
+                        'Sierra',
+                        // American English - Male
+                        'Noah', 'Jasper', 'Caleb', 'Ronan', 'Ethan', 'Daniel', 'Zane', 'Rowan',
+                        // American English - Female
+                        'Autumn', 'Melody', 'Hannah', 'Emily', 'Ivy', 'Kaitlyn', 'Luna', 'Willow', 'Lauren',
+                        // British English - Male
+                        'Benjamin', 'Arthur', 'Edward', 'Oliver',
+                        // British English - Female
+                        'Eleanor', 'Chloe', 'Amelia', 'Charlotte',
+                        // Japanese
+                        'Haruto', 'Sakura', 'Hana', 'Yuki', 'Rina',
+                        // Chinese
+                        'Wei', 'Jian', 'Hao', 'Sheng', 'Mei', 'Lian', 'Ting', 'Jing',
+                        // Spanish
+                        'Mateo', 'Javier', 'Lucía',
+                        // French
+                        'Élodie',
+                        // Hindi
+                        'Arjun', 'Rohan', 'Ananya', 'Priya',
+                        // Italian
+                        'Luca', 'Giulia',
+                        // Portuguese
+                        'Thiago', 'Rafael', 'Camila'
+                    ]
+                },
+                supports: ['text', 'url', 'pdf'],
+                description: 'Natural speech conversion for 8 languages with multiple voices'
+            },
+            
+            'PlayAI-TTS': {
+                botName: '@PlayAI-TTS',
+                cost: { type: 'per_second', rate: 17 },
+                color: 'yellow',
+                settings: {
+                    voice: [
+                        'Jennifer_(English_(US)/American)',
+                        'Dexter_(English_(US)/American)',
+                        'Ava_(English_(AU)/Australian)',
+                        'Tilly_(English_(AU)/Australian)',
+                        'Charlotte_(Advertising)_(English_(CA)/Canadian)',
+                        'Charlotte_(Meditation)_(English_(CA)/Canadian)',
+                        'Cecil_(English_(GB)/British)',
+                        'Sterling_(English_(GB)/British)',
+                        'Cillian_(English_(IE)/Irish)',
+                        'Madison_(English_(IE)/Irish)',
+                        'Ada_(English_(ZA)/South_African)',
+                        'Furio_(English_(IT)/Italian)',
+                        'Alessandro_(English_(IT)/Italian)',
+                        'Carmen_(English_(MX)/Mexican)',
+                        'Sumita_(English_(IN)/Indian)',
+                        'Navya_(English_(IN)/Indian)',
+                        'Baptiste_(English_(FR)/French)',
+                        'Lumi_(English_(FI)/Finnish)',
+                        'Ronel_Conversational_(Afrikaans/South_African)',
+                        'Ronel_Narrative_(Afrikaans/South_African)',
+                        'Abdo_Conversational_(Arabic/Arabic)',
+                        'Abdo_Narrative_(Arabic/Arabic)',
+                        'Mousmi_Conversational_(Bengali/Bengali)',
+                        'Mousmi_Narrative_(Bengali/Bengali)',
+                        'Caroline_Conversational_(Portuguese_(BR)/Brazilian)',
+                        'Caroline_Narrative_(Portuguese_(BR)/Brazilian)',
+                        'Ange_Conversational_(French/French)',
+                        'Ange_Narrative_(French/French)',
+                        'Anke_Conversational_(German/German)',
+                        'Anke_Narrative_(German/German)',
+                        'Bora_Conversational_(Greek/Greek)',
+                        'Bora_Narrative_(Greek/Greek)',
+                        'Anuj_Conversational_(Hindi/Indian)',
+                        'Anuj_Narrative_(Hindi/Indian)',
+                        'Alessandro_Conversational_(Italian/Italian)',
+                        'Alessandro_Narrative_(Italian/Italian)',
+                        'Kiriko_Conversational_(Japanese/Japanese)',
+                        'Kiriko_Narrative_(Japanese/Japanese)',
+                        'Dohee_Conversational_(Korean/Korean)',
+                        'Dohee_Narrative_(Korean/Korean)',
+                        'Ignatius_Conversational_(Malay/Malay)',
+                        'Ignatius_Narrative_(Malay/Malay)',
+                        'Adam_Conversational_(Polish/Polish)',
+                        'Adam_Narrative_(Polish/Polish)',
+                        'Andrei_Conversational_(Russian/Russian)',
+                        'Andrei_Narrative_(Russian/Russian)',
+                        'Aleksa_Conversational_(Serbian/Serbian)',
+                        'Aleksa_Narrative_(Serbian/Serbian)',
+                        'Carmen_Conversational_(Spanish/Spanish)',
+                        'Patricia_Conversational_(Spanish/Spanish)',
+                        'Aiken_Conversational_(Tagalog/Filipino)',
+                        'Aiken_Narrative_(Tagalog/Filipino)',
+                        'Katbundit_Conversational_(Thai/Thai)',
+                        'Katbundit_Narrative_(Thai/Thai)',
+                        'Ali_Conversational_(Turkish/Turkish)',
+                        'Ali_Narrative_(Turkish/Turkish)',
+                        'Sahil_Conversational_(Urdu/Pakistani)',
+                        'Sahil_Narrative_(Urdu/Pakistani)',
+                        'Mary_Conversational_(Hebrew/Israeli)',
+                        'Mary_Narrative_(Hebrew/Israeli)'
+                    ]
+                },
+                supports: ['text'],
+                description: 'PlayHT TTS with conversational and narrative voice options'
+            },
+            
+            'ElevenLabs-v2.5-Turbo': {
+                botName: '@ElevenLabs-v2.5-Turbo',
+                cost: { type: 'per_char', rate: 1 },
+                color: 'indigo',
+                settings: {
+                    language: [
+                        'Default',
+                        'en', 'zh', 'es', 'hi', 'ar', 'de', 'id', 'pt', 'vi', 'fil', 'fr', 
+                        'sv', 'tr', 'ro', 'it', 'pl', 'no', 'cs', 'fi', 'hu', 'ja'
+                    ],
+                    voice: [
+                        'Jessica',
+                        // English
+                        'Sarah', 'George', 'River', 'Matilda', 'Will', 'Brian', 'Lily', 'Monika Sogam',
+                        // Chinese
+                        'James Gao', 'Martin Li',
+                        // Spanish
+                        'David Martin', 'Efrayn', 'Alejandro', 'Sara Martin', 'Regina Martin',
+                        // Hindi
+                        'Ranga', 'Niraj', 'Liam', 'Raju', 'Leo', 'Manu', 'Vihana Huja', 'Kanika', 'Muskaan', 'Saanu', 'Riya', 'Devi',
+                        // Arabic
+                        'Bill', 'Mo Wiseman', 'Haytham', 'Mona', 'Sana', 'Laura',
+                        // German
+                        'Otto', 'Leon Stern', 'Mila', 'Emilia', 'Lea', 'Leonie',
+                        // Indonesian
+                        'Putra', 'Mahaputra',
+                        // Portuguese
+                        'Muhammad', 'Onildo', 'Alice',
+                        // Vietnamese
+                        'Trung Caha', 'Van Phuc', 'Ca Dao', 'Trang',
+                        // Filipino
+                        'Roger',
+                        // French
+                        'Louis', 'Emilie',
+                        // Swedish
+                        'Chris', 'Charlotte',
+                        // Turkish
+                        'Cavit Pancar', 'Sohbet Adami', 'Belma', 'Sultan', 'Mahidevran',
+                        // Romanian
+                        'Eric',
+                        // Italian
+                        'Carmelo', 'Luca',
+                        // Polish
+                        'Robert', 'Rob', 'Pawel',
+                        // Norwegian
+                        // Czech
+                        // Finnish
+                        'Callum',
+                        // Hungarian
+                        // Japanese
+                    ]
+                },
+                supports: ['text', 'url', 'pdf'],
+                description: 'Leading TTS technology with Turbo v2.5 model'
+            },
+            
+            'PlayAI-Dialog': {
+                botName: '@PlayAI-Dialog',
+                cost: { type: 'per_second', rate: 29 },
+                color: 'pink',
+                settings: {
+                    speaker_1: [
+                        'Jennifer_(English_(US)/American)',
+                        'Dexter_(English_(US)/American)',
+                        'Ava_(English_(AU)/Australian)',
+                        'Tilly_(English_(AU)/Australian)',
+                        'Charlotte_(Advertising)_(English_(CA)/Canadian)',
+                        'Charlotte_(Meditation)_(English_(CA)/Canadian)',
+                        'Cecil_(English_(GB)/British)',
+                        'Sterling_(English_(GB)/British)',
+                        'Cillian_(English_(IE)/Irish)',
+                        'Madison_(English_(IE)/Irish)',
+                        'Ada_(English_(ZA)/South_African)',
+                        'Furio_(English_(IT)/Italian)',
+                        'Alessandro_(English_(IT)/Italian)',
+                        'Carmen_(English_(MX)/Mexican)',
+                        'Sumita_(English_(IN)/Indian)',
+                        'Navya_(English_(IN)/Indian)',
+                        'Baptiste_(English_(FR)/French)',
+                        'Lumi_(English_(FI)/Finnish)',
+                        'Ronel_Conversational_(Afrikaans/South_African)',
+                        'Ronel_Narrative_(Afrikaans/South_African)',
+                        'Abdo_Conversational_(Arabic/Arabic)',
+                        'Abdo_Narrative_(Arabic/Arabic)',
+                        'Mousmi_Conversational_(Bengali/Bengali)',
+                        'Mousmi_Narrative_(Bengali/Bengali)',
+                        'Caroline_Conversational_(Portuguese_(BR)/Brazilian)',
+                        'Caroline_Narrative_(Portuguese_(BR)/Brazilian)',
+                        'Ange_Conversational_(French/French)',
+                        'Ange_Narrative_(French/French)',
+                        'Anke_Conversational_(German/German)',
+                        'Anke_Narrative_(German/German)',
+                        'Bora_Conversational_(Greek/Greek)',
+                        'Bora_Narrative_(Greek/Greek)',
+                        'Anuj_Conversational_(Hindi/Indian)',
+                        'Anuj_Narrative_(Hindi/Indian)',
+                        'Alessandro_Conversational_(Italian/Italian)',
+                        'Alessandro_Narrative_(Italian/Italian)',
+                        'Kiriko_Conversational_(Japanese/Japanese)',
+                        'Kiriko_Narrative_(Japanese/Japanese)',
+                        'Dohee_Conversational_(Korean/Korean)',
+                        'Dohee_Narrative_(Korean/Korean)',
+                        'Ignatius_Conversational_(Malay/Malay)',
+                        'Ignatius_Narrative_(Malay/Malay)',
+                        'Adam_Conversational_(Polish/Polish)',
+                        'Adam_Narrative_(Polish/Polish)',
+                        'Andrei_Conversational_(Russian/Russian)',
+                        'Andrei_Narrative_(Russian/Russian)',
+                        'Aleksa_Conversational_(Serbian/Serbian)',
+                        'Aleksa_Narrative_(Serbian/Serbian)',
+                        'Carmen_Conversational_(Spanish/Spanish)',
+                        'Patricia_Conversational_(Spanish/Spanish)',
+                        'Aiken_Conversational_(Tagalog/Filipino)',
+                        'Aiken_Narrative_(Tagalog/Filipino)',
+                        'Katbundit_Conversational_(Thai/Thai)',
+                        'Katbundit_Narrative_(Thai/Thai)',
+                        'Ali_Conversational_(Turkish/Turkish)',
+                        'Ali_Narrative_(Turkish/Turkish)',
+                        'Sahil_Conversational_(Urdu/Pakistani)',
+                        'Sahil_Narrative_(Urdu/Pakistani)',
+                        'Mary_Conversational_(Hebrew/Israeli)',
+                        'Mary_Narrative_(Hebrew/Israeli)'
+                    ],
+                    speaker_2: [
+                        'Jennifer_(English_(US)/American)',
+                        'Dexter_(English_(US)/American)',
+                        'Ava_(English_(AU)/Australian)',
+                        'Tilly_(English_(AU)/Australian)',
+                        'Charlotte_(Advertising)_(English_(CA)/Canadian)',
+                        'Charlotte_(Meditation)_(English_(CA)/Canadian)',
+                        'Cecil_(English_(GB)/British)',
+                        'Sterling_(English_(GB)/British)',
+                        'Cillian_(English_(IE)/Irish)',
+                        'Madison_(English_(IE)/Irish)',
+                        'Ada_(English_(ZA)/South_African)',
+                        'Furio_(English_(IT)/Italian)',
+                        'Alessandro_(English_(IT)/Italian)',
+                        'Carmen_(English_(MX)/Mexican)',
+                        'Sumita_(English_(IN)/Indian)',
+                        'Navya_(English_(IN)/Indian)',
+                        'Baptiste_(English_(FR)/French)',
+                        'Lumi_(English_(FI)/Finnish)',
+                        'Ronel_Conversational_(Afrikaans/South_African)',
+                        'Ronel_Narrative_(Afrikaans/South_African)',
+                        'Abdo_Conversational_(Arabic/Arabic)',
+                        'Abdo_Narrative_(Arabic/Arabic)',
+                        'Mousmi_Conversational_(Bengali/Bengali)',
+                        'Mousmi_Narrative_(Bengali/Bengali)',
+                        'Caroline_Conversational_(Portuguese_(BR)/Brazilian)',
+                        'Caroline_Narrative_(Portuguese_(BR)/Brazilian)',
+                        'Ange_Conversational_(French/French)',
+                        'Ange_Narrative_(French/French)',
+                        'Anke_Conversational_(German/German)',
+                        'Anke_Narrative_(German/German)',
+                        'Bora_Conversational_(Greek/Greek)',
+                        'Bora_Narrative_(Greek/Greek)',
+                        'Anuj_Conversational_(Hindi/Indian)',
+                        'Anuj_Narrative_(Hindi/Indian)',
+                        'Alessandro_Conversational_(Italian/Italian)',
+                        'Alessandro_Narrative_(Italian/Italian)',
+                        'Kiriko_Conversational_(Japanese/Japanese)',
+                        'Kiriko_Narrative_(Japanese/Japanese)',
+                        'Dohee_Conversational_(Korean/Korean)',
+                        'Dohee_Narrative_(Korean/Korean)',
+                        'Ignatius_Conversational_(Malay/Malay)',
+                        'Ignatius_Narrative_(Malay/Malay)',
+                        'Adam_Conversational_(Polish/Polish)',
+                        'Adam_Narrative_(Polish/Polish)',
+                        'Andrei_Conversational_(Russian/Russian)',
+                        'Andrei_Narrative_(Russian/Russian)',
+                        'Aleksa_Conversational_(Serbian/Serbian)',
+                        'Aleksa_Narrative_(Serbian/Serbian)',
+                        'Carmen_Conversational_(Spanish/Spanish)',
+                        'Patricia_Conversational_(Spanish/Spanish)',
+                        'Aiken_Conversational_(Tagalog/Filipino)',
+                        'Aiken_Narrative_(Tagalog/Filipino)',
+                        'Katbundit_Conversational_(Thai/Thai)',
+                        'Katbundit_Narrative_(Thai/Thai)',
+                        'Ali_Conversational_(Turkish/Turkish)',
+                        'Ali_Narrative_(Turkish/Turkish)',
+                        'Sahil_Conversational_(Urdu/Pakistani)',
+                        'Sahil_Narrative_(Urdu/Pakistani)',
+                        'Mary_Conversational_(Hebrew/Israeli)',
+                        'Mary_Narrative_(Hebrew/Israeli)'
+                    ]
+                },
+                supports: ['text', 'dialog'],
+                description: 'Multi-speaker dialogue generation with voice customization'
+            },
+            
+            'Orpheus-TTS': {
+                botName: '@Orpheus-TTS',
+                cost: { type: 'per_1k_char', rate: 1667 },
+                color: 'teal',
+                settings: {
+                    voice: ['tara', 'leah', 'jess', 'leo', 'dan', 'mia', 'zac', 'zoe']
+                },
+                supports: ['text', 'sound_effects'],
+                description: 'Llama-based Speech-LLM with empathetic TTS and sound effects'
+            }
+        };
+
+        // Global state
+        let generatedAudio = {};
+        let selectedEngines = new Set();
+
+        // Initialize app
+        function initializeApp() {
+            createEngineCards();
+            setupEventListeners();
+            setupDarkMode();
+        }
+
+        // Setup dark mode detection
+        function setupDarkMode() {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+            }
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                if (event.matches) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            });
+        }
+
+        // Create engine cards
+        function createEngineCards() {
+            const grid = document.getElementById('enginesGrid');
+            
+            Object.entries(ttsEngines).forEach(([engineName, config]) => {
+                const card = createEngineCard(engineName, config);
+                grid.appendChild(card);
+            });
+        }
+
+        // Create individual engine card
+        function createEngineCard(engineName, config) {
+            const card = document.createElement('div');
+            card.className = `bg-white dark:bg-gray-800 rounded-lg p-4 border-l-4 border-${config.color}-500 shadow-lg`;
+            card.innerHTML = `
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="check-${engineName}" class="w-4 h-4 text-${config.color}-600 rounded" onchange="handleCheckboxChange('${engineName}')">
+                        <h3 class="font-semibold text-sm">${engineName}</h3>
+                    </div>
+                    <div id="status-icon-${engineName}" class="text-gray-400">
+                        <i class="fas fa-circle text-xs"></i>
+                    </div>
+                </div>
+                
+                <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">${config.description}</p>
+                
+                <!-- Settings -->
+                <div class="space-y-2 mb-3">
+                    ${createSettingsDropdowns(engineName, config.settings)}
+                </div>
+                
+                <!-- Cost -->
+                <div class="mb-3">
+                    <div id="cost-${engineName}" class="text-xs font-mono text-${config.color}-600">
+                        Cost: 0 points
+                    </div>
+                </div>
+                
+                <!-- Persistent Audio Player -->
+                <div class="mb-3">
+                    <audio id="audio-${engineName}" controls class="w-full h-8">
+                        <source src="" type="audio/mpeg">
+                    </audio>
+                </div>
+                
+                <!-- Download Button -->
+                <button 
+                    id="download-${engineName}" 
+                    onclick="downloadAudio('${engineName}')" 
+                    class="w-full px-2 py-1 bg-${config.color}-500 text-white rounded text-xs hover:bg-${config.color}-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled
+                >
+                    <i class="fas fa-download"></i> Download
+                </button>
+            `;
+            
+            return card;
+        }
+
+        // Create settings dropdowns - Language first where applicable
+        function createSettingsDropdowns(engineName, settings) {
+            // Special handling for Cartesia-Sonic with language-dependent voices
+            if (engineName === 'Cartesia-Sonic') {
+                return `
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Language</label>
+                        <select id="${engineName}-language" class="w-full text-xs p-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700" onchange="updateCartesiaVoices('${engineName}')">
+                            ${settings.language.map((lang, index) => `<option value="${lang}" ${index === 0 ? 'selected' : ''}>${lang}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Voice</label>
+                        <select id="${engineName}-voice" class="w-full text-xs p-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700">
+                            <!-- Options will be populated by updateCartesiaVoices -->
+                        </select>
+                    </div>
+                `;
+            }
+
+            // Special handling for Hailuo-Speech-02 with sliders
+            if (engineName === 'Hailuo-Speech-02') {
+                return createHailuoSettings(engineName, settings);
+            }
+            
+            // Regular handling for other engines
+            const priorityOrder = ['language', 'speaker_count'];
+            const orderedSettings = {};
+            
+            // Add priority settings first
+            priorityOrder.forEach(key => {
+                if (settings[key]) {
+                    orderedSettings[key] = settings[key];
+                }
+            });
+            
+            // Add remaining settings
+            Object.keys(settings).forEach(key => {
+                if (!priorityOrder.includes(key)) {
+                    orderedSettings[key] = settings[key];
+                }
+            });
+            
+            return Object.entries(orderedSettings).map(([setting, options]) => `
+                <div>
+                    <label class="block text-xs font-medium mb-1 capitalize">${setting.replace(/_/g, ' ')}</label>
+                    <select id="${engineName}-${setting}" class="w-full text-xs p-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700">
+                        ${options.map((option, index) => `<option value="${option}" ${index === 0 ? 'selected' : ''}>${option}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('');
+        }
+
+        // Create Hailuo settings with sliders
+        function createHailuoSettings(engineName, settings) {
+            let html = '';
+            
+            Object.entries(settings).forEach(([setting, config]) => {
+                if (setting === 'hd') {
+                    // HD toggle
+                    html += `
+                        <div>
+                            <label class="block text-xs font-medium mb-1">HD Mode</label>
+                            <select id="${engineName}-${setting}" class="w-full text-xs p-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700">
+                                ${config.map((option, index) => `<option value="${option}" ${index === 0 ? 'selected' : ''}>${option}</option>`).join('')}
+                            </select>
+                        </div>
+                    `;
+                } else if (config.type === 'slider') {
+                    // Slider with live value display
+                    html += `
+                        <div>
+                            <label class="block text-xs font-medium mb-1 capitalize">
+                                ${setting}: <span id="${engineName}-${setting}-value">${config.default}</span>
+                            </label>
+                            <input type="range" 
+                                   id="${engineName}-${setting}" 
+                                   min="${config.min}" 
+                                   max="${config.max}" 
+                                   step="${config.step}" 
+                                   value="${config.default}"
+                                   class="w-full h-1 bg-gray-300 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+                                   oninput="updateSliderValue('${engineName}', '${setting}')"
+                            >
+                        </div>
+                    `;
+                } else {
+                    // Regular dropdown
+                    html += `
+                        <div>
+                            <label class="block text-xs font-medium mb-1 capitalize">${setting}</label>
+                            <select id="${engineName}-${setting}" class="w-full text-xs p-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700">
+                                ${config.map((option, index) => `<option value="${option}" ${index === 0 ? 'selected' : ''}>${option}</option>`).join('')}
+                            </select>
+                        </div>
+                    `;
+                }
+            });
+            
+            return html;
+        }
+
+        // Update slider value display
+        function updateSliderValue(engineName, setting) {
+            const slider = document.getElementById(`${engineName}-${setting}`);
+            const valueDisplay = document.getElementById(`${engineName}-${setting}-value`);
+            valueDisplay.textContent = slider.value;
+        }
+
+        // Update Cartesia voices based on selected language
+        function updateCartesiaVoices(engineName) {
+            const languageSelect = document.getElementById(`${engineName}-language`);
+            const voiceSelect = document.getElementById(`${engineName}-voice`);
+            const selectedLanguage = languageSelect.value;
+            
+            const voices = ttsEngines[engineName].settings.voice_by_language[selectedLanguage] || [];
+            
+            // Clear existing options
+            voiceSelect.innerHTML = '';
+            
+            // Add new options
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = voice;
+                option.textContent = voice;
+                if (index === 0) option.selected = true;
+                voiceSelect.appendChild(option);
+            });
+        }
+
+
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('checkBtn').addEventListener('click', checkCompatibilityAndCosts);
+            document.getElementById('executeBtn').addEventListener('click', executeSelectedEngines);
+            document.getElementById('selectAllBtn').addEventListener('click', selectAllEngines);
+            document.getElementById('uncheckAllBtn').addEventListener('click', uncheckAllEngines);
+            document.getElementById('clearAllAudioBtn').addEventListener('click', clearAllAudio);
+            document.getElementById('downloadAllBtn').addEventListener('click', downloadAllAudio);
+            document.getElementById('copyStateBtn').addEventListener('click', copyAppState);
+            document.getElementById('downloadStateBtn').addEventListener('click', downloadAppState);
+            document.getElementById('pasteStateBtn').addEventListener('click', pasteAppState);
+            document.getElementById('uploadStateBtn').addEventListener('click', uploadAppState);
+        }
+
+
+
+        // Update status icon
+        function updateStatusIcon(engineName, status) {
+            const iconEl = document.getElementById(`status-icon-${engineName}`);
+            
+            switch (status) {
+                case 'ready':
+                    iconEl.innerHTML = '<i class="fas fa-circle text-gray-400 text-xs"></i>';
+                    break;
+                case 'processing':
+                    iconEl.innerHTML = '<i class="fas fa-spinner spinner text-blue-500 text-xs"></i>';
+                    break;
+                case 'completed':
+                    iconEl.innerHTML = '<i class="fas fa-check text-green-500 text-xs"></i>';
+                    break;
+                case 'error':
+                    iconEl.innerHTML = '<i class="fas fa-times text-red-500 text-xs"></i>';
+                    break;
+            }
+        }
+
+        // Check compatibility and calculate costs
+        function checkCompatibilityAndCosts() {
+            const inputText = document.getElementById('inputText').value;
+            const files = document.getElementById('fileInput').files;
+            
+            let compatibleCount = 0;
+            let totalEstimatedCost = 0;
+            
+            Object.keys(ttsEngines).forEach(engineName => {
+                const isCompatible = checkEngineCompatibility(engineName, inputText, files);
+                const cost = calculateEngineCost(engineName, inputText);
+                
+                if (isCompatible) compatibleCount++;
+                totalEstimatedCost += cost;
+            });
+            
+            showStatus(`Check completed: ${compatibleCount}/8 engines compatible. Total estimated cost: ${Math.round(totalEstimatedCost)} points.`);
+        }
+
+        // Check engine compatibility
+        function checkEngineCompatibility(engineName, inputText, files) {
+            const config = ttsEngines[engineName];
+            let compatible = true;
+            
+            if (!inputText && files.length === 0) {
+                compatible = false;
+            }
+            
+            if (files.length > 0 && !config.supports.includes('pdf') && !config.supports.includes('url')) {
+                compatible = false;
+            }
+            
+            return compatible;
+        }
+
+        // Calculate engine cost
+        function calculateEngineCost(engineName, inputText) {
+            const config = ttsEngines[engineName];
+            const costEl = document.getElementById(`cost-${engineName}`);
+            let cost = 0;
+            
+            if (!inputText) {
+                costEl.textContent = 'Cost: 0 points';
+                return 0;
+            }
+            
+            const textLength = inputText.length;
+            addToLog(`Calculating cost for ${engineName}: ${textLength} characters`);
+            
+            switch (config.cost.type) {
+                case 'per_char':
+                    cost = textLength * config.cost.rate;
+                    addToLog(`${engineName}: ${textLength} chars × ${config.cost.rate} = ${cost} points`);
+                    break;
+                case 'per_1k_char':
+                    const thousandCharRatio = textLength / 1000;
+                    let rate = config.cost.rate;
+                    
+                    // Special handling for Hailuo-Speech-02
+                    if (engineName === 'Hailuo-Speech-02') {
+                        const hd = document.getElementById(`${engineName}-hd`)?.value;
+                        rate = hd === 'Yes' ? config.cost.rate_hd : config.cost.rate_turbo;
+                    }
+                    
+                    cost = thousandCharRatio * rate;
+                    addToLog(`${engineName}: ${textLength}/1000 chars × ${rate} = ${cost.toFixed(2)} points`);
+                    break;
+                case 'per_second':
+                    const estimatedSeconds = Math.ceil(textLength / 150);
+                    cost = estimatedSeconds * config.cost.rate;
+                    addToLog(`${engineName}: ~${estimatedSeconds} seconds × ${config.cost.rate} = ${cost} points`);
+                    break;
+            }
+            
+            costEl.textContent = `Cost: ${cost < 1 ? cost.toFixed(2) : Math.round(cost)} points`;
+            return cost;
+        }
+
+        // Execute selected engines
+        async function executeSelectedEngines() {
+            const inputText = document.getElementById('inputText').value;
+            const files = document.getElementById('fileInput').files;
+            
+            if (!inputText && files.length === 0) {
+                showStatus('Please provide text input or file attachments');
+                return;
+            }
+            
+            const selectedEngineList = getSelectedEngines();
+            if (selectedEngineList.length === 0) {
+                showStatus('Please select at least one engine');
+                return;
+            }
+            
+            showStatus(`Executing ${selectedEngineList.length} engines...`);
+            addToLog(`Starting execution of ${selectedEngineList.length} engines: ${selectedEngineList.join(', ')}`);
+            
+            // Execute each engine separately with individual settings
+            selectedEngineList.forEach(engineName => {
+                executeEngine(engineName, inputText, files);
+            });
+        }
+
+        // Execute individual engine
+        async function executeEngine(engineName, inputText, files) {
+            const config = ttsEngines[engineName];
+            
+            updateStatusIcon(engineName, 'processing');
+            
+            try {
+                // Build prompt with settings
+                const prompt = buildPrompt(engineName, inputText);
+                
+                // Register handler for this engine
+                if (window.Poe && window.Poe.registerHandler) {
+                    window.Poe.registerHandler(`tts-${engineName}`, (result, context) => {
+                        handleTTSResponse(engineName, result);
+                    });
+                    
+                    // Send message to bot
+                    const messageOptions = {
+                        handler: `tts-${engineName}`,
+                        stream: false,
+                        openChat: false,
+                        handlerContext: { engine: engineName }
+                    };
+                    
+                    if (files.length > 0) {
+                        messageOptions.attachments = Array.from(files);
+                    }
+                    
+                    await window.Poe.sendUserMessage(prompt, messageOptions);
+                } else {
+                    // Fallback for testing without Poe API
+                    setTimeout(() => {
+                        updateStatusIcon(engineName, 'completed');
+                        showAudioInPlayer(engineName, 'demo-audio.mp3');
+                    }, 2000 + Math.random() * 3000);
+                }
+                
+            } catch (error) {
+                updateStatusIcon(engineName, 'error');
+                addToLog(`${engineName}: Error - ${error.message}`);
+            }
+        }
+
+        // Build prompt with settings - Engine-specific logic
+        function buildPrompt(engineName, inputText) {
+            const config = ttsEngines[engineName];
+            let prompt = `${config.botName} ${inputText}`;
+            
+            switch(engineName) {
+                case 'ElevenLabs-v3':
+                    // Handle multi-speaker format
+                    const speakerCount = document.getElementById(`${engineName}-speaker_count`)?.value;
+                    if (speakerCount && speakerCount !== '1') {
+                        prompt += ` --speaker_count ${speakerCount}`;
+                        // Add voice parameters for each speaker
+                        for (let i = 1; i <= parseInt(speakerCount); i++) {
+                            const voiceValue = document.getElementById(`${engineName}-voice`)?.value;
+                            if (voiceValue && voiceValue !== 'Default') {
+                                prompt += ` --voice_${i} ${voiceValue}`;
+                            }
+                        }
+                    } else {
+                        // Single speaker
+                        const voice = document.getElementById(`${engineName}-voice`)?.value;
+                        if (voice && voice !== 'Default') {
+                            prompt += ` --voice ${voice}`;
+                        }
+                    }
+                    break;
+                    
+                case 'Hailuo-Speech-02':
+                    // Handle HD flag
+                    const hailuoHd = document.getElementById(`${engineName}-hd`)?.value;
+                    if (hailuoHd === 'Yes') {
+                        prompt += ' --hd';
+                    }
+                    
+                    // Handle slider parameters (only add if not default values)
+                    const hailuoSpeed = document.getElementById(`${engineName}-speed`)?.value;
+                    if (hailuoSpeed && parseFloat(hailuoSpeed) !== 1.0) {
+                        prompt += ` --speed ${hailuoSpeed}`;
+                    }
+                    
+                    const hailuoVolume = document.getElementById(`${engineName}-volume`)?.value;
+                    if (hailuoVolume && parseInt(hailuoVolume) !== 5) {
+                        prompt += ` --volume ${hailuoVolume}`;
+                    }
+                    
+                    const hailuoPitch = document.getElementById(`${engineName}-pitch`)?.value;
+                    if (hailuoPitch && parseInt(hailuoPitch) !== 0) {
+                        prompt += ` --pitch ${hailuoPitch}`;
+                    }
+                    
+                    // Handle dropdown parameters (only add if not 'None')
+                    const hailuoEmotion = document.getElementById(`${engineName}-emotion`)?.value;
+                    if (hailuoEmotion && hailuoEmotion !== 'None') {
+                        prompt += ` --emotion ${hailuoEmotion}`;
+                    }
+                    
+                    const hailuoLanguage = document.getElementById(`${engineName}-language`)?.value;
+                    if (hailuoLanguage && hailuoLanguage !== 'None') {
+                        prompt += ` --language ${hailuoLanguage}`;
+                    }
+                    
+                    const hailuoVoice = document.getElementById(`${engineName}-voice`)?.value;
+                    if (hailuoVoice && hailuoVoice !== 'None') {
+                        prompt += ` --voice ${hailuoVoice}`;
+                    }
+                    break;
+                    
+                case 'Cartesia-Sonic':
+                    // Language parameter is mandatory for Cartesia
+                    const cartesiaLanguage = document.getElementById(`${engineName}-language`)?.value;
+                    const cartesiaVoice = document.getElementById(`${engineName}-voice`)?.value;
+                    
+                    // Map language names to ISO codes
+                    const languageCodes = {
+                        'English': 'en', 'Spanish': 'es', 'French': 'fr', 'German': 'de', 'Russian': 'ru',
+                        'Chinese': 'zh', 'Japanese': 'ja', 'Hindi': 'hi', 'Italian': 'it', 'Korean': 'ko',
+                        'Dutch': 'nl', 'Polish': 'pl', 'Portuguese': 'pt', 'Swedish': 'sv', 'Turkish': 'tr'
+                    };
+                    
+                    if (cartesiaLanguage && languageCodes[cartesiaLanguage]) {
+                        prompt += ` --language ${languageCodes[cartesiaLanguage]}`;
+                    }
+                    
+                    if (cartesiaVoice) {
+                        // Convert to lowercase as required by Cartesia
+                        prompt += ` --voice ${cartesiaVoice.toLowerCase()}`;
+                    }
+                    break;
+                    
+                case 'Unreal-Speech-TTS':
+                    const unrealVoice = document.getElementById(`${engineName}-voice`)?.value;
+                    if (unrealVoice && unrealVoice !== 'Sierra') {
+                        prompt += ` --voice ${unrealVoice}`;
+                    }
+                    break;
+                    
+                case 'PlayAI-TTS':
+                    const playVoice = document.getElementById(`${engineName}-voice`)?.value;
+                    if (playVoice && playVoice !== 'Jennifer_(English_(US)/American)') {
+                        prompt += ` --voice ${playVoice}`;
+                    }
+                    break;
+                    
+                case 'ElevenLabs-v2.5-Turbo':
+                    const v25Voice = document.getElementById(`${engineName}-voice`)?.value;
+                    if (v25Voice && v25Voice !== 'Jessica') {
+                        prompt += ` --voice ${v25Voice}`;  // Fixed: no quotes needed
+                    }
+                    
+                    const v25Language = document.getElementById(`${engineName}-language`)?.value;
+                    if (v25Language && v25Language !== 'Default') {
+                        prompt += ` --language ${v25Language}`;
+                    }
+                    break;
+                    
+                case 'PlayAI-Dialog':
+                    // Handle dialog format with two speakers
+                    const speaker1 = document.getElementById(`${engineName}-speaker_1`)?.value;
+                    const speaker2 = document.getElementById(`${engineName}-speaker_2`)?.value;
+                    
+                    if (speaker1 && speaker1 !== 'Jennifer_(English_(US)/American)') {
+                        prompt += ` --speaker_1 ${speaker1}`;
+                    }
+                    if (speaker2 && speaker2 !== 'Jennifer_(English_(US)/American)') {
+                        prompt += ` --speaker_2 ${speaker2}`;
+                    }
+                    break;
+                    
+                case 'Orpheus-TTS':
+                    const orpheusVoice = document.getElementById(`${engineName}-voice`)?.value;
+                    if (orpheusVoice && orpheusVoice !== 'tara') {
+                        prompt += ` --voice ${orpheusVoice}`;
+                    }
+                    break;
+            }
+            
+            addToLog(`Built prompt for ${engineName}: ${prompt}`);
+            return prompt;
+        }
+
+        // Get language code
+        function getLanguageCode(language) {
+            const codes = {
+                'Hindi': 'hi',
+                'Marathi': 'mr',
+                'Chinese': 'zh',
+                'Spanish': 'es',
+                'French': 'fr',
+                'German': 'de',
+                'Italian': 'it',
+                'Portuguese': 'pt',
+                'Arabic': 'ar'
+            };
+            return codes[language] || null;
+        }
+
+        // Handle TTS response
+        function handleTTSResponse(engineName, result) {
+            if (result.status === 'error') {
+                updateStatusIcon(engineName, 'error');
+                addToLog(`${engineName}: Error - ${result.responses[0]?.statusText || 'Unknown error'}`);
+                return;
+            }
+            
+            if (result.status === 'complete') {
+                const response = result.responses[0];
+                if (response?.attachments?.length > 0) {
+                    const audioAttachment = response.attachments[0];
+                    updateStatusIcon(engineName, 'completed');
+                    showAudioInPlayer(engineName, audioAttachment.url);
+                    generatedAudio[engineName] = {
+                        url: audioAttachment.url,
+                        name: audioAttachment.name
+                    };
+                } else {
+                    updateStatusIcon(engineName, 'error');
+                    addToLog(`${engineName}: No audio generated`);
+                }
+            }
+        }
+
+        // Show audio in player
+        function showAudioInPlayer(engineName, audioUrl) {
+            const audioEl = document.getElementById(`audio-${engineName}`);
+            const downloadBtn = document.getElementById(`download-${engineName}`);
+            
+            addToLog(`${engineName}: Setting audio URL: ${audioUrl}`);
+            
+            // Set audio source
+            audioEl.src = audioUrl;
+            audioEl.load();
+            
+            // Enable download button
+            downloadBtn.disabled = false;
+            
+            // Add error handling
+            audioEl.onerror = function() {
+                addToLog(`${engineName}: Audio loading error`);
+                updateStatusIcon(engineName, 'error');
+            };
+            
+            // Add loaded event
+            audioEl.onloadeddata = function() {
+                addToLog(`${engineName}: Audio loaded successfully`);
+            };
+        }
+
+        // Clear single audio
+        function clearSingleAudio(engineName) {
+            const audioEl = document.getElementById(`audio-${engineName}`);
+            const downloadBtn = document.getElementById(`download-${engineName}`);
+            
+            // Clear audio
+            audioEl.src = '';
+            audioEl.load();
+            
+            // Disable download button
+            downloadBtn.disabled = true;
+            
+            // Reset status
+            updateStatusIcon(engineName, 'ready');
+            
+            // Remove from generated audio
+            delete generatedAudio[engineName];
+            
+            addToLog(`${engineName}: Audio cleared`);
+        }
+
+        // Clear all audio
+        function clearAllAudio() {
+            Object.keys(ttsEngines).forEach(engineName => {
+                clearSingleAudio(engineName);
+            });
+            showStatus('All audio cleared');
+        }
+
+        // Get selected engines
+        function getSelectedEngines() {
+            return Object.keys(ttsEngines).filter(engineName => 
+                document.getElementById(`check-${engineName}`).checked
+            );
+        }
+
+        // Select all engines
+        function selectAllEngines() {
+            Object.keys(ttsEngines).forEach(engineName => {
+                document.getElementById(`check-${engineName}`).checked = true;
+                selectedEngines.add(engineName);
+            });
+            addToLog('All engines selected');
+        }
+
+        // Uncheck all engines
+        function uncheckAllEngines() {
+            Object.keys(ttsEngines).forEach(engineName => {
+                document.getElementById(`check-${engineName}`).checked = false;
+                selectedEngines.delete(engineName);
+            });
+            addToLog('All engines unchecked');
+        }
+
+        // Download individual audio
+        function downloadAudio(engineName) {
+            const audio = generatedAudio[engineName];
+            if (!audio) return;
+            
+            const fileName = generateFileName(engineName, audio.name);
+            downloadFile(audio.url, fileName);
+        }
+
+        // Download all audio
+        function downloadAllAudio() {
+            const audioCount = Object.keys(generatedAudio).length;
+            if (audioCount === 0) {
+                showStatus('No audio to download');
+                return;
+            }
+            
+            Object.keys(generatedAudio).forEach(engineName => {
+                downloadAudio(engineName);
+            });
+            
+            showStatus(`Downloaded ${audioCount} audio files`);
+        }
+
+        // Generate file name
+        function generateFileName(engineName, originalName) {
+            const now = new Date();
+            const month = now.toLocaleString('default', { month: 'long' });
+            const date = now.getDate();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            const extension = originalName ? originalName.split('.').pop() : 'mp3';
+            
+            return `${engineName}_${month}${date}_${hours}${minutes}${seconds}.${extension}`;
+        }
+
+        // Download file
+        function downloadFile(url, fileName) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Show status message
+        function showStatus(message) {
+            const statusDisplay = document.getElementById('statusDisplay');
+            const statusContent = document.getElementById('statusContent');
+            
+            statusContent.textContent = message;
+            statusDisplay.classList.remove('hidden');
+            
+            setTimeout(() => {
+                statusDisplay.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Debug logging system
+        let debugLogs = [];
+        
+        function addToLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugLogs.push(`[${timestamp}] ${message}`);
+            updateLogDisplay();
+        }
+        
+        function updateLogDisplay() {
+            const logContent = document.getElementById('logContent');
+            if (logContent) {
+                logContent.innerHTML = debugLogs.map(log => `<div class="mb-1">${log}</div>`).join('');
+                logContent.scrollTop = logContent.scrollHeight;
+            }
+        }
+        
+        function toggleDebugLog() {
+            const debugLog = document.getElementById('debugLog');
+            const toggleText = document.getElementById('logToggleText');
+            const toggleIcon = document.getElementById('logToggleIcon');
+            
+            if (debugLog.classList.contains('hidden')) {
+                debugLog.classList.remove('hidden');
+                toggleText.textContent = 'Hide Debug Log';
+                toggleIcon.className = 'fas fa-chevron-up';
+            } else {
+                debugLog.classList.add('hidden');
+                toggleText.textContent = 'Show Debug Log';
+                toggleIcon.className = 'fas fa-chevron-down';
+            }
+        }
+        
+        function copyLogToClipboard() {
+            const logText = debugLogs.join('\n');
+            navigator.clipboard.writeText(logText).then(() => {
+                showStatus('Log copied to clipboard');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = logText;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showStatus('Log copied to clipboard');
+            });
+        }
+
+        // Handle checkbox state changes
+        function handleCheckboxChange(engineName) {
+            const isChecked = document.getElementById(`check-${engineName}`).checked;
+            addToLog(`${engineName}: Checkbox ${isChecked ? 'checked' : 'unchecked'}`);
+            
+            // Update selectedEngines set for better tracking
+            if (isChecked) {
+                selectedEngines.add(engineName);
+            } else {
+                selectedEngines.delete(engineName);
+            }
+        }
+
+        // Get complete app state
+        function getAppState() {
+            const state = {
+                inputText: document.getElementById('inputText').value,
+                selectedEngines: Array.from(selectedEngines),
+                engineSettings: {},
+                debugLog: debugLogs.slice(),
+                timestamp: new Date().toISOString()
+            };
+            
+            // Save all engine settings
+            Object.keys(ttsEngines).forEach(engineName => {
+                const engineConfig = ttsEngines[engineName];
+                state.engineSettings[engineName] = {};
+                
+                Object.keys(engineConfig.settings).forEach(setting => {
+                    const element = document.getElementById(`${engineName}-${setting}`);
+                    if (element) {
+                        state.engineSettings[engineName][setting] = element.value;
+                    }
+                });
+                
+                // Save checkbox state
+                const checkbox = document.getElementById(`check-${engineName}`);
+                state.engineSettings[engineName].checked = checkbox.checked;
+            });
+            
+            return state;
+        }
+
+        // Apply app state
+        function applyAppState(state) {
+            // Restore input text
+            if (state.inputText) {
+                document.getElementById('inputText').value = state.inputText;
+            }
+            
+            // Clear current selections
+            selectedEngines.clear();
+            
+            // Restore engine settings
+            Object.keys(ttsEngines).forEach(engineName => {
+                if (state.engineSettings && state.engineSettings[engineName]) {
+                    const engineState = state.engineSettings[engineName];
+                    
+                    // Restore dropdown values
+                    Object.keys(ttsEngines[engineName].settings).forEach(setting => {
+                        const element = document.getElementById(`${engineName}-${setting}`);
+                        if (element && engineState[setting]) {
+                            element.value = engineState[setting];
+                        }
+                    });
+                    
+                    // Restore checkbox state
+                    const checkbox = document.getElementById(`check-${engineName}`);
+                    if (checkbox && engineState.checked !== undefined) {
+                        checkbox.checked = engineState.checked;
+                        if (engineState.checked) {
+                            selectedEngines.add(engineName);
+                        }
+                    }
+                }
+            });
+            
+            // Restore debug log
+            if (state.debugLog && Array.isArray(state.debugLog)) {
+                debugLogs = state.debugLog.slice();
+                updateLogDisplay();
+            }
+        }
+
+        // Copy state to clipboard
+        function copyAppState() {
+            const state = getAppState();
+            const stateJSON = JSON.stringify(state, null, 2);
+            
+            navigator.clipboard.writeText(stateJSON).then(() => {
+                addToLog('App state copied to clipboard');
+                showStatus('State copied to clipboard');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = stateJSON;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                addToLog('App state copied to clipboard (fallback)');
+                showStatus('State copied to clipboard');
+            });
+        }
+
+        // Download state as file
+        function downloadAppState() {
+            const state = getAppState();
+            const stateJSON = JSON.stringify(state, null, 2);
+            
+            const blob = new Blob([stateJSON], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+            const fileName = `TTS_Config_${timestamp}.json`;
+            
+            downloadFile(url, fileName);
+            URL.revokeObjectURL(url);
+            
+            addToLog(`App state downloaded as ${fileName}`);
+            showStatus('State downloaded successfully');
+        }
+
+        // Paste state from clipboard (modal)
+        function pasteAppState() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-96">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Load State from JSON</h3>
+                        <button class="text-gray-500 hover:text-gray-700" onclick="this.closest('.fixed').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <textarea 
+                        id="stateInput" 
+                        class="w-full h-48 p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none text-sm bg-white dark:bg-gray-700 font-mono"
+                        placeholder="Paste your JSON state here..."
+                    ></textarea>
+                    <div class="flex justify-end space-x-3 mt-4">
+                        <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" onclick="this.closest('.fixed').remove()">Cancel</button>
+                        <button class="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded" onclick="loadStateFromModal()">Load State</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Focus textarea
+            setTimeout(() => document.getElementById('stateInput').focus(), 100);
+            
+            // Add global function for loading
+            window.loadStateFromModal = function() {
+                const stateJSON = document.getElementById('stateInput').value.trim();
+                if (!stateJSON) {
+                    showStatus('Please enter JSON state');
+                    return;
+                }
+                
+                try {
+                    const state = JSON.parse(stateJSON);
+                    applyAppState(state);
+                    addToLog('App state loaded from clipboard');
+                    showStatus('State loaded successfully');
+                    modal.remove();
+                } catch (error) {
+                    addToLog(`Error loading state from clipboard: ${error.message}`);
+                    showStatus('Invalid JSON format');
+                }
+            };
+        }
+
+        // Upload state from file
+        function uploadAppState() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const state = JSON.parse(e.target.result);
+                        applyAppState(state);
+                        addToLog(`App state loaded from ${file.name}`);
+                        showStatus('State uploaded successfully');
+                    } catch (error) {
+                        addToLog(`Error loading state from file: ${error.message}`);
+                        showStatus('Error loading state file');
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        // Initialize the app when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+            
+            // Initialize Cartesia voices after the UI is created
+            setTimeout(() => {
+                updateCartesiaVoices('Cartesia-Sonic');
+            }, 100);
+            
+            addToLog('TTS Comparator App initialized');
+        });
+    </script>
+</body>
+</html>
+
+

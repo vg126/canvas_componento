@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Perfection Repository</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <style>
+/* ========================================
+   UNIVERSAL THEMING SYSTEM
+======================================== */
+
+:root {
+    --primary: #5D5CDE;
+    --primary-hover: #4F4ED1;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f7f7f7;
+    --bg-tertiary: #f1f5f9;
+    --text-primary: #1a1a1a;
+    --text-secondary: #666666;
+    --text-tertiary: #94a3b8;
+    --border: #e0e0e0;
+    --border-light: #f1f5f9;
+    --accent: #5D5CDE;
+    --success: #10b981;
+    --error: #ef4444;
+    --warning: #f59e0b;
+    --font-main: 'Inter', system-ui, sans-serif;
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+[data-theme="terminal"] {
+    --primary: #00ff00;
+    --primary-hover: #00cc00;
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-tertiary: #1a1a1a;
+    --text-primary: #00ff00;
+    --text-secondary: #00cc00;
+    --text-tertiary: #008800;
+    --border: #003300;
+    --border-light: #004400;
+    --accent: #00ff00;
+    --font-main: 'Courier New', monospace;
+}
+
+[data-theme="steampunk"] {
+    --primary: #d4af37;
+    --primary-hover: #b8941f;
+    --bg-primary: #2c1810;
+    --bg-secondary: #3d2318;
+    --bg-tertiary: #4e2e20;
+    --text-primary: #f4e4bc;
+    --text-secondary: #d4af37;
+    --text-tertiary: #b8941f;
+    --border: #8b4513;
+    --border-light: #a0522d;
+    --accent: #ff6b35;
+    --font-main: 'Georgia', serif;
+}
+
+[data-theme="neon"] {
+    --primary: #ff0080;
+    --primary-hover: #e6006b;
+    --bg-primary: #0d0221;
+    --bg-secondary: #1a0440;
+    --bg-tertiary: #270660;
+    --text-primary: #ff00ff;
+    --text-secondary: #ff0080;
+    --text-tertiary: #cc0066;
+    --border: #4d0099;
+    --border-light: #6600cc;
+    --accent: #00ffff;
+    --font-main: 'Orbitron', sans-serif;
+}
+
+[data-theme="forest"] {
+    --primary: #228b22;
+    --primary-hover: #1e7a1e;
+    --bg-primary: #f0f8f0;
+    --bg-secondary: #e8f5e8;
+    --bg-tertiary: #d0f0d0;
+    --text-primary: #2d4a2d;
+    --text-secondary: #228b22;
+    --text-tertiary: #6b8e6b;
+    --border: #9acd32;
+    --border-light: #adff2f;
+    --accent: #ff6347;
+    --font-main: 'Georgia', serif;
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    transition: all 0.3s ease;
+}
+
+.themed-bg-primary { background-color: var(--bg-primary); }
+.themed-bg-secondary { background-color: var(--bg-secondary); }
+.themed-bg-tertiary { background-color: var(--bg-tertiary); }
+.themed-text-primary { color: var(--text-primary); }
+.themed-text-secondary { color: var(--text-secondary); }
+.themed-border { border-color: var(--border); }
+
+.themed-btn {
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+}
+.themed-btn:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.themed-btn-primary {
+    background-color: var(--primary);
+    color: white;
+    border: 1px solid var(--primary);
+}
+.themed-btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.themed-input {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+.terminal-mode .container {
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+}
+
+.steampunk-mode::before {
+    content: "⚙️";
+    position: fixed;
+    top: 20px;
+    right: 80px;
+    font-size: 24px;
+    opacity: 0.3;
+    z-index: 1;
+}
+
+.neon-mode {
+    box-shadow: 0 0 20px var(--accent);
+}
+    </style>
+</head>
+<body class="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+    <script>
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+    </script>
+
+    <!-- Navigation Tabs -->
+    <div class="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 z-10">
+        <div class="container mx-auto px-4">
+            <div class="flex space-x-1 overflow-x-auto">
+                <button class="tab-btn active" data-tab="architecture">🏗️ System Architecture</button>
+                <button class="tab-btn" data-tab="testing">🧪 Feature Testing Lab</button>
+                <button class="tab-btn" data-tab="doctor">👨‍⚕️ Doctor Inside Patient</button>
+                <button class="tab-btn" data-tab="updates">🔄 System Updates</button>
+                <button class="tab-btn" data-tab="findings">📊 Live Findings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Button (Fixed Position) -->
+    <button 
+        id="themeButton"
+        onclick="openThemeModal()"
+        class="fixed bottom-6 right-6 w-12 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg transition-all duration-200 flex items-center justify-center z-50 text-xl"
+        title="Theme Settings"
+    >
+        🎨
+    </button>
+
+    <!-- Theme Modal -->
+    <div id="themeModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg w-96 max-w-90vw max-h-90vh overflow-y-auto shadow-2xl">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-600">
+                <h3 class="text-lg font-semibold">🎨 Theme Settings</h3>
+                <button onclick="closeThemeModal()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 space-y-4">
+                <!-- Default Theme -->
+                <button 
+                    onclick="applyTheme('default'); closeThemeModal();" 
+                    class="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                    <div class="w-6 h-6 rounded border bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                    <span class="font-medium">📄 Clean Default</span>
+                </button>
+
+                <!-- Terminal Theme -->
+                <button 
+                    onclick="applyTheme('terminal'); closeThemeModal();" 
+                    class="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                    <div class="w-6 h-6 rounded border bg-gradient-to-r from-green-400 to-black"></div>
+                    <span class="font-medium">💻 Terminal Hacker</span>
+                </button>
+
+                <!-- Steampunk Theme -->
+                <button 
+                    onclick="applyTheme('steampunk'); closeThemeModal();" 
+                    class="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                    <div class="w-6 h-6 rounded border bg-gradient-to-r from-yellow-600 to-amber-800"></div>
+                    <span class="font-medium">⚙️ Steampunk Victorian</span>
+                </button>
+
+                <!-- Neon Theme -->
+                <button 
+                    onclick="applyTheme('neon'); closeThemeModal();" 
+                    class="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                    <div class="w-6 h-6 rounded border bg-gradient-to-r from-pink-500 to-cyan-400"></div>
+                    <span class="font-medium">🌈 Neon Cyberpunk</span>
+                </button>
+
+                <!-- Forest Theme -->
+                <button 
+                    onclick="applyTheme('forest'); closeThemeModal();" 
+                    class="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                    <div class="w-6 h-6 rounded border bg-gradient-to-r from-green-500 to-emerald-600"></div>
+                    <span class="font-medium">🌲 Forest Harmony</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 max-w-6xl">
+        
+        <!-- Architecture Documentation Tab -->
+        <div id="architecture-tab" class="tab-content">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold mb-2">🏗️ Canvas & Poe Dual-World Architecture</h1>
+                <p class="text-gray-600 dark:text-gray-400">Living documentation of Canvas system realities</p>
+            </div>
+
+            <div class="grid gap-6">
+                <!-- The Dual World System -->
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-6 rounded-lg border">
+                    <h2 class="text-2xl font-bold mb-4">🌍 The Dual-World Reality</h2>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                            <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-3">World 1: Poe Chat Context</h3>
+                            <ul class="space-y-2 text-sm">
+                                <li>✅ <strong>Real conversation context</strong></li>
+                                <li>✅ <strong>Survives Canvas refresh</strong></li>
+                                <li>✅ <strong>Drives actual AI responses</strong></li>
+                                <li>✅ <strong>Accessible via sendUserMessage</strong></li>
+                                <li>❌ <strong>Not directly controllable from Canvas</strong></li>
+                            </ul>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                            <h3 class="font-bold text-purple-600 dark:text-purple-400 mb-3">World 2: Canvas UI State</h3>
+                            <ul class="space-y-2 text-sm">
+                                <li>✅ <strong>Visual interface & settings</strong></li>
+                                <li>✅ <strong>Interactive elements</strong></li>
+                                <li>✅ <strong>Exportable as JSON</strong></li>
+                                <li>❌ <strong>Lost on refresh (by design)</strong></li>
+                                <li>❌ <strong>No localStorage (security sandbox)</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Critical Operations -->
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <h3 class="text-xl font-bold mb-4">⚠️ Critical Operations & User Expectations</h3>
+                    <div class="grid md:grid-cols-3 gap-4 text-sm">
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded border">
+                            <h4 class="font-medium text-red-600 dark:text-red-400">Canvas Refresh Button</h4>
+                            <p class="text-gray-600 dark:text-gray-400 mt-2">Users expect: Complete reset</p>
+                            <p class="text-green-600 dark:text-green-400">Reality: Only UI resets, context persists</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded border">
+                            <h4 class="font-medium text-green-600 dark:text-green-400">Chat Clear Context</h4>
+                            <p class="text-gray-600 dark:text-gray-400 mt-2">Location: Poe chat UI (paintbrush icon)</p>
+                            <p class="text-green-600 dark:text-green-400">Reality: Actually clears conversation</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded border">
+                            <h4 class="font-medium text-orange-600 dark:text-orange-400">Canvas "Clear Context"</h4>
+                            <p class="text-gray-600 dark:text-gray-400 mt-2">Status: Experimental/Impossible</p>
+                            <p class="text-orange-600 dark:text-orange-400">Reality: UI placeholder only</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Developer Principles -->
+                <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold mb-4">🎯 Core Development Principles</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="space-y-3 text-sm">
+                            <div class="flex items-start space-x-2">
+                                <span class="text-blue-500 font-bold">1.</span>
+                                <span><strong>Two Contexts Rule:</strong> Canvas display ≠ real context</span>
+                            </div>
+                            <div class="flex items-start space-x-2">
+                                <span class="text-blue-500 font-bold">2.</span>
+                                <span><strong>Refresh Reality:</strong> Visual reset ≠ context reset</span>
+                            </div>
+                            <div class="flex items-start space-x-2">
+                                <span class="text-blue-500 font-bold">3.</span>
+                                <span><strong>State Limitations:</strong> Export/import is UI-only</span>
+                            </div>
+                        </div>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex items-start space-x-2">
+                                <span class="text-purple-500 font-bold">4.</span>
+                                <span><strong>Sync Necessity:</strong> Context reconstruction required</span>
+                            </div>
+                            <div class="flex items-start space-x-2">
+                                <span class="text-purple-500 font-bold">5.</span>
+                                <span><strong>Security Boundaries:</strong> No localStorage, limited DOM access</span>
+                            </div>
+                            <div class="flex items-start space-x-2">
+                                <span class="text-purple-500 font-bold">6.</span>
+                                <span><strong>Persistence Strategy:</strong> Use chat context via sendUserMessage</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature Testing Lab Tab -->
+        <div id="testing-tab" class="tab-content hidden">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold mb-2">🧪 Canvas Feature Compatibility Lab</h1>
+                <p class="text-gray-600 dark:text-gray-400">Test Server Bot & Prompt Bot features in Canvas environment</p>
+            </div>
+
+            <!-- Testing Interface (Similar to previous but more compact) -->
+            <div class="grid gap-4">
+                <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 class="font-medium mb-3">Select Category</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2" id="categoryGrid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg" id="featureTestSection" style="display: none;">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <h3 class="font-medium mb-3">Feature Test</h3>
+                            <div class="space-y-3">
+                                <select id="featureSelect" class="w-full p-2 text-base border rounded bg-white dark:bg-gray-700">
+                                    <option>Select a feature...</option>
+                                </select>
+                                <select id="testBot" class="w-full p-2 text-base border rounded bg-white dark:bg-gray-700">
+                                    <option value="@Claude-Sonnet-4">@Claude-Sonnet-4</option>
+                                    <option value="@GPT-4o">@GPT-4o</option>
+                                </select>
+                                <button id="runQuickTest" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
+                                    🧪 Quick Test
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-medium mb-3">Results</h3>
+                            <div id="quickTestResult" class="bg-white dark:bg-gray-700 p-3 rounded border min-h-24 text-sm">
+                                Results will appear here...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Doctor Inside Patient Tab -->
+        <div id="doctor-tab" class="tab-content hidden">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold mb-2">👨‍⚕️ Doctor Inside Patient Analysis</h1>
+                <p class="text-gray-600 dark:text-gray-400">Call App-Creator from within Canvas for inside analysis</p>
+            </div>
+
+            <div class="grid gap-6">
+                <!-- Analysis Request Interface -->
+                <div class="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 p-6 rounded-lg border">
+                    <h3 class="text-xl font-bold mb-4">🔍 Request Inside Analysis</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block font-medium mb-2">Analysis Focus</label>
+                            <select id="analysisType" class="w-full p-3 text-base border rounded bg-white dark:bg-gray-700">
+                                <option value="architecture">System Architecture Review</option>
+                                <option value="feature-compatibility">Feature Compatibility Analysis</option>
+                                <option value="performance">Performance & Optimization Review</option>
+                                <option value="security">Security Boundary Analysis</option>
+                                <option value="user-experience">User Experience Evaluation</option>
+                                <option value="custom">Custom Analysis Request</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-medium mb-2">Specific Questions/Context</label>
+                            <textarea id="analysisContext" class="w-full p-3 text-base border rounded bg-white dark:bg-gray-700" rows="3" 
+                                placeholder="Describe what you'd like App-Creator to analyze from inside this Canvas system..."></textarea>
+                        </div>
+                        <button id="requestAnalysis" class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 font-medium">
+                            🩺 Request Field Agent Analysis
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Analysis Results -->
+                <div id="analysisResults" class="bg-white dark:bg-gray-800 p-6 rounded-lg border" style="display: none;">
+                    <h3 class="text-xl font-bold mb-4">📋 Field Agent Report</h3>
+                    <div id="analysisContent" class="prose dark:prose-invert max-w-none">
+                        <!-- Analysis results will appear here -->
+                    </div>
+                </div>
+
+                <!-- Analysis History -->
+                <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 class="font-medium mb-3">📚 Analysis History</h3>
+                    <div id="analysisHistory" class="space-y-2 text-sm">
+                        <p class="text-gray-500 dark:text-gray-400">No analyses performed yet...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Updates Tab -->
+        <div id="updates-tab" class="tab-content hidden">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold mb-2">🔄 Canvas System Updates</h1>
+                <p class="text-gray-600 dark:text-gray-400">Monitor and integrate Canvas platform changes</p>
+            </div>
+
+            <div class="grid gap-6">
+                <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border">
+                    <h3 class="text-xl font-bold mb-4">🔍 Update Detection</h3>
+                    <div class="space-y-4">
+                        <button id="checkUpdates" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                            🌐 Search for Canvas Updates
+                        </button>
+                        <div id="updateResults" class="bg-white dark:bg-gray-700 p-4 rounded border min-h-32" style="display: none;">
+                            <!-- Update search results -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-lg border">
+                    <h3 class="text-xl font-bold mb-4">🧽 App Washing Process</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        When updates are found, the "washing" process involves updating this app's knowledge base
+                        and testing matrix through the normal App-Creator workflow.
+                    </p>
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-2 text-sm">
+                            <span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center">1</span>
+                            <span>Detect changes via web search</span>
+                        </div>
+                        <div class="flex items-center space-x-2 text-sm">
+                            <span class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center">2</span>
+                            <span>Request Field Agent analysis of changes</span>
+                        </div>
+                        <div class="flex items-center space-x-2 text-sm">
+                            <span class="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center">3</span>
+                            <span>Update feature database and testing matrix</span>
+                        </div>
+                        <div class="flex items-center space-x-2 text-sm">
+                            <span class="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center">4</span>
+                            <span>Test new features in compatibility lab</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Findings Tab -->
+        <div id="findings-tab" class="tab-content hidden">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold mb-2">📊 Live Canvas Findings</h1>
+                <p class="text-gray-600 dark:text-gray-400">Accumulated knowledge and compatibility matrix</p>
+            </div>
+
+            <div class="grid gap-6">
+                <!-- Compatibility Matrix -->
+                <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold mb-4">✅ Canvas Compatibility Matrix</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm border-collapse border border-gray-300 dark:border-gray-600">
+                            <thead class="bg-gray-100 dark:bg-gray-700">
+                                <tr>
+                                    <th class="border border-gray-300 dark:border-gray-600 p-2 text-left">Feature</th>
+                                    <th class="border border-gray-300 dark:border-gray-600 p-2">Original Type</th>
+                                    <th class="border border-gray-300 dark:border-gray-600 p-2">Canvas Status</th>
+                                    <th class="border border-gray-300 dark:border-gray-600 p-2">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="compatibilityMatrix">
+                                <tr>
+                                    <td class="border border-gray-300 dark:border-gray-600 p-2" colspan="4">
+                                        <span class="text-gray-500 dark:text-gray-400">Run tests to populate matrix...</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Export Knowledge Base -->
+                <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border">
+                    <h3 class="text-xl font-bold mb-4">💾 Export Knowledge Base</h3>
+                    <button id="exportKnowledge" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">
+                        📤 Export Complete Findings
+                    </button>
+                    <div id="exportedKnowledge" class="mt-4 bg-white dark:bg-gray-700 p-4 rounded border max-h-64 overflow-y-auto" style="display: none;">
+                        <!-- Exported data will appear here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .tab-btn {
+            @apply px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-blue-500 transition-colors whitespace-nowrap;
+        }
+        .tab-btn.active {
+            @apply border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20;
+        }
+        .tab-content {
+            @apply animate-in fade-in duration-200;
+        }
+    </style>
+
+    <script>
+        // Feature Database (from your research)
+        const featureDatabase = {
+            "Core Prompt Construction": [
+                { name: "Plain-text instructions", types: ["Prompt Bot"], testPrompt: "Act as a helpful assistant with expertise in marine biology." },
+                { name: "Templating with {{user_prompt}}", types: ["Prompt Bot"], testPrompt: "Context: {{user_prompt}} Please analyze this systematically." }
+            ],
+            "Response Behavior": [
+                { name: "Temperature control", types: ["Prompt Bot", "Server Bot"], testPrompt: "Write a creative story. Make it very consistent and predictable." },
+                { name: "stop_sequences", types: ["Server Bot"], testPrompt: "Count to 10 then write STOP to end." }
+            ],
+            "Output Formatting": [
+                { name: "Markdown rendering", types: ["Prompt Bot"], testPrompt: "Format this with **bold**, *italic*, and `code` formatting." },
+                { name: "HTML code blocks", types: ["Server Bot"], testPrompt: "Create a simple HTML button that changes color on click." }
+            ]
+        };
+
+        let testResults = {};
+        let analysisHistory = [];
+
+        // Tab Management
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.getAttribute('data-tab');
+                switchTab(tabName);
+            });
+        });
+
+        function switchTab(tabName) {
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-tab') === tabName) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Show content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(tabName + '-tab').classList.remove('hidden');
+        }
+
+        // Initialize Feature Testing
+        function initTesting() {
+            const categoryGrid = document.getElementById('categoryGrid');
+            Object.keys(featureDatabase).forEach(category => {
+                const btn = document.createElement('button');
+                btn.className = 'p-2 bg-white dark:bg-gray-700 rounded border hover:border-blue-500 text-sm';
+                btn.textContent = category;
+                btn.onclick = () => selectCategory(category);
+                categoryGrid.appendChild(btn);
+            });
+        }
+
+        function selectCategory(category) {
+            const select = document.getElementById('featureSelect');
+            select.innerHTML = '<option>Select a feature...</option>';
+            
+            featureDatabase[category].forEach(feature => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify(feature);
+                option.textContent = feature.name;
+                select.appendChild(option);
+            });
+
+            document.getElementById('featureTestSection').style.display = 'block';
+        }
+
+        // Quick Test Function
+        document.getElementById('runQuickTest').onclick = async () => {
+            const featureData = document.getElementById('featureSelect').value;
+            const bot = document.getElementById('testBot').value;
+            
+            if (featureData === 'Select a feature...') return;
+            
+            const feature = JSON.parse(featureData);
+            const resultDiv = document.getElementById('quickTestResult');
+            
+            resultDiv.innerHTML = '<div class="animate-pulse">🧪 Testing...</div>';
+            
+            const testPrompt = `${bot} ${feature.testPrompt}`;
+            
+            try {
+                if (window.Poe?.sendUserMessage) {
+                    await window.Poe.sendUserMessage(testPrompt, {
+                        handler: "quick-test-handler",
+                        stream: false,
+                        openChat: false
+                    });
+                } else {
+                    resultDiv.innerHTML = '<span class="text-red-500">Poe API not available</span>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+            }
+        };
+
+        // Doctor Inside Patient Functions
+        document.getElementById('requestAnalysis').onclick = async () => {
+            const analysisType = document.getElementById('analysisType').value;
+            const context = document.getElementById('analysisContext').value;
+            
+            const systemPrompt = `
+**CANVAS FIELD AGENT ANALYSIS REQUEST**
+
+You are App-Creator operating as a "Field Agent" - called from INSIDE a Canvas application via sendUserMessage. 
+
+**Your Mission**: Analyze this Canvas system from the inside perspective.
+
+**System Architecture Context**: 
+- You're in a dual-world system (Canvas UI State vs Poe Chat Context)
+- Canvas apps have no localStorage (security sandboxed)
+- Real context persists in underlying Poe chat, not Canvas display
+- This app serves as: Guide + Lab + Live Documentation
+
+**Analysis Type**: ${analysisType}
+**Specific Context**: ${context}
+
+**Your Payload Includes**: 
+- All HTML/CSS/JS code of this app (from chat history)
+- Previous conversation context about Canvas architecture
+- Any test results or findings from this session
+
+**Your Response Should**:
+- Analyze from the "inside experience" perspective
+- Identify system behaviors you can observe from this vantage point
+- Note any architectural insights visible from within Canvas
+- Suggest improvements or discoveries
+- Keep focus on practical Canvas development implications
+
+**Remember**: You're experiencing this system as it actually executes, not theoretically. Report what you observe from inside.
+            `;
+
+            document.getElementById('analysisResults').style.display = 'block';
+            document.getElementById('analysisContent').innerHTML = '<div class="animate-pulse">🔍 Field Agent analyzing...</div>';
+
+            try {
+                if (window.Poe?.sendUserMessage) {
+                    await window.Poe.sendUserMessage(`@App-Creator ${systemPrompt}`, {
+                        handler: "field-agent-handler",
+                        stream: true,
+                        openChat: false
+                    });
+                } else {
+                    document.getElementById('analysisContent').innerHTML = '<span class="text-red-500">Poe API not available</span>';
+                }
+            } catch (error) {
+                document.getElementById('analysisContent').innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+            }
+        };
+
+        // System Updates Functions
+        document.getElementById('checkUpdates').onclick = async () => {
+            document.getElementById('updateResults').style.display = 'block';
+            document.getElementById('updateResults').innerHTML = '<div class="animate-pulse">🔍 Searching for Canvas updates...</div>';
+
+            const searchQuery = `
+Search for recent Poe Canvas application updates, new features, API changes, or documentation changes in 2024. 
+Focus on:
+- New Canvas capabilities
+- Poe Embed API changes  
+- Iframe sandbox policy updates
+- New bot integration features
+- Security or performance improvements
+
+Provide structured findings with dates and sources.
+            `;
+
+            try {
+                if (window.Poe?.sendUserMessage) {
+                    await window.Poe.sendUserMessage(`@SearchGPT ${searchQuery}`, {
+                        handler: "update-search-handler", 
+                        stream: true,
+                        openChat: false
+                    });
+                }
+            } catch (error) {
+                document.getElementById('updateResults').innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+            }
+        };
+
+        // Export Functions
+        document.getElementById('exportKnowledge').onclick = () => {
+            const knowledge = {
+                architecture: "Dual-world Canvas system with security boundaries",
+                testResults: testResults,
+                analysisHistory: analysisHistory,
+                findings: "Canvas apps are ephemeral by design, context persists in Poe chat",
+                exportDate: new Date().toISOString()
+            };
+
+            document.getElementById('exportedKnowledge').style.display = 'block';
+            document.getElementById('exportedKnowledge').innerHTML = `
+                <h4 class="font-medium mb-2">Canvas Perfection Knowledge Base</h4>
+                <pre class="text-xs whitespace-pre-wrap">${JSON.stringify(knowledge, null, 2)}</pre>
+            `;
+        };
+
+        // Register Poe Handlers
+        if (window.Poe?.registerHandler) {
+            window.Poe.registerHandler("quick-test-handler", (result) => {
+                const response = result.responses[0];
+                const resultDiv = document.getElementById('quickTestResult');
+                
+                if (response.status === "complete") {
+                    resultDiv.innerHTML = marked.parse(response.content || "");
+                } else if (response.status === "error") {
+                    resultDiv.innerHTML = `<span class="text-red-500">Error: ${response.statusText}</span>`;
+                }
+            });
+
+            window.Poe.registerHandler("field-agent-handler", (result) => {
+                const response = result.responses[0];
+                const contentDiv = document.getElementById('analysisContent');
+                
+                if (response.status === "error") {
+                    contentDiv.innerHTML = `<span class="text-red-500">Error: ${response.statusText}</span>`;
+                } else {
+                    contentDiv.innerHTML = marked.parse(response.content || "");
+                    
+                    if (response.status === "complete") {
+                        // Add to analysis history
+                        const analysisType = document.getElementById('analysisType').value;
+                        analysisHistory.push({
+                            type: analysisType,
+                            timestamp: new Date().toISOString(),
+                            summary: response.content.substring(0, 100) + "..."
+                        });
+                        updateAnalysisHistory();
+                    }
+                }
+            });
+
+            window.Poe.registerHandler("update-search-handler", (result) => {
+                const response = result.responses[0];
+                const resultDiv = document.getElementById('updateResults');
+                
+                if (response.status === "error") {
+                    resultDiv.innerHTML = `<span class="text-red-500">Error: ${response.statusText}</span>`;
+                } else {
+                    resultDiv.innerHTML = marked.parse(response.content || "");
+                }
+            });
+        }
+
+        function updateAnalysisHistory() {
+            const historyDiv = document.getElementById('analysisHistory');
+            if (analysisHistory.length === 0) {
+                historyDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No analyses performed yet...</p>';
+                return;
+            }
+
+            historyDiv.innerHTML = analysisHistory.map(analysis => `
+                <div class="bg-white dark:bg-gray-700 p-3 rounded border">
+                    <div class="font-medium">${analysis.type}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">${new Date(analysis.timestamp).toLocaleString()}</div>
+                    <div class="text-sm mt-1">${analysis.summary}</div>
+                </div>
+            `).join('');
+        }
+
+        // Theme Functions
+        function applyTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            
+            if (themeName === 'terminal') {
+                document.body.classList.add('terminal-mode');
+            } else {
+                document.body.classList.remove('terminal-mode');
+            }
+            
+            if (themeName === 'steampunk') {
+                document.body.classList.add('steampunk-mode');
+            } else {
+                document.body.classList.remove('steampunk-mode');
+            }
+            
+            if (themeName === 'neon') {
+                document.body.classList.add('neon-mode');
+            } else {
+                document.body.classList.remove('neon-mode');
+            }
+        }
+
+        function openThemeModal() {
+            document.getElementById('themeModal').classList.remove('hidden');
+        }
+
+        function closeThemeModal() {
+            document.getElementById('themeModal').classList.add('hidden');
+        }
+
+        // Initialize
+        initTesting();
+    </script>
+</body>
+</html>

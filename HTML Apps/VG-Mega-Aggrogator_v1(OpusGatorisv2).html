@@ -1,0 +1,2968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Model Aggregator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #5D5CDE;
+            --primary-hover: #4A49CC;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f7;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --border: #e0e0e0;
+            --selected: #5D5CDE;
+            --selected-bg: rgba(93, 92, 222, 0.1);
+            --accent: #5D5CDE;
+            --font-main: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
+        }
+
+        .dark {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --border: #3a3a3a;
+            --selected-bg: rgba(93, 92, 222, 0.2);
+        }
+
+        .accordion-container {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .accordion-container.collapsed {
+            max-height: 40px;
+        }
+
+        .selected-display {
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-secondary);
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .selected-display:hover {
+            background: rgba(93, 92, 222, 0.05);
+        }
+
+        .accordion-container.collapsed .selected-display {
+            border-bottom: none;
+        }
+
+        .selected-model {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .expand-icon {
+            width: 16px;
+            height: 16px;
+            color: var(--text-secondary);
+            transition: transform 0.3s;
+        }
+
+        .accordion-container.collapsed .expand-icon {
+            transform: rotate(0deg);
+        }
+
+        .accordion-container:not(.collapsed) .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .clear-selection {
+            padding: 4px 8px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.2s;
+            margin-right: 6px;
+        }
+
+        .clear-selection:hover {
+            background: var(--bg-primary);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .accordion-wrapper {
+            max-height: 300px;
+            overflow-y: auto;
+            opacity: 1;
+            transition: opacity 0.3s;
+            /* Fix scroll containment issue */
+            overscroll-behavior: contain;
+            scroll-behavior: smooth;
+        }
+
+        /* Loading Spinner */
+        .loading-indicator {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        .spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .status-icon {
+            width: 12px;
+            height: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-icon.success { color: #10b981; }
+        .status-icon.error { color: #ef4444; }
+
+        /* Status Indicators */
+        .status-indicator {
+            transition: all 0.3s ease;
+        }
+        
+        .status-indicator.loading {
+            border-color: var(--primary);
+            background: var(--bg-primary);
+        }
+        
+        .status-indicator.loading .status-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .status-indicator.success {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .status-indicator.success::after {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .status-indicator.error {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        
+        .status-indicator.error::after {
+            content: "✕";
+            color: #ef4444;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .accordion-container.collapsed .accordion-wrapper {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+
+        .accordion-item {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .accordion-item:last-child {
+            border-bottom: none;
+        }
+
+        .accordion-header {
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .accordion-header:hover {
+            background: var(--bg-secondary);
+        }
+
+        .accordion-header.active {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        .accordion-title {
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .accordion-icon {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s;
+            color: var(--text-secondary);
+        }
+
+        .accordion-header.active .accordion-icon {
+            transform: rotate(90deg);
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: var(--bg-secondary);
+        }
+
+        .accordion-content.active {
+            max-height: 500px;
+            overflow-y: auto;
+            transition: max-height 0.5s ease-in;
+            padding-bottom: 8px;
+        }
+
+        .series-item {
+            border-left: 2px solid transparent;
+            margin-left: 12px;
+        }
+
+        .series-header {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            font-size: 12px;
+            color: var(--text-primary);
+        }
+
+        .series-header:hover {
+            background: rgba(93, 92, 222, 0.05);
+            border-left-color: var(--primary);
+        }
+
+        .series-header.active {
+            background: rgba(93, 92, 222, 0.08);
+            border-left-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .series-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            margin-left: 12px;
+        }
+
+        .series-content.active {
+            max-height: 300px;
+            overflow-y: auto;
+            transition: max-height 0.5s ease-in;
+        }
+
+        .model-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 11px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 12px;
+        }
+
+        .model-item:hover {
+            background: rgba(93, 92, 222, 0.08);
+            padding-left: 16px;
+        }
+
+        .model-item.selected {
+            background: var(--selected-bg);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .model-item.selected::before {
+            content: "✓";
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .model-item.highlighted {
+            background: rgba(93, 92, 222, 0.12);
+            border-left: 2px solid var(--primary);
+            outline: 1px solid var(--primary);
+        }
+
+        .model-count {
+            font-size: 9px;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            padding: 1px 4px;
+            border-radius: 6px;
+        }
+
+        .accordion-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .accordion-wrapper::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .accordion-wrapper::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .accordion-wrapper::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+        /* Selected-display input caret color */
+        .selected-display input { caret-color: var(--text-primary); }
+
+        /* Collapsible sections: default + collapsed */
+        .collapsible-section .section-body { display: block; }
+        .collapsible-section.collapsed { padding: 0 !important; background: transparent !important; }
+        .collapsible-section.collapsed .section-head { margin-bottom: 0 !important; padding: 0.25rem 0 !important; }
+        .collapsible-section.collapsed .section-body { display: none !important; }
+
+        /* ===== THEME DEFINITIONS (apply when html[data-theme] is set) ===== */
+        :root[data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --accent: #8180ff;
+            --selected-bg: rgba(129, 128, 255, 0.16);
+            --font-main: 'Inter', ui-sans-serif, system-ui;
+        }
+        :root[data-theme="terminal"] {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --text-primary: #34d399;
+            --text-secondary: #6ee7b7;
+            --border: #34d399;
+            --accent: #a7f3d0;
+            --selected-bg: rgba(167, 243, 208, 0.12);
+            --font-main: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        }
+        /* Terminal-specific UI unification (no light fills, green mono aesthetics) */
+        :root[data-theme="terminal"] body,
+        :root[data-theme="terminal"] .container { background-color: var(--bg-primary) !important; }
+        :root[data-theme="terminal"] .accordion-container,
+        :root[data-theme="terminal"] .selected-display,
+        :root[data-theme="terminal"] .accordion-header,
+        :root[data-theme="terminal"] .accordion-content,
+        :root[data-theme="terminal"] .series-header,
+        :root[data-theme="terminal"] .series-content,
+        :root[data-theme="terminal"] .response-box > div,
+        :root[data-theme="terminal"] #previewContent,
+        :root[data-theme="terminal"] #importModal .bg-white,
+        :root[data-theme="terminal"] textarea,
+        :root[data-theme="terminal"] input,
+        :root[data-theme="terminal"] select { background-color: var(--bg-secondary) !important; color: var(--text-primary) !important; border-color: var(--border) !important; }
+        :root[data-theme="terminal"] .model-item:hover,
+        :root[data-theme="terminal"] .selected-display:hover { background-color: rgba(52, 211, 153, 0.08) !important; }
+        :root[data-theme="terminal"] .series-header.active { background-color: rgba(52, 211, 153, 0.12) !important; border-left-color: var(--text-primary) !important; }
+        :root[data-theme="terminal"] .accordion-header:hover { background-color: #141414 !important; }
+        :root[data-theme="terminal"] .model-item.selected { color: var(--text-primary) !important; }
+        :root[data-theme="terminal"] .selected-model { color: var(--text-primary) !important; }
+        /* Buttons: transparent dark background, green border/text */
+        :root[data-theme="terminal"] button { background-color: transparent !important; color: var(--text-primary) !important; border: 1px solid var(--text-primary) !important; }
+        :root[data-theme="terminal"] button:hover { background-color: rgba(52, 211, 153, 0.10) !important; }
+        /* Neutralize colored utility button backgrounds */
+        :root[data-theme="terminal"] .bg-primary,
+        :root[data-theme="terminal"] .bg-green-500,
+        :root[data-theme="terminal"] .bg-green-600,
+        :root[data-theme="terminal"] .bg-blue-500,
+        :root[data-theme="terminal"] .bg-blue-600,
+        :root[data-theme="terminal"] .bg-gray-500,
+        :root[data-theme="terminal"] .bg-gray-600 { background-color: transparent !important; }
+        :root[data-theme="terminal"] .text-white { color: var(--text-primary) !important; }
+        :root[data-theme="paper"] {
+            --bg-primary: #fdf6e3;
+            --bg-secondary: #f9f2df;
+            --text-primary: #586e75;
+            --text-secondary: #839496;
+            --border: #eee8d5;
+            --accent: #268bd2;
+            --selected-bg: rgba(38, 139, 210, 0.12);
+            --font-main: 'Lora', Georgia, Cambria, 'Times New Roman', Times, serif;
+        }
+        :root[data-theme="sakura"] {
+            --bg-primary: #FFF5F7;
+            --bg-secondary: #ffffff;
+            --text-primary: #5c223a;
+            --text-secondary: #9d5371;
+            --border: #FECDD3;
+            --accent: #EC4899;
+            --selected-bg: rgba(236, 72, 153, 0.12);
+            --font-main: 'Inter', ui-sans-serif, system-ui;
+        }
+        :root[data-theme="ayu"] {
+            --bg-primary: #0A0E14;
+            --bg-secondary: #0F131A;
+            --text-primary: #CBCCC6;
+            --text-secondary: #5C6773;
+            --border: #3d444f;
+            --accent: #FF9940;
+            --selected-bg: rgba(255, 153, 64, 0.14);
+            --font-main: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        }
+
+        /* Base overrides to honor theme variables across Tailwind utility usage */
+        body { background-color: var(--bg-primary) !important; color: var(--text-primary) !important; font-family: var(--font-main) !important; }
+        .bg-primary { background-color: var(--accent) !important; }
+        .text-primary { color: var(--accent) !important; }
+        /* Map common utility backgrounds to theme tokens when a theme is active */
+        :root[data-theme] .bg-white { background-color: var(--bg-secondary) !important; }
+        :root[data-theme] .bg-gray-50 { background-color: var(--bg-secondary) !important; }
+        :root[data-theme] .dark .bg-gray-900,
+        :root[data-theme] .dark .bg-gray-800,
+        :root[data-theme] .dark .bg-gray-700 { background-color: var(--bg-secondary) !important; }
+        /* Text colors */
+        :root[data-theme] .text-gray-900,
+        :root[data-theme] .text-gray-700,
+        :root[data-theme] .dark .text-gray-100 { color: var(--text-primary) !important; }
+        :root[data-theme] .text-gray-600,
+        :root[data-theme] .text-gray-500,
+        :root[data-theme] .dark .text-gray-400 { color: var(--text-secondary) !important; }
+        /* Borders */
+        :root[data-theme] .border-gray-300,
+        :root[data-theme] .dark .border-gray-600 { border-color: var(--border) !important; }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 min-h-screen">
+    <div class="container mx-auto p-4 max-w-7xl">
+        <!-- Top Controls -->
+        <div class="flex justify-end gap-2 mb-4">
+            <button id="copyState" class="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" title="Copy State JSON">
+                <i class="fas fa-copy text-lg"></i>
+            </button>
+            <button id="pasteState" class="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" title="Paste State JSON">
+                <i class="fas fa-paste text-lg"></i>
+            </button>
+            <button id="uploadState" class="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" title="Upload State File">
+                <i class="fas fa-upload text-lg"></i>
+            </button>
+            <button id="downloadStateTop" class="p-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" title="Download State">
+                <i class="fas fa-download text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Import State Modal -->
+        <div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Import State</h3>
+                <textarea 
+                    id="stateInput" 
+                    class="w-full h-64 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-primary" 
+                    placeholder="Paste your JSON state here..."
+                ></textarea>
+                <div class="flex justify-end gap-3 mt-4">
+                    <button id="cancelImport" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">Cancel</button>
+                    <button id="loadState" class="px-4 py-2 bg-primary text-white hover:bg-opacity-90 rounded transition-colors">Load State</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Settings Modal -->
+        <div id="advancedModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="advancedModalTitle" class="text-lg font-medium text-gray-900 dark:text-gray-100">Advanced Settings</h3>
+                    <button id="closeAdvancedModal" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                <div id="advancedModalContent" class="space-y-4">
+                    <!-- Dynamic content will be inserted here -->
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button id="cancelAdvanced" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">Cancel</button>
+                    <button id="applyAdvanced" class="px-4 py-2 bg-primary text-white hover:bg-opacity-90 rounded transition-colors">Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme Rotator (top-left above input) -->
+        <div class="mb-2">
+            <button id="themeRotator" aria-label="Switch theme" title="Switch theme"
+                class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow hover:opacity-90 active:scale-95 transition-transform">
+                <i class="fas fa-circle-half-stroke"></i>
+            </button>
+        </div>
+
+        <!-- Input Section -->
+        <div class="mb-6">
+            <!-- Copy Input Button -->
+            <div class="flex justify-end mb-2">
+                <button 
+                    id="copyInputButton" 
+                    class="p-1.5 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors" 
+                    title="Copy prompt text"
+                >
+                    <i class="fas fa-clipboard text-sm"></i>
+                </button>
+            </div>
+            <div class="flex gap-2">
+                <textarea 
+                    id="promptInput" 
+                    class="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-primary resize-none" 
+                    rows="3" 
+                    placeholder="Enter your prompt here..."
+                ></textarea>
+                <div class="flex flex-col gap-2">
+                    <button 
+                        id="attachmentButton" 
+                        class="px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:border-primary hover:text-primary transition-colors" 
+                        title="Attach files"
+                    >
+                        <i class="fas fa-paperclip text-lg"></i>
+                    </button>
+                    <button 
+                        id="sendButton" 
+                        class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors font-medium"
+                    >
+                        Send
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Hidden file input -->
+            <input 
+                type="file" 
+                id="fileInput" 
+                multiple 
+                accept="*/*" 
+                class="hidden"
+            />
+            
+            <!-- Hidden state upload input -->
+            <input 
+                type="file" 
+                id="stateFileInput" 
+                accept=".json,application/json" 
+                class="hidden"
+            />
+            
+            <!-- Selected files display -->
+            <div id="selectedFiles" class="mt-3 space-y-2 hidden">
+                <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">Selected files:</div>
+                <div id="filesList" class="space-y-1"></div>
+                <button id="clearAttachments" class="text-xs text-red-500 hover:text-red-700 transition-colors">
+                    <i class="fas fa-times mr-1"></i>Clear all attachments
+                </button>
+            </div>
+        </div>
+
+        <!-- Response Boxes -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="response-box" data-index="0">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 h-80 flex flex-col relative">
+
+                    <div class="mb-3 flex gap-3">
+                        <div class="flex-1">
+                            <!-- Flag Controls (appears above accordion) -->
+                            <div id="flag-controls-0" class="mb-3 p-3 bg-white dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 hidden">
+                                <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Model Parameters</div>
+                                <div id="flag-content-0"></div>
+                            </div>
+                            <div class="flex gap-2 mb-2">
+                                <div class="accordion-container collapsed flex-1" id="selector-container-0">
+                                    <div class="selected-display" onclick="toggleAccordion(0)">
+                                        <input id="model-search-0" type="text" placeholder="Search or select model..."
+                                            class="flex-1 min-w-0 text-sm px-2 py-1 rounded"
+                                            style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); outline: none;" />
+                                        <div style="display: flex; align-items: center;">
+                                            <button class="clear-selection" id="clear-btn-0" style="display: none;" onclick="clearSelection(event, 0)">Clear</button>
+                                            <svg class="expand-icon" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="accordion-wrapper" id="accordion-root-0"></div>
+                                </div>
+                                <button id="rng-btn-0" class="px-2 py-2 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors flex-shrink-0" title="Random Model">
+                                    <i class="fas fa-random"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Status Indicator -->
+                        <div class="flex items-start justify-center pt-2">
+                            <div id="status-indicator-0" class="flex items-center justify-center w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden">
+                                <div id="status-content-0" class="text-xs"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto mb-3">
+                        <div class="response-content text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
+                    </div>
+                    <div class="flex gap-1">
+                        <button class="preview-btn px-2 py-1 bg-primary text-white rounded text-xs hover:bg-opacity-90" title="Preview">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="copy-btn px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-opacity-90" title="Copy">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="download-btn px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-opacity-90" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="clear-btn px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-opacity-90" title="Clear">
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="response-box" data-index="1">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 h-80 flex flex-col relative">
+
+                    <div class="mb-3 flex gap-3">
+                        <div class="flex-1">
+                            <!-- Flag Controls (appears above accordion) -->
+                            <div id="flag-controls-1" class="mb-3 p-3 bg-white dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 hidden">
+                                <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Model Parameters</div>
+                                <div id="flag-content-1"></div>
+                            </div>
+                            <div class="flex gap-2 mb-2">
+                                <div class="accordion-container collapsed flex-1" id="selector-container-1">
+                                <div class="selected-display" onclick="toggleAccordion(1)">
+                                    <input id="model-search-1" type="text" placeholder="Search or select model..."
+                                        class="flex-1 min-w-0 text-sm px-2 py-1 rounded"
+                                        style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); outline: none;" />
+                                    <div style="display: flex; align-items: center;">
+                                        <button class="clear-selection" id="clear-btn-1" style="display: none;" onclick="clearSelection(event, 1)">Clear</button>
+                                        <svg class="expand-icon" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="accordion-wrapper" id="accordion-root-1"></div>
+                            </div>
+                            <button id="rng-btn-1" class="px-2 py-2 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors flex-shrink-0" title="Random Model">
+                                <i class="fas fa-random"></i>
+                            </button>
+                        </div>
+                        <!-- Status Indicator -->
+                        <div class="flex items-start justify-center pt-2">
+                            <div id="status-indicator-1" class="flex items-center justify-center w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden">
+                                <div id="status-content-1" class="text-xs"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto mb-3">
+                        <div class="response-content text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
+                    </div>
+                    <div class="flex gap-1">
+                        <button class="preview-btn px-2 py-1 bg-primary text-white rounded text-xs hover:bg-opacity-90" title="Preview">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="copy-btn px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-opacity-90" title="Copy">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="download-btn px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-opacity-90" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="clear-btn px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-opacity-90" title="Clear">
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="response-box" data-index="2">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 h-80 flex flex-col relative">
+
+                    <div class="mb-3 flex gap-3">
+                        <div class="flex-1">
+                            <!-- Flag Controls (appears above accordion) -->
+                            <div id="flag-controls-2" class="mb-3 p-3 bg-white dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 hidden">
+                                <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Model Parameters</div>
+                                <div id="flag-content-2"></div>
+                            </div>
+                            <div class="flex gap-2 mb-2">
+                                <div class="accordion-container collapsed flex-1" id="selector-container-2">
+                                <div class="selected-display" onclick="toggleAccordion(2)">
+                                    <input id="model-search-2" type="text" placeholder="Search or select model..."
+                                        class="flex-1 min-w-0 text-sm px-2 py-1 rounded"
+                                        style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); outline: none;" />
+                                    <div style="display: flex; align-items: center;">
+                                        <button class="clear-selection" id="clear-btn-2" style="display: none;" onclick="clearSelection(event, 2)">Clear</button>
+                                        <svg class="expand-icon" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="accordion-wrapper" id="accordion-root-2"></div>
+                            </div>
+                            <button id="rng-btn-2" class="px-2 py-2 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors flex-shrink-0" title="Random Model">
+                                <i class="fas fa-random"></i>
+                            </button>
+                        </div>
+                        <!-- Status Indicator -->
+                        <div class="flex items-start justify-center pt-2">
+                            <div id="status-indicator-2" class="flex items-center justify-center w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden">
+                                <div id="status-content-2" class="text-xs"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto mb-3">
+                        <div class="response-content text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
+                    </div>
+                    <div class="flex gap-1">
+                        <button class="preview-btn px-2 py-1 bg-primary text-white rounded text-xs hover:bg-opacity-90" title="Preview">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="copy-btn px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-opacity-90" title="Copy">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="download-btn px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-opacity-90" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="clear-btn px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-opacity-90" title="Clear">
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="response-box" data-index="3">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 h-80 flex flex-col">
+                    <div class="mb-3 flex gap-3">
+                        <div class="flex-1">
+                            <!-- Flag Controls (appears above accordion) -->
+                            <div id="flag-controls-3" class="mb-3 p-3 bg-white dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 hidden">
+                                <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Model Parameters</div>
+                                <div id="flag-content-3"></div>
+                            </div>
+                            <div class="flex gap-2 mb-2">
+                                <div class="accordion-container collapsed flex-1" id="selector-container-3">
+                                <div class="selected-display" onclick="toggleAccordion(3)">
+                                    <input id="model-search-3" type="text" placeholder="Search or select model..."
+                                        class="flex-1 min-w-0 text-sm px-2 py-1 rounded"
+                                        style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); outline: none;" />
+                                    <div style="display: flex; align-items: center;">
+                                        <button class="clear-selection" id="clear-btn-3" style="display: none;" onclick="clearSelection(event, 3)">Clear</button>
+                                        <svg class="expand-icon" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="accordion-wrapper" id="accordion-root-3"></div>
+                            </div>
+                            <button id="rng-btn-3" class="px-2 py-2 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors flex-shrink-0" title="Random Model">
+                                <i class="fas fa-random"></i>
+                            </button>
+                        </div>
+                        <!-- Status Indicator -->
+                        <div class="flex items-start justify-center pt-2">
+                            <div id="status-indicator-3" class="flex items-center justify-center w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden">
+                                <div id="status-content-3" class="text-xs"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto mb-3">
+                        <div class="response-content text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></div>
+                    </div>
+                    <div class="flex gap-1">
+                        <button class="preview-btn px-2 py-1 bg-primary text-white rounded text-xs hover:bg-opacity-90" title="Preview">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="copy-btn px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-opacity-90" title="Copy">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="download-btn px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-opacity-90" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="clear-btn px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-opacity-90" title="Clear">
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Section (collapsible) -->
+        <div id="previewSection" class="collapsible-section bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+            <div id="previewHead" class="section-head flex justify-between items-center mb-4 cursor-pointer select-none">
+                <div class="flex items-center">
+                    <span id="previewArrow" class="text-xl mr-2 select-none cursor-pointer">▼</span>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Preview</h3>
+                </div>
+                <div class="flex gap-2">
+                    <button id="previewBox1" class="px-2 py-1 bg-primary text-white rounded text-xs hover:bg-opacity-90" title="Preview Box 1">
+                        1
+                    </button>
+                    <button id="previewBox2" class="px-2 py-1 bg-primary text-white rounded text-xs hover:bg-opacity-90" title="Preview Box 2">
+                        2
+                    </button>
+                    <button id="previewBox3" class="px-2 py-1 bg-primary text-white rounded text-xs hover:bg-opacity-90" title="Preview Box 3">
+                        3
+                    </button>
+                    <button id="previewBox4" class="px-2 py-1 bg-primary text-white rounded text-xs hover:bg-opacity-90" title="Preview Box 4">
+                        4
+                    </button>
+                    <button id="copyPreview" class="p-2 bg-gray-500 text-white rounded hover:bg-opacity-90 transition-colors" title="Copy preview">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="previewBody" class="section-body">
+                <div id="previewContent" class="min-h-32 p-4 bg-white dark:bg-gray-700 rounded border text-gray-700 dark:text-gray-300 whitespace-pre-wrap overflow-auto max-h-96">
+                    Select a response to preview...
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Section (collapsible) -->
+        <div id="logSection" class="collapsible-section bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mt-4">
+            <div id="logHead" class="section-head flex justify-between items-center mb-4 cursor-pointer select-none">
+                <div class="flex items-center">
+                    <span id="logArrow" class="text-xl mr-2 select-none cursor-pointer">▼</span>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Activity Log</h3>
+                </div>
+                <button id="copyLog" class="p-2 bg-gray-500 text-white rounded hover:bg-opacity-90 transition-colors" title="Copy log">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+            <div id="logBody" class="section-body">
+                <div id="logContent" class="p-3 rounded border bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 max-h-64 overflow-auto whitespace-pre-wrap text-sm"></div>
+                <div id="logEmpty" class="text-gray-500 dark:text-gray-400 text-center py-6 italic">No activity yet.</div>
+            </div>
+        </div>
+
+        <!-- Download Section -->
+        <div class="flex justify-center gap-4 mt-6">
+            <button id="downloadAllResponses" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium" title="Download responses">
+                <i class="fas fa-file-download mr-2"></i>Responses
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Dark mode setup
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // ===== Theme Rotator =====
+            const THEMES = ['dark', 'terminal', 'paper', 'sakura', 'ayu'];
+            let themeIndex = -1; // start with no forced theme
+            const rotatorBtn = document.getElementById('themeRotator');
+
+            function applyTheme(name) {
+                const html = document.documentElement;
+                if (name) {
+                    html.setAttribute('data-theme', name);
+                    // Avoid conflict with system dark toggler
+                    html.classList.remove('dark');
+                } else {
+                    html.removeAttribute('data-theme');
+                }
+                // Ensure font follows theme
+                document.body.style.fontFamily = 'var(--font-main)';
+            }
+
+            function rotateTheme() {
+                themeIndex = (themeIndex + 1) % THEMES.length;
+                const next = THEMES[themeIndex];
+                applyTheme(next);
+                // playful spin on click
+                if (rotatorBtn) {
+                    rotatorBtn.classList.add('animate-spin');
+                    setTimeout(() => rotatorBtn.classList.remove('animate-spin'), 500);
+                }
+            }
+
+            if (rotatorBtn) rotatorBtn.addEventListener('click', rotateTheme);
+            
+           
+        // ===== FLAG METADATA =====
+        const modelFlags = {
+            "@Claude-Opus-4": {
+                thinking_budget: { type: "slider", min: 0, max: 30768, default: "default" }
+            },
+            "@Claude-Opus-4-Reasoning": {
+                thinking_budget: { type: "slider", min: 0, max: 30768, default: "default" }
+            },
+            "@Claude-Opus-4-Search": {
+                thinking_budget: { type: "slider", min: 0, max: 126000, default: "default" }
+            },
+            "@Claude-Opus-4.1": {
+                thinking_budget: { type: "slider", min: 0, max: 31999, default: "default" }
+            },
+            "@Claude-Sonnet-3.7": {
+                thinking_budget: { type: "slider", min: 0, max: 16384, default: "default" }
+            },
+            "@Claude-Sonnet-3.7-Reasoning": {
+                thinking_budget: { type: "slider", min: 0, max: 126000, default: "default" }
+            },
+            "@Claude-Sonnet-3.7-Search": {
+                thinking_budget: { type: "slider", min: 0, max: 126000, default: "default" }
+            },
+            "@Claude-Sonnet-4": {
+                thinking_budget: { type: "slider", min: 0, max: 30768, default: "default" }
+            },
+            "@Claude-Sonnet-4-Reasoning": {
+                thinking_budget: { type: "slider", min: 0, max: 61440, default: "default" }
+            },
+            "@Claude-Sonnet-4-Search": {
+                thinking_budget: { type: "slider", min: 0, max: 126000, default: "default" }
+            },
+            "@Gemini-2.5-Flash": {
+                thinking_budget: { type: "stepped_slider", steps: [0, 4096, 8192, 12288, 16384, 20480, 24576], default: "default" }
+            },
+            "@Gemini-2.5-Flash-Lite": {
+                thinking_budget: { type: "stepped_slider", steps: [0, 4096, 8192, 12288, 16384, 20480, 24576], default: "default" }
+            },
+            "@Gemini-2.5-Pro": {
+                thinking_budget: { type: "stepped_slider", steps: [0, 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768], default: "default" }
+            },
+            "@GPT-5": {
+                reasoning_effort: { type: "stepped_slider", steps: ["minimal", "low", "medium", "high"], default: "default" }
+            },
+            "@GPT-5-mini": {
+                reasoning_effort: { type: "stepped_slider", steps: ["minimal", "low", "medium", "high"], default: "default" }
+            },
+            "@GPT-5-nano": {
+                reasoning_effort: { type: "stepped_slider", steps: ["minimal", "low", "medium", "high"], default: "default" }
+            },
+            "@o1": {
+                reasoning_effort: { type: "stepped_slider", steps: ["low", "medium", "high"], default: "default" }
+            },
+            "@o3": {
+                reasoning_effort: { type: "stepped_slider", steps: ["low", "medium", "high"], default: "default" }
+            },
+            "@o3-mini": {
+                reasoning_effort: { type: "stepped_slider", steps: ["low", "medium", "high"], default: "default" }
+            },
+            "@o3-pro": {
+                reasoning_effort: { type: "stepped_slider", steps: ["low", "medium", "high"], default: "default" }
+            },
+            "@o4-mini": {
+                reasoning_effort: { type: "stepped_slider", steps: ["low", "medium", "high"], default: "default" }
+            },
+            "@Grok-3-Mini": {
+                reasoning_effort: { type: "stepped_slider", steps: ["low", "high"], default: "default" }
+            },
+            "@Tako": {
+                specificity: { type: "slider", min: 0, max: 100, default: "default" }
+            },
+            "@Bagoodex-Web-Search": {
+                advanced_settings: { 
+                    type: "advanced_popup", 
+                    flags: {
+                        domain_filter: { type: "text", placeholder: "e.g. legal-tools.org" },
+                        exclude_words: { type: "text", placeholder: "e.g. bemba" },
+                        search_images: { type: "checkbox", default: false },
+                        search_knowledge: { type: "checkbox", default: false },
+                        search_location: { type: "checkbox", default: false },
+                        search_videos: { type: "checkbox", default: false },
+                        search_weather: { type: "checkbox", default: false }
+                    },
+                    default: "default" 
+                }
+            },
+            "@Linkup-Deep-Search": {
+                advanced_settings: { 
+                    type: "advanced_popup", 
+                    flags: {
+                        domain_filter_mode: { type: "toggle", options: ["Include", "Exclude"], default: "none" },
+                        include_domains: { type: "text", placeholder: "e.g. github.com", depends_on: "domain_filter_mode", depends_value: "Include" },
+                        exclude_domains: { type: "text", placeholder: "e.g. reddit.com", depends_on: "domain_filter_mode", depends_value: "Exclude" },
+                        prioritize_domains: { type: "text", placeholder: "e.g. stackoverflow.com" },
+                        from_date: { type: "text", placeholder: "YYYY-MM-DD format" },
+                        to_date: { type: "text", placeholder: "YYYY-MM-DD format" },
+                        include_images: { type: "checkbox", default: false },
+                        image_count: { type: "text", placeholder: "Number (e.g. 5)" }
+                    },
+                    default: "default" 
+                }
+            },
+            "@Linkup-Standard": {
+                thinking_budget: { type: "slider", min: 0, max: 32768, default: "default" },
+                advanced_settings: { 
+                    type: "advanced_popup", 
+                    flags: {
+                        domain_filter_mode: { type: "toggle", options: ["Include", "Exclude"], default: "none" },
+                        include_domains: { type: "text", placeholder: "e.g. github.com", depends_on: "domain_filter_mode", depends_value: "Include" },
+                        exclude_domains: { type: "text", placeholder: "e.g. reddit.com", depends_on: "domain_filter_mode", depends_value: "Exclude" },
+                        prioritize_domains: { type: "text", placeholder: "e.g. stackoverflow.com" },
+                        from_date: { type: "text", placeholder: "YYYY-MM-DD format" },
+                        to_date: { type: "text", placeholder: "YYYY-MM-DD format" },
+                        include_images: { type: "checkbox", default: false },
+                        image_count: { type: "text", placeholder: "Number (e.g. 5)" }
+                    },
+                    default: "default" 
+                }
+            }
+        };
+
+        // ===== TEXT GENERATION MODEL DATABASE =====
+        const textGenModels = {
+            "Favorites": [
+                "@GPT-5",
+                "@GPT-4.1",
+                "@o3-pro",
+                "@o1",
+                "@Gemini-2.5-Pro",
+                "@Claude-Opus-4-Reasoning",
+                "@Claude-Opus-4.1",
+                "@Claude-Opus-4-Search",
+                "@Claude-Sonnet-4-Search",
+                "@Grok-4",
+                "@Mistral-Large-2"
+            ],
+            "Web Search": [
+                "@Claude-Opus-4-Search",
+                "@Claude-Sonnet-4-Search",
+                "@Gemini-2.5-Flash",
+                "@Gemini-2.5-Pro",
+                "@Grok-4",
+                "@Perplexity-Sonar",
+                "@Perplexity-Sonar-Rsn-Pro",
+                "@GPT-4o-Search",
+                "@Linkup-Deep-Search"   
+            ],
+            "GPT": {
+                "GPT-5 Series": [
+                    "@GPT-5-Chat",
+                    "@GPT-5",
+                    "@GPT-5-mini",
+                    "@GPT-5-nano"
+                ],
+                "GPT-4 Series": [
+                    "@GPT-4.1",
+                    "@GPT-4o-Search",
+                    "@GPT-4-Classic",
+                    "@GPT-4-Classic-0314",
+                    "@GPT-4-Turbo",
+                    "@GPT-4.1-mini",
+                    "@GPT-4.1-nano",
+                    "@GPT-4o",
+                    "@GPT-4o-mini",
+                    "@GPT-4o-mini-Search",
+                    "@GPT-4o-Aug",
+                    "@ChatGPT-4o-Latest"
+                ],
+                "GPT-3.5 Series": [
+                    "@GPT-3.5-Turbo",
+                    "@GPT-3.5-Turbo-Instruct",
+                    "@GPT-3.5-Turbo-Raw"
+                ],
+                "o-Series (Reasoning)": [
+                    "@o1",
+                    "@o3",
+                    "@o3-pro",
+                    "@o1-mini",
+                    "@o3-mini",
+                    "@o3-mini-high",
+                    "@o4-mini",
+                    "@o3-Pro"
+                ]
+            },
+            "GPT - Open Weight": {
+                "120B Parameter Models": [
+                    "@GPT-OSS-120B-T",
+                    "@GPT-OSS-120B",
+                    "@GPT-OSS-120B-CS",
+                    "@OpenAI-GPT-OSS-120B"
+                ],
+                "20B Parameter Models": [
+                    "@GPT-OSS-20B-T",
+                    "@GPT-OSS-20B",
+                    "@OpenAI-GPT-OSS-20B"
+                ]
+            },
+            "Google": {
+                "Gemini 2.5 Series": [
+                    "@Gemini-2.5-Pro",
+                    "@Gemini-2.5-Flash",
+                    "@Gemini-2.5-Flash-Lite",
+                    "@Gemini-2.5-Flash-Lite-Preview",
+                    "@Gemini-2.5-Flash-Image"
+                ],
+                "Gemini 2.0 Series": [
+                    "@Gemini-2.0-Flash",
+                    "@Gemini-2.0-Flash-Lite",
+                    "@Gemini-2.0-Flash-Preview"
+                ],
+                "Gemini 1.5 Series": [
+                    "@Gemini-1.5-Pro",
+                    "@Gemini-1.5-Pro-Search",
+                    "@Gemini-1.5-Flash",
+                    "@Gemini-1.5-Flash-Search"
+                ],
+                "Gemma Series": [
+                    "@Gemma-3-27B",
+                    "@Gemma-2-27b-T"
+                ]
+            },
+            "Claude": {
+                "Opus Series": [
+                    "@Claude-Opus-4.1",
+                    "@Claude-Opus-4",
+                    "@Claude-Opus-4-Reasoning",
+                    "@Claude-Opus-4-Search",
+                    "@Claude-Opus-3"
+                ],
+                "Sonnet Series": [
+                    "@Claude-Sonnet-4",
+                    "@Claude-Sonnet-4-Reasoning",
+                    "@Claude-Sonnet-4-Search",
+                    "@Claude-Sonnet-3.5",
+                    "@Claude-Sonnet-3.5-June",
+                    "@Claude-Sonnet-3.5-Search",
+                    "@Claude-Sonnet-3.7",
+                    "@Claude-Sonnet-3.7-Reasoning",
+                    "@Claude-Sonnet-3.7-Search"
+                ],
+                "Haiku Series": [
+                    "@Claude-Haiku-3.5",
+                    "@Claude-Haiku-3",
+                    "@Claude-Haiku-3.5-Search"
+                ]
+            },
+            "Grok": [
+                "@Grok-4",
+                "@Grok-3",
+                "@Grok-3-Mini",
+                "@Grok-Code-Fast-1",
+                "@Grok-2"
+            ],
+            "Llama 4": [
+                "@Llama-4-Scout-B10",
+                "@Llama-4-Maverick",
+                "@Llama-4-Scout-T",
+                "@Llama-4-Scout-CS",
+                "@Llama-4-Scout",
+                "@Llama-4-Maverick-T",
+                "@Llama-4-Maverick-B10"
+            ],
+            "Llama 3.X": {
+                "The Behemoths (405B)": [
+                    "@Llama-3.1-405B",
+                    "@Llama-3.1-405B-T",
+                    "@Llama-3.1-405B-FW",
+                    "@Llama-3.1-405B-FP16"
+                ],
+                "The Curated 70B Fleet": [
+                    "@Llama-3-70b-Groq",
+                    "@Llama-3.3-70B",
+                    "@Llama-3.1-Nemotron",
+                    "@Llama-3.3-70B-DI",
+                    "@Llama-3.3-70B-CS",
+                    "@Llama-3.3-70B-Vers",
+                    "@Llama-3-70B-FP16",
+                    "@Llama-3-70B-T",
+                    "@Llama-3.1-70B",
+                    "@Llama-3.1-70B-FP16",
+                    "@Llama-3.1-70B-FW",
+                    "@Llama-3.1-70B-T",
+                    "@Llama-3.3-70B-FW",
+                    "@Llama-3.3-70B-N"
+                ],
+                "The 8B Fleet": [
+                    "@Llama-3-8B-T",
+                    "@Llama-3-8b-Groq",
+                    "@Llama-3.1-8B",
+                    "@Llama-3.1-8B-CS",
+                    "@Llama-3.1-8B-DI",
+                    "@Llama-3.1-8B-FP16",
+                    "@Llama-3.1-8B-FW",
+                    "@Llama-3.1-8B-T-128k"
+                ]
+            },
+            "Qwen (235B+)": {
+                "480B": [
+                    "@Qwen3-480B-Coder-CS",
+                    "@Qwen3-Coder-480B-T",
+                    "@Qwen3-Coder-480B-N"
+                ],
+                "235B": [
+                    "@Qwen-3-235B-2507-T",
+                    "@Qwen3-235B-2507-FW",
+                    "@Qwen3-235B-2507-CS",
+                    "@Qwen3-235B-A22B",
+                    "@Qwen3-235B-A22B-DI",
+                    "@Qwen3-235B-A22B-N",
+                    "@Qwen3-235B-Think-CS"
+                ],
+                "72B": [
+                    "@Qwen-72B-T",
+                    "@Qwen2-72B-Instruct-T",
+                    "@Qwen2.5-VL-72B-T",
+                    "@Qwen-2.5-72B-T"
+                ],
+                "30–32B": [
+                    "@Qwen3-30B-A3B-Instruct",
+                    "@Qwen2.5-Coder-32B",
+                    "@Qwen2.5-Coder-32B-T",
+                    "@Qwen3-32B-CS",
+                    "@Qwen3-Coder-30B-A3B"
+                ],
+                "≤32B & VL": [
+                    "@Qwen-2.5-7B-T",
+                    "@Qwen-2.5-VL-32b"
+                ],
+                "General": [
+                    "@Qwen3-Coder"
+                ]
+            },
+            "DeepSeek": {
+                "R1 Series (Reasoning)": [
+                    "@DeepSeek-R1",
+                    "@DeepSeek-R1-FW",
+                    "@DeepSeek-R1-DI",
+                    "@DeepSeek-R1-N",
+                    "@DeepSeek-R1-Distill",
+                    "@DeepSeek-R1-Turbo-DI"
+                ],
+                "V3 Series (Foundation)": [
+                    "@DeepSeek-V3.1",
+                    "@DeepSeek-V3.1-Chat",
+                    "@DeepSeek-V3.1-N",
+                    "@Deepseek-V3-FW",
+                    "@DeepSeek-V3",
+                    "@DeepSeek-V3-DI",
+                    "@DeepSeek-V3-Turbo-DI"
+                ],
+                "Specialized & Hybrids": [
+                    "@DeepSeek-Prover-V2",
+                    "@DeepClaude"
+                ]
+            },
+            "Mistral": {
+                "Large Series": [
+                    "@Mistral-Large-2"
+                ],
+                "Medium Series": [
+                    "@Mistral-Medium-3",
+                    "@Mistral-Medium",
+                    "@Magistral-Medium-2506-Thinking"
+                ],
+                "Small Series (Vision-Enabled)": [
+                    "@Mistral-Small-3.2",
+                    "@Mistral-Small-3.1",
+                    "@Mistral-Small-3",
+                    "@Mistral-7B-v0.3-DI",
+                    "@Mistral-7B-v0.3-T"
+                ],
+                "Specialized & MoE Models": [
+                    "@Mistral-NeMo",
+                    "@Mixtral8x22b-Inst-FW"
+                ]
+            },
+            "Perplexity": [
+                "@Perplexity-R1-1776",
+                "@Perplexity-Sonar",
+                "@Perplexity-Sonar-Pro",
+                "@Perplexity-Sonar-Rsn",
+                "@Perplexity-Sonar-Rsn-Pro"
+            ],
+            "Wildcards (A-K)": [
+                "@Aya-Expanse-32B",
+                "@Aya-Vision",
+                "@Command-R",
+                "@Command-R-Plus",
+                "@GLM-4.5",
+                "@GLM-4.5-Air",
+                "@GLM-4.5-Air-T",
+                "@GLM-4.5-FW",
+                "@GLM-4.5-Versatile",
+                "@GPT-Researcher",
+                "@Inception-Mercury",
+                "@Inception-Mercury-Coder",
+                "@Bagoodex-Web-Search",
+                "@Hermes-3-70B",
+                "@Kimi-K2",
+                "@Kimi-K2-0905-T",
+                "@Kimi-K2-Instruct",
+                "@Kimi-K2-T"
+            ],
+            "Wildcards (L-Z)": [
+                "@Linkup-Standard",
+                "@MiniMax-M1",
+                "@Phi-4-DI",
+                "@QwQ-32B-B10",
+                "@QwQ-32B-Preview-T",
+                "@QwQ-32B-T",
+                "@Reka-Core",
+                "@Reka-Flash",
+                "@Reka-Research",
+                "@Tako",
+                "@Solar-Pro-2"
+                ]
+            };
+
+            // State
+            let conversationHistory = [];
+            let responses = ['', '', '', ''];
+            let selectedModels = ['', '', '', ''];
+            let selectedFiles = [];
+            let modelFlags_state = [{}, {}, {}, {}]; // Store flag values for each box
+
+            // Accordion Selector Class
+            class AccordionModelSelector {
+                constructor(index) {
+                    this.index = index;
+                    this.selectedModel = '';
+                    this.container = document.getElementById(`accordion-root-${index}`);
+                    this.selectorContainer = document.getElementById(`selector-container-${index}`);
+                    this.searchInput = document.getElementById(`model-search-${index}`);
+                    this.clearBtn = document.getElementById(`clear-btn-${index}`);
+                    this.isCollapsed = true;
+                    this.searchTerm = '';
+                    this.currentData = textGenModels;
+                    this.highlightedIndex = -1;
+                    this.init();
+                }
+
+                init() {
+                    this.render();
+                    this.attachEventListeners();
+                    this.selectorContainer.classList.add('collapsed');
+                    this.bindSearchInput();
+                }
+
+                bindSearchInput() {
+                    const input = this.searchInput;
+                    if (!input) return;
+                    const stop = (e) => { e.stopPropagation(); e.stopImmediatePropagation(); };
+                    input.addEventListener('click', stop);
+                    input.addEventListener('mousedown', stop);
+                    input.addEventListener('pointerdown', stop);
+                    input.addEventListener('touchstart', (e) => { stop(e); input.focus(); }, { passive: false });
+
+                    input.addEventListener('input', (e) => {
+                        const currentValue = (e.target.value || '').trim();
+                        this.searchTerm = currentValue;
+                        
+                        // If user is typing something different from selected model, auto-clear selection
+                        if (this.selectedModel && currentValue !== this.selectedModel && currentValue !== '') {
+                            this.autoClearSelection();
+                        }
+                        
+                        this.applySearch();
+                        // Auto-expand to show matches when typing
+                        if (this.isCollapsed && this.searchTerm) this.expand();
+                        // Reset keyboard navigation when search changes
+                        this.highlightedIndex = -1;
+                        this.updateHighlight();
+                    });
+                    
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            input.value = '';
+                            this.searchTerm = '';
+                            this.applySearch();
+                            this.highlightedIndex = -1;
+                            this.updateHighlight();
+                        } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            if (this.isCollapsed) this.expand();
+                            this.navigateDown();
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            if (this.isCollapsed) this.expand();
+                            this.navigateUp();
+                        } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (this.highlightedIndex >= 0) {
+                                this.selectHighlightedModel();
+                            }
+                        }
+                    });
+                    
+                    // Add focus behavior to make it clear the input is editable
+                    input.addEventListener('focus', (e) => {
+                        if (this.selectedModel) {
+                            input.select(); // Select all text to make editing easier
+                        }
+                        if (this.isCollapsed) this.expand();
+                    });
+                }
+
+                sanitizeId(str) {
+                    return str.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+                }
+
+                render(data = this.currentData) {
+                    this.currentData = data;
+                    let html = '';
+                    
+                    Object.entries(data).forEach(([provider, pdata]) => {
+                        const providerId = this.sanitizeId(provider);
+                        const modelCount = this.countModels(pdata);
+                        
+                        html += `
+                            <div class="accordion-item">
+                                <div class="accordion-header" data-provider="${providerId}">
+                                    <span class="accordion-title">${provider}</span>
+                                    <span style="display: flex; align-items: center; gap: 6px;">
+                                        <span class="model-count">${modelCount}</span>
+                                        <svg class="accordion-icon" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="accordion-content" id="content-${providerId}-${this.index}">
+                                    ${this.renderSeries(pdata, providerId)}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    this.container.innerHTML = html;
+
+                    // Auto-expand when searching so results are visible
+                    if (this.searchTerm) {
+                        this.container.querySelectorAll('.accordion-header').forEach(h => h.classList.add('active'));
+                        this.container.querySelectorAll('.accordion-content').forEach(c => c.classList.add('active'));
+                        this.container.querySelectorAll('.series-header').forEach(h => h.classList.add('active'));
+                        this.container.querySelectorAll('.series-content').forEach(c => c.classList.add('active'));
+                    }
+
+                    // Re-apply selected highlight and reflect value
+                    if (this.selectedModel) {
+                        const sel = this.container.querySelector(`.model-item[data-model="${CSS.escape(this.selectedModel)}"]`);
+                        if (sel) sel.classList.add('selected');
+                        if (this.searchInput) this.searchInput.value = this.selectedModel;
+                    } else {
+                        if (this.searchInput && !this.searchTerm) {
+                            this.searchInput.value = '';
+                            this.searchInput.placeholder = 'Search or select model...';
+                        }
+                    }
+                }
+
+                renderSeries(data, providerId) {
+                    let html = '';
+                    
+                    if (Array.isArray(data)) {
+                        const list = this.sortModels(data);
+                        list.forEach(model => {
+                            const modelId = this.sanitizeId(model);
+                            html += `
+                                <div class="model-item" data-model="${model}" data-model-id="${modelId}">
+                                    ${model}
+                                </div>
+                            `;
+                        });
+                    } else {
+                        Object.entries(data).forEach(([series, models]) => {
+                            const seriesId = this.sanitizeId(series);
+                            
+                            if (models.length === 0) {
+                                html += `
+                                    <div class="series-item">
+                                        <div class="series-header" style="color: var(--text-secondary); font-style: italic;">
+                                            <span>${series} (empty)</span>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                const list = this.sortModels(models);
+                                html += `
+                                    <div class="series-item">
+                                        <div class="series-header" data-series="${seriesId}">
+                                            <span>${series}</span>
+                                            <span style="display: flex; align-items: center; gap: 6px;">
+                                                <span class="model-count">${list.length}</span>
+                                                <svg class="accordion-icon" style="width: 14px; height: 14px;" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                        <div class="series-content" id="series-${seriesId}-${this.index}">
+                                            ${list.map(model => {
+                                                const modelId = this.sanitizeId(model);
+                                                return `
+                                                    <div class="model-item" data-model="${model}" data-model-id="${modelId}">
+                                                        ${model}
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        });
+                    }
+                    
+                    return html;
+                }
+
+                normalizeName(name) {
+                    return (name || '').replace(/^@/, '').toLowerCase();
+                }
+
+                sortModels(models) {
+                    let list = Array.from(models);
+                    if (!this.searchTerm) {
+                        return list.sort((a, b) => this.normalizeName(a).localeCompare(this.normalizeName(b)));
+                    }
+                    const term = this.searchTerm.toLowerCase();
+                    const starts = [];
+                    const contains = [];
+                    list.forEach(m => {
+                        const n = this.normalizeName(m);
+                        if (n.startsWith(term)) starts.push(m);
+                        else if (n.includes(term)) contains.push(m);
+                    });
+                    starts.sort((a, b) => this.normalizeName(a).localeCompare(this.normalizeName(b)));
+                    contains.sort((a, b) => this.normalizeName(a).localeCompare(this.normalizeName(b)));
+                    return [...starts, ...contains];
+                }
+
+                getFilteredData() {
+                    const term = this.searchTerm.toLowerCase();
+                    if (!term) return textGenModels;
+                    const out = {};
+                    Object.entries(textGenModels).forEach(([provider, pdata]) => {
+                        if (Array.isArray(pdata)) {
+                            const filtered = pdata.filter(m => this.normalizeName(m).includes(term));
+                            if (filtered.length) out[provider] = filtered;
+                        } else {
+                            const seriesOut = {};
+                            Object.entries(pdata).forEach(([series, models]) => {
+                                const filtered = models.filter(m => this.normalizeName(m).includes(term));
+                                if (filtered.length) seriesOut[series] = filtered;
+                            });
+                            if (Object.keys(seriesOut).length) out[provider] = seriesOut;
+                        }
+                    });
+                    return out;
+                }
+
+                applySearch() {
+                    const data = this.getFilteredData();
+                    this.render(data);
+                }
+
+                countModels(data) {
+                    if (Array.isArray(data)) {
+                        return data.length;
+                    }
+                    
+                    let count = 0;
+                    Object.values(data).forEach(models => {
+                        count += models.length;
+                    });
+                    return count;
+                }
+
+                attachEventListeners() {
+                    this.container.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        
+                        const header = e.target.closest('.accordion-header');
+                        if (header) {
+                            this.toggleAccordionSection(header);
+                            return;
+                        }
+                        
+                        const seriesHeader = e.target.closest('.series-header');
+                        if (seriesHeader && seriesHeader.dataset.series) {
+                            this.toggleSeries(seriesHeader);
+                            return;
+                        }
+                        
+                        const modelItem = e.target.closest('.model-item');
+                        if (modelItem) {
+                            this.selectModel(modelItem);
+                            return;
+                        }
+                    });
+                }
+
+                toggleAccordionSection(header) {
+                    const providerId = header.dataset.provider;
+                    const content = document.getElementById(`content-${providerId}-${this.index}`);
+                    const isActive = header.classList.contains('active');
+                    
+                    this.container.querySelectorAll('.accordion-header').forEach(h => {
+                        h.classList.remove('active');
+                    });
+                    this.container.querySelectorAll('.accordion-content').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    
+                    if (!isActive) {
+                        header.classList.add('active');
+                        content.classList.add('active');
+                    }
+                }
+
+                toggleSeries(header) {
+                    const seriesId = header.dataset.series;
+                    const content = document.getElementById(`series-${seriesId}-${this.index}`);
+                    const isActive = header.classList.contains('active');
+                    
+                    const provider = header.closest('.accordion-content');
+                    provider.querySelectorAll('.series-header').forEach(h => {
+                        h.classList.remove('active');
+                    });
+                    provider.querySelectorAll('.series-content').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    
+                    if (!isActive) {
+                        header.classList.add('active');
+                        content.classList.add('active');
+                    }
+                }
+
+                selectModel(modelItem) {
+                    const model = modelItem.dataset.model;
+                    
+                    this.container.querySelectorAll('.model-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    
+                    modelItem.classList.add('selected');
+                    this.selectedModel = model;
+                    selectedModels[this.index] = model;
+                    if (this.searchInput) {
+                        this.searchInput.value = model;
+                        this.searchTerm = '';
+                    }
+                    this.updateClearButtonVisibility();
+                    this.highlightedIndex = -1; // Reset keyboard navigation
+                    
+                    // Update flag controls for this model
+                    updateFlagControls(this.index, model);
+                    
+                    this.collapse(); // Close accordion after selection
+                }
+
+                collapse() {
+                    this.isCollapsed = true;
+                    this.selectorContainer.classList.add('collapsed');
+                    
+                    this.container.querySelectorAll('.accordion-header').forEach(h => {
+                        h.classList.remove('active');
+                    });
+                    this.container.querySelectorAll('.accordion-content').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    this.container.querySelectorAll('.series-header').forEach(h => {
+                        h.classList.remove('active');
+                    });
+                    this.container.querySelectorAll('.series-content').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                }
+
+                expand() {
+                    this.isCollapsed = false;
+                    this.selectorContainer.classList.remove('collapsed');
+                }
+
+                updateSelectionDisplay() {
+                    if (this.selectedModel) {
+                        this.selectionText.innerHTML = `Selected: <span class="selected-model">${this.selectedModel}</span>`;
+                        this.clearBtn.style.display = 'inline-block';
+                    } else {
+                        this.selectionText.textContent = 'Click to select model';
+                        this.clearBtn.style.display = 'none';
+                    }
+                }
+
+                autoClearSelection() {
+                    // Clear selection without resetting search input
+                    this.selectedModel = '';
+                    selectedModels[this.index] = '';
+                    this.container.querySelectorAll('.model-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    this.updateClearButtonVisibility();
+                }
+
+                updateClearButtonVisibility() {
+                    if (this.clearBtn) {
+                        this.clearBtn.style.display = this.selectedModel ? 'inline-block' : 'none';
+                    }
+                }
+
+                getVisibleModelItems() {
+                    return Array.from(this.container.querySelectorAll('.model-item')).filter(item => {
+                        // Check if the item is actually visible (not in a collapsed section)
+                        let parent = item.closest('.series-content');
+                        if (parent && !parent.classList.contains('active')) return false;
+                        
+                        parent = item.closest('.accordion-content');
+                        if (parent && !parent.classList.contains('active')) return false;
+                        
+                        return true;
+                    });
+                }
+
+                navigateDown() {
+                    const visibleItems = this.getVisibleModelItems();
+                    if (visibleItems.length === 0) return;
+                    
+                    this.highlightedIndex = Math.min(this.highlightedIndex + 1, visibleItems.length - 1);
+                    this.updateHighlight();
+                    this.scrollToHighlighted();
+                }
+
+                navigateUp() {
+                    const visibleItems = this.getVisibleModelItems();
+                    if (visibleItems.length === 0) return;
+                    
+                    if (this.highlightedIndex === -1) {
+                        this.highlightedIndex = visibleItems.length - 1;
+                    } else {
+                        this.highlightedIndex = Math.max(this.highlightedIndex - 1, 0);
+                    }
+                    this.updateHighlight();
+                    this.scrollToHighlighted();
+                }
+
+                updateHighlight() {
+                    // Remove all highlights
+                    this.container.querySelectorAll('.model-item').forEach(item => {
+                        item.classList.remove('highlighted');
+                    });
+                    
+                    // Add highlight to current item
+                    const visibleItems = this.getVisibleModelItems();
+                    if (this.highlightedIndex >= 0 && this.highlightedIndex < visibleItems.length) {
+                        visibleItems[this.highlightedIndex].classList.add('highlighted');
+                    }
+                }
+
+                scrollToHighlighted() {
+                    const visibleItems = this.getVisibleModelItems();
+                    if (this.highlightedIndex >= 0 && this.highlightedIndex < visibleItems.length) {
+                        const item = visibleItems[this.highlightedIndex];
+                        const wrapper = this.container.closest('.accordion-wrapper');
+                        if (wrapper) {
+                            const itemRect = item.getBoundingClientRect();
+                            const wrapperRect = wrapper.getBoundingClientRect();
+                            
+                            if (itemRect.bottom > wrapperRect.bottom) {
+                                wrapper.scrollTop += itemRect.bottom - wrapperRect.bottom + 5;
+                            } else if (itemRect.top < wrapperRect.top) {
+                                wrapper.scrollTop -= wrapperRect.top - itemRect.top + 5;
+                            }
+                        }
+                    }
+                }
+
+                selectHighlightedModel() {
+                    const visibleItems = this.getVisibleModelItems();
+                    if (this.highlightedIndex >= 0 && this.highlightedIndex < visibleItems.length) {
+                        this.selectModel(visibleItems[this.highlightedIndex]);
+                    }
+                }
+
+                clearSelection() {
+                    this.selectedModel = '';
+                    selectedModels[this.index] = '';
+                    this.container.querySelectorAll('.model-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    if (this.searchInput) this.searchInput.value = '';
+                    this.searchTerm = '';
+                    this.highlightedIndex = -1;
+                    this.applySearch();
+                    this.updateClearButtonVisibility();
+                    
+                    // Clear flag controls when model is cleared
+                    updateFlagControls(this.index, null);
+                    
+                    this.collapse();
+                }
+            }
+
+            // Initialize selectors
+            const selectors = [];
+            for (let i = 0; i < 4; i++) {
+                selectors.push(new AccordionModelSelector(i));
+            }
+
+            // Click outside to close accordion functionality
+            document.addEventListener('click', (e) => {
+                selectors.forEach(selector => {
+                    // Check if click is outside the accordion container
+                    if (!selector.selectorContainer.contains(e.target)) {
+                        // Don't close if user is interacting with input field
+                        if (!selector.searchInput || !selector.searchInput.contains(e.target)) {
+                            if (!selector.isCollapsed) {
+                                selector.collapse();
+                            }
+                        }
+                    }
+                });
+            });
+
+            // Global functions for accordion controls
+            window.toggleAccordion = function(index) {
+                const selector = selectors[index];
+                if (selector) {
+                    if (selector.isCollapsed) {
+                        selector.expand();
+                        // focus the search box immediately for typing
+                        if (selector.searchInput) selector.searchInput.focus();
+                    } else {
+                        selector.collapse();
+                    }
+                }
+            };
+
+            window.clearSelection = function(event, index) {
+                event.stopPropagation();
+                const selector = selectors[index];
+                if (selector) {
+                    selector.clearSelection();
+                }
+            };
+
+            // ===== FLAG SYSTEM =====
+            function updateFlagControls(boxIndex, model) {
+                const flagContainer = document.getElementById(`flag-controls-${boxIndex}`);
+                const flagContent = document.getElementById(`flag-content-${boxIndex}`);
+                
+                // Clear existing flags
+                modelFlags_state[boxIndex] = {};
+                
+                if (modelFlags[model]) {
+                    // Show flag controls
+                    flagContainer.classList.remove('hidden');
+                    flagContent.innerHTML = '';
+                    
+                    Object.entries(modelFlags[model]).forEach(([flagName, flagConfig]) => {
+                        if (flagConfig.type === 'slider') {
+                            const flagDiv = document.createElement('div');
+                            flagDiv.className = 'mb-3';
+                            
+                            const label = document.createElement('label');
+                            label.className = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1';
+                            label.textContent = flagName.replace('_', ' ').toUpperCase() + ` (${flagConfig.min}-${flagConfig.max})`;
+                            
+                            const sliderContainer = document.createElement('div');
+                            sliderContainer.className = 'flex items-center gap-2';
+                            
+                            const slider = document.createElement('input');
+                            slider.type = 'range';
+                            slider.min = flagConfig.min;
+                            slider.max = flagConfig.max;
+                            slider.value = flagConfig.min; // Show 0 visually
+                            slider.className = 'flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer slider';
+                            slider.id = `${flagName}-${boxIndex}`;
+                            
+                            const valueDisplay = document.createElement('span');
+                            valueDisplay.className = 'text-xs font-mono text-gray-600 dark:text-gray-400 min-w-[3rem] text-right';
+                            valueDisplay.textContent = 'default'; // Show "default" initially
+                            
+                            // Initialize state to 'default' (no flag)
+                            modelFlags_state[boxIndex][flagName] = flagConfig.default;
+                            
+                            // Update on change - this activates the flag
+                            slider.addEventListener('input', (e) => {
+                                const value = parseInt(e.target.value);
+                                valueDisplay.textContent = value;
+                                modelFlags_state[boxIndex][flagName] = value; // Now it's a real number
+                            });
+                            
+                            sliderContainer.appendChild(slider);
+                            sliderContainer.appendChild(valueDisplay);
+                            flagDiv.appendChild(label);
+                            flagDiv.appendChild(sliderContainer);
+                            flagContent.appendChild(flagDiv);
+                        } else if (flagConfig.type === 'stepped_slider') {
+                            const flagDiv = document.createElement('div');
+                            flagDiv.className = 'mb-3';
+                            
+                            const label = document.createElement('label');
+                            label.className = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1';
+                            label.textContent = flagName.replace('_', ' ').toUpperCase();
+                            
+                            const sliderContainer = document.createElement('div');
+                            sliderContainer.className = 'flex items-center gap-2';
+                            
+                            const slider = document.createElement('input');
+                            slider.type = 'range';
+                            slider.min = 0;
+                            slider.max = flagConfig.steps.length;
+                            slider.value = 0; // Default position (off/default)
+                            slider.step = 1;
+                            slider.className = 'flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer slider';
+                            slider.id = `${flagName}-${boxIndex}`;
+                            
+                            const valueDisplay = document.createElement('span');
+                            valueDisplay.className = 'text-xs font-mono text-gray-600 dark:text-gray-400 min-w-[4rem] text-right';
+                            valueDisplay.textContent = 'default';
+                            
+                            // Initialize state to 'default' (no flag)
+                            modelFlags_state[boxIndex][flagName] = flagConfig.default;
+                            
+                            // Update on change
+                            slider.addEventListener('input', (e) => {
+                                const position = parseInt(e.target.value);
+                                if (position === 0) {
+                                    // Position 0 = default (no flag)
+                                    valueDisplay.textContent = 'default';
+                                    modelFlags_state[boxIndex][flagName] = 'default';
+                                } else {
+                                    // Position 1+ = actual steps
+                                    const stepIndex = position - 1;
+                                    const value = flagConfig.steps[stepIndex];
+                                    valueDisplay.textContent = value;
+                                    modelFlags_state[boxIndex][flagName] = value;
+                                }
+                            });
+                            
+                            sliderContainer.appendChild(slider);
+                            sliderContainer.appendChild(valueDisplay);
+                            flagDiv.appendChild(label);
+                            flagDiv.appendChild(sliderContainer);
+                            flagContent.appendChild(flagDiv);
+                        } else if (flagConfig.type === 'cycle') {
+                            const flagDiv = document.createElement('div');
+                            flagDiv.className = 'mb-3';
+                            
+                            const label = document.createElement('label');
+                            label.className = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1';
+                            label.textContent = flagName.replace('_', ' ').toUpperCase();
+                            
+                            const cycleButton = document.createElement('button');
+                            cycleButton.className = 'px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors w-full text-left';
+                            cycleButton.textContent = flagConfig.default.toUpperCase();
+                            cycleButton.id = `${flagName}-${boxIndex}`;
+                            
+                            // Initialize state (default = no flag)
+                            modelFlags_state[boxIndex][flagName] = flagConfig.default;
+                            
+                            // Cycle through options
+                            cycleButton.addEventListener('click', () => {
+                                const currentValue = modelFlags_state[boxIndex][flagName];
+                                let currentIndex = -1;
+                                
+                                if (currentValue === 'default') {
+                                    // Activate with first option
+                                    currentIndex = -1;
+                                } else {
+                                    currentIndex = flagConfig.options.indexOf(currentValue);
+                                }
+                                
+                                const nextIndex = (currentIndex + 1) % flagConfig.options.length;
+                                const nextValue = flagConfig.options[nextIndex];
+                                
+                                modelFlags_state[boxIndex][flagName] = nextValue;
+                                cycleButton.textContent = nextValue.toUpperCase();
+                            });
+                            
+                            flagDiv.appendChild(label);
+                            flagDiv.appendChild(cycleButton);
+                            flagContent.appendChild(flagDiv);
+                        } else if (flagConfig.type === 'advanced_popup') {
+                            // Show Advanced Settings button for complex flags
+                            const flagDiv = document.createElement('div');
+                            flagDiv.className = 'mb-3';
+                            
+                            const advancedButton = document.createElement('button');
+                            advancedButton.className = 'w-full px-3 py-2 bg-primary text-white rounded text-xs font-medium hover:bg-opacity-90 transition-colors flex items-center justify-center gap-2';
+                            advancedButton.innerHTML = '<i class="fas fa-cog"></i> Advanced Settings';
+                            advancedButton.id = `${flagName}-${boxIndex}`;
+                            
+                            // Initialize state (default = no advanced flags)
+                            modelFlags_state[boxIndex][flagName] = flagConfig.default;
+                            
+                            // Open advanced popup
+                            advancedButton.addEventListener('click', () => {
+                                openAdvancedModal(boxIndex, flagName, flagConfig);
+                            });
+                            
+                            flagDiv.appendChild(advancedButton);
+                            flagContent.appendChild(flagDiv);
+                        }
+                    });
+                } else {
+                    // Hide flag controls
+                    flagContainer.classList.add('hidden');
+                }
+            }
+
+            // Utility functions
+            function getTimestamp() {
+                const now = new Date();
+                const months = ['january', 'february', 'march', 'april', 'may', 'june',
+                              'july', 'august', 'september', 'october', 'november', 'december'];
+                const month = months[now.getMonth()];
+                const day = now.getDate();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                return `${month}${day}_${hours}-${minutes}-${seconds}`;
+            }
+
+            function downloadText(text, filename) {
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            function downloadJSON(data, filename) {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            function copyToClipboard(text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('Copied to clipboard!');
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    showToast('Failed to copy');
+                });
+            }
+
+            function showToast(message) {
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded shadow-lg z-50';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 2000);
+            }
+
+            // Status indicator functions
+            function showStatusIndicator(boxIndex, state) {
+                const indicator = document.getElementById(`status-indicator-${boxIndex}`);
+                const content = document.getElementById(`status-content-${boxIndex}`);
+                
+                indicator.classList.remove('hidden', 'loading', 'success', 'error');
+                indicator.classList.add(state);
+                indicator.classList.remove('hidden');
+                
+                if (state === 'loading') {
+                    content.innerHTML = '<div class="status-spinner"></div>';
+                } else {
+                    content.innerHTML = '';
+                }
+            }
+            
+            function hideStatusIndicator(boxIndex) {
+                const indicator = document.getElementById(`status-indicator-${boxIndex}`);
+                indicator.classList.add('hidden');
+            }
+
+            // Register handlers
+            window.Poe.registerHandler('response-handler', (result, context) => {
+                const { boxIndex } = context;
+                const msg = result.responses[0];
+                const responseBox = document.querySelector(`.response-box[data-index="${boxIndex}"] .response-content`);
+                
+                if (msg.status === 'error') {
+                    responseBox.textContent = 'Error: ' + (msg.statusText || 'Unknown error');
+                    responses[boxIndex] = responseBox.textContent;
+                    showStatusIndicator(boxIndex, 'error');
+                    addLogEntry('error', `Box ${boxIndex + 1}`, responseBox.textContent);
+                } else if (msg.status === 'incomplete') {
+                    // Show loading state during streaming
+                    showStatusIndicator(boxIndex, 'loading');
+                    responseBox.textContent = msg.content || 'Generating...';
+                    responses[boxIndex] = responseBox.textContent;
+                } else if (msg.status === 'complete') {
+                    responseBox.textContent = msg.content;
+                    responses[boxIndex] = msg.content;
+                    showStatusIndicator(boxIndex, 'success');
+                    const model = selectedModels[boxIndex] || 'Unknown model';
+                    addLogEntry('response', `Box ${boxIndex + 1} (${model})`, msg.content);
+                }
+            });
+
+            // Attachment functionality
+            function updateFileDisplay() {
+                const selectedFilesDiv = document.getElementById('selectedFiles');
+                const filesList = document.getElementById('filesList');
+                
+                if (selectedFiles.length === 0) {
+                    selectedFilesDiv.classList.add('hidden');
+                    return;
+                }
+                
+                selectedFilesDiv.classList.remove('hidden');
+                filesList.innerHTML = '';
+                
+                selectedFiles.forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm';
+                    
+                    const fileInfo = document.createElement('div');
+                    fileInfo.className = 'flex items-center gap-2 flex-1 min-w-0';
+                    
+                    // File type icon
+                    const icon = document.createElement('i');
+                    if (file.type.startsWith('image/')) {
+                        icon.className = 'fas fa-image text-blue-500';
+                    } else if (file.type.startsWith('video/')) {
+                        icon.className = 'fas fa-video text-purple-500';
+                    } else if (file.type.startsWith('audio/')) {
+                        icon.className = 'fas fa-music text-green-500';
+                    } else if (file.type.includes('pdf')) {
+                        icon.className = 'fas fa-file-pdf text-red-500';
+                    } else if (file.type.includes('document') || file.type.includes('word')) {
+                        icon.className = 'fas fa-file-word text-blue-600';
+                    } else if (file.type.includes('text')) {
+                        icon.className = 'fas fa-file-text text-gray-600';
+                    } else {
+                        icon.className = 'fas fa-file text-gray-500';
+                    }
+                    
+                    const fileName = document.createElement('span');
+                    fileName.className = 'font-medium text-gray-900 dark:text-gray-100 truncate';
+                    fileName.textContent = file.name;
+                    
+                    const fileSize = document.createElement('span');
+                    fileSize.className = 'text-xs text-gray-500 dark:text-gray-400 ml-2';
+                    fileSize.textContent = formatFileSize(file.size);
+                    
+                    fileInfo.appendChild(icon);
+                    fileInfo.appendChild(fileName);
+                    fileInfo.appendChild(fileSize);
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'text-red-500 hover:text-red-700 transition-colors ml-2';
+                    removeBtn.innerHTML = '<i class="fas fa-times text-xs"></i>';
+                    removeBtn.title = 'Remove file';
+                    removeBtn.addEventListener('click', () => {
+                        selectedFiles.splice(index, 1);
+                        updateFileDisplay();
+                        showToast('File removed');
+                    });
+                    
+                    fileItem.appendChild(fileInfo);
+                    fileItem.appendChild(removeBtn);
+                    filesList.appendChild(fileItem);
+                });
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // Attachment button handler
+            document.getElementById('attachmentButton').addEventListener('click', () => {
+                document.getElementById('fileInput').click();
+            });
+            
+            // File input handler
+            document.getElementById('fileInput').addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length > 0) {
+                    selectedFiles.push(...files);
+                    updateFileDisplay();
+                    showToast(`${files.length} file(s) attached`);
+                    // Reset the input so the same file can be selected again if removed and re-added
+                    e.target.value = '';
+                }
+            });
+            
+            // Clear attachments handler
+            document.getElementById('clearAttachments').addEventListener('click', () => {
+                selectedFiles = [];
+                updateFileDisplay();
+                showToast('All attachments cleared');
+            });
+
+            // Send button handler
+            document.getElementById('sendButton').addEventListener('click', async () => {
+                const prompt = document.getElementById('promptInput').value.trim();
+                if (!prompt) {
+                    showToast('Please enter a prompt');
+                    return;
+                }
+
+                conversationHistory.push(prompt);
+                
+                // Create structured conversation context with clear delineation
+                let contextPrompt = prompt; // Default to just current prompt
+                if (conversationHistory.length > 1) {
+                    const previousPrompts = conversationHistory.slice(0, -1);
+                    contextPrompt = `=== Previous Conversation ===\n${previousPrompts.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\n=== Current Prompt ===\n${prompt}`;
+                }
+
+                const responseBoxes = document.querySelectorAll('.response-box');
+                
+                // Log user message once
+                addLogEntry('user', `User Prompt`, prompt);
+                if (selectedFiles.length > 0) {
+                    addLogEntry('user', `Attachments`, `${selectedFiles.length} file(s): ${selectedFiles.map(f => f.name).join(', ')}`);
+                }
+                
+                for (let i = 0; i < responseBoxes.length; i++) {
+                    const selectedModel = selectedModels[i];
+                    
+                    if (selectedModel) {
+                        const responseContent = responseBoxes[i].querySelector('.response-content');
+                        responseContent.textContent = 'Sending...';
+                        
+                        // Reset status indicator for new query
+                        hideStatusIndicator(i);
+                        
+                        addLogEntry('request', `Box ${i + 1} (${selectedModel})`, `${selectedModel} ${contextPrompt}`);
+                        
+                        try {
+                            // Build flags string if model has flags
+                            let flagsString = '';
+                            if (modelFlags_state[i] && Object.keys(modelFlags_state[i]).length > 0) {
+                                const flagParts = [];
+                                Object.entries(modelFlags_state[i]).forEach(([flagName, value]) => {
+                                    // Handle advanced popup flags (Bagoodex & Linkup)
+                                    if (typeof value === 'object' && value !== null) {
+                                        // Special handling for Linkup domain_filter_mode
+                                        if (value.domain_filter_mode && value.domain_filter_mode !== 'none') {
+                                            flagParts.push(`--domain_filter_mode ${value.domain_filter_mode}`);
+                                        }
+                                        
+                                        Object.entries(value).forEach(([subFlagName, subValue]) => {
+                                            // Skip domain_filter_mode as it's handled above
+                                            if (subFlagName === 'domain_filter_mode') return;
+                                            
+                                            if (subFlagName.includes('search_') && subValue === true) {
+                                                // Bagoodex boolean flags: --search_images true
+                                                flagParts.push(`--${subFlagName} true`);
+                                            } else if (subFlagName === 'include_images' && subValue === true) {
+                                                // Linkup boolean flags: --include_images true (no quotes)
+                                                flagParts.push(`--${subFlagName} true`);
+                                            } else if (typeof subValue === 'string' && subValue.trim()) {
+                                                // Detect model type for proper formatting
+                                                const isLinkup = selectedModel.includes('Linkup');
+                                                if (isLinkup) {
+                                                    // Linkup text flags: no quotes
+                                                    flagParts.push(`--${subFlagName} ${subValue}`);
+                                                } else {
+                                                    // Bagoodex text flags: with quotes
+                                                    flagParts.push(`--${subFlagName} "${subValue}"`);
+                                                }
+                                            }
+                                        });
+                                    } else {
+                                        // Regular flags: only exclude the special 'default' value, zero is valid
+                                        if (value !== 'default') {
+                                            flagParts.push(`--${flagName} ${value}`);
+                                        }
+                                    }
+                                });
+                                if (flagParts.length > 0) {
+                                    flagsString = ' ' + flagParts.join(' ');
+                                }
+                            }
+                            
+                            const fullPrompt = `${selectedModel} ${contextPrompt}${flagsString}`;
+                            await window.Poe.sendUserMessage(fullPrompt, {
+                                handler: 'response-handler',
+                                stream: true,
+                                openChat: false,
+                                handlerContext: { boxIndex: i },
+                                attachments: selectedFiles.length > 0 ? selectedFiles : undefined
+                            });
+                        } catch (err) {
+                            console.error('SendUserMessage error:', err);
+                            const errorMsg = err.message || 'Unknown error occurred';
+                            responseContent.textContent = 'Error: ' + errorMsg;
+                            responses[i] = responseContent.textContent;
+                            addLogEntry('error', `Box ${i + 1}`, errorMsg);
+                        }
+                    }
+                }
+            });
+
+            // Preview buttons
+            document.querySelectorAll('.preview-btn').forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    const content = responses[index] || 'No response yet';
+                    document.getElementById('previewContent').textContent = content;
+                });
+            });
+
+            // Copy buttons
+            document.querySelectorAll('.copy-btn').forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    const content = responses[index] || '';
+                    if (content) {
+                        copyToClipboard(content);
+                    } else {
+                        showToast('No content to copy');
+                    }
+                });
+            });
+
+            // Download buttons
+            document.querySelectorAll('.download-btn').forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    const content = responses[index] || '';
+                    if (content) {
+                        const filename = `response${index + 1}_${getTimestamp()}.txt`;
+                        downloadText(content, filename);
+                    } else {
+                        showToast('No content to download');
+                    }
+                });
+            });
+
+            // ===== Collapsible Preview & Log =====
+            function toggleSection(sectionEl, arrowEl) {
+                const collapsed = sectionEl.classList.toggle('collapsed');
+                arrowEl.textContent = collapsed ? '▶' : '▼';
+            }
+
+            const previewArrow = document.getElementById('previewArrow');
+            const previewSection = document.getElementById('previewSection');
+            if (previewArrow && previewSection) {
+                previewArrow.addEventListener('click', (e) => { 
+                    e.stopPropagation(); 
+                    toggleSection(previewSection, previewArrow); 
+                });
+            }
+
+            const logArrow = document.getElementById('logArrow');
+            const logSection = document.getElementById('logSection');
+            const logHead = document.getElementById('logHead');
+            if (logArrow && logSection) {
+                logArrow.addEventListener('click', (e) => { e.stopPropagation(); toggleSection(logSection, logArrow); });
+                if (logHead) logHead.addEventListener('click', (e) => {
+                    if (e.target.closest('#copyLog')) return; // don't toggle when pressing copy
+                    toggleSection(logSection, logArrow);
+                });
+            }
+
+            // ===== Simple Log System (theme-aware) =====
+            const logContainer = document.getElementById('logContent');
+            const logEmpty = document.getElementById('logEmpty');
+            const logEntries = [];
+
+            function addLogEntry(type, title, content) {
+                const ts = new Date().toLocaleString();
+                const entry = { ts, type, title, content };
+                logEntries.push(entry);
+                renderLogEntry(entry);
+            }
+
+            function renderLogEntry(entry) {
+                if (logEmpty && !logEmpty.classList.contains('hidden')) logEmpty.classList.add('hidden');
+                const div = document.createElement('div');
+                div.className = 'border-l-4 pl-3 py-2 mb-2';
+                const styles = {
+                    user: ['border-blue-500', 'text-blue-800'],
+                    request: ['border-green-500', 'text-green-800'],
+                    response: ['border-purple-500', 'text-purple-800'],
+                    error: ['border-red-500', 'text-red-800']
+                }[entry.type] || ['border-gray-300', 'text-gray-700'];
+                div.className += ` ${styles[0]}`;
+                div.innerHTML = `
+                    <div class="text-xs text-gray-500 dark:text-gray-400">${entry.ts}</div>
+                    <div class="font-semibold ${styles[1]}">${entry.title}</div>
+                    <div class="mt-1 text-sm whitespace-pre-wrap">${escapeHTML(entry.content || '')}</div>
+                `;
+                logContainer.appendChild(div);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+
+            function escapeHTML(str) {
+                if (typeof str !== 'string') return str;
+                return str.replace(/&/g, '&amp;')
+                          .replace(/</g, '&lt;')
+                          .replace(/>/g, '&gt;')
+                          .replace(/\"/g, '&quot;')
+                          .replace(/'/g, '&#039;');
+            }
+
+            // Copy buttons (preview and log)
+            document.getElementById('copyPreview').addEventListener('click', () => {
+                const content = document.getElementById('previewContent').textContent;
+                if (content && content !== 'Select a response to preview...') {
+                    copyToClipboard(content);
+                } else {
+                    showToast('No content to copy');
+                }
+            });
+            
+            document.getElementById('copyLog').addEventListener('click', () => {
+                if (!logEntries.length) { 
+                    showToast('No log to copy'); 
+                    return; 
+                }
+                const text = logEntries.map(e => `[#${e.type}] ${e.ts} - ${e.title}\n${e.content}\n`).join('\n');
+                copyToClipboard(text);
+            });
+
+            // ===== ADVANCED MODAL SYSTEM FOR BAGOODEX =====
+            let currentAdvancedBoxIndex = -1;
+            let currentAdvancedFlagName = '';
+            let currentAdvancedConfig = null;
+            let tempAdvancedState = {};
+
+            function openAdvancedModal(boxIndex, flagName, flagConfig) {
+                currentAdvancedBoxIndex = boxIndex;
+                currentAdvancedFlagName = flagName;
+                currentAdvancedConfig = flagConfig;
+                
+                // Initialize temp state with current values or defaults
+                tempAdvancedState = {};
+                Object.entries(flagConfig.flags).forEach(([subFlagName, subFlagConfig]) => {
+                    if (subFlagConfig.type === 'checkbox') {
+                        tempAdvancedState[subFlagName] = subFlagConfig.default;
+                    } else if (subFlagConfig.type === 'text') {
+                        tempAdvancedState[subFlagName] = '';
+                    }
+                });
+                
+                // Populate modal
+                const modal = document.getElementById('advancedModal');
+                const title = document.getElementById('advancedModalTitle');
+                const content = document.getElementById('advancedModalContent');
+                
+                title.textContent = `Advanced Settings - ${selectedModels[boxIndex]}`;
+                content.innerHTML = '';
+                
+                Object.entries(flagConfig.flags).forEach(([subFlagName, subFlagConfig]) => {
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.className = 'space-y-2';
+                    fieldDiv.id = `field-${subFlagName}`;
+                    
+                    const label = document.createElement('label');
+                    label.className = 'block text-sm font-medium text-gray-700 dark:text-gray-300';
+                    label.textContent = subFlagName.replace(/_/g, ' ').toUpperCase();
+                    
+                    if (subFlagConfig.type === 'toggle') {
+                        // Domain Filter Mode toggle
+                        const toggleContainer = document.createElement('div');
+                        toggleContainer.className = 'flex items-center gap-2';
+                        
+                        const select = document.createElement('select');
+                        select.className = 'p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+                        select.id = `advanced-${subFlagName}`;
+                        
+                        // Add options
+                        const noneOption = document.createElement('option');
+                        noneOption.value = 'none';
+                        noneOption.textContent = 'None';
+                        select.appendChild(noneOption);
+                        
+                        subFlagConfig.options.forEach(option => {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option;
+                            optionElement.textContent = option;
+                            select.appendChild(optionElement);
+                        });
+                        
+                        select.value = tempAdvancedState[subFlagName] || 'none';
+                        
+                        select.addEventListener('change', (e) => {
+                            tempAdvancedState[subFlagName] = e.target.value;
+                            updateFieldVisibility();
+                        });
+                        
+                        toggleContainer.appendChild(select);
+                        fieldDiv.appendChild(label);
+                        fieldDiv.appendChild(toggleContainer);
+                    } else if (subFlagConfig.type === 'checkbox') {
+                        const checkboxContainer = document.createElement('div');
+                        checkboxContainer.className = 'flex items-center gap-2';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'w-4 h-4 text-primary bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary';
+                        checkbox.id = `advanced-${subFlagName}`;
+                        checkbox.checked = tempAdvancedState[subFlagName];
+                        
+                        checkbox.addEventListener('change', (e) => {
+                            tempAdvancedState[subFlagName] = e.target.checked;
+                        });
+                        
+                        const checkboxLabel = document.createElement('label');
+                        checkboxLabel.className = 'text-sm text-gray-600 dark:text-gray-400';
+                        checkboxLabel.textContent = `Enable ${subFlagName.replace(/_/g, ' ')}`;
+                        checkboxLabel.setAttribute('for', checkbox.id);
+                        
+                        checkboxContainer.appendChild(checkbox);
+                        checkboxContainer.appendChild(checkboxLabel);
+                        fieldDiv.appendChild(label);
+                        fieldDiv.appendChild(checkboxContainer);
+                    } else if (subFlagConfig.type === 'text') {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+                        input.placeholder = subFlagConfig.placeholder || `Enter ${subFlagName.replace(/_/g, ' ')}...`;
+                        input.value = tempAdvancedState[subFlagName];
+                        input.id = `advanced-${subFlagName}`;
+                        
+                        input.addEventListener('input', (e) => {
+                            tempAdvancedState[subFlagName] = e.target.value;
+                        });
+                        
+                        fieldDiv.appendChild(label);
+                        fieldDiv.appendChild(input);
+                    }
+                    
+                    content.appendChild(fieldDiv);
+                });
+
+                // Function to show/hide conditional fields
+                function updateFieldVisibility() {
+                    Object.entries(flagConfig.flags).forEach(([subFlagName, subFlagConfig]) => {
+                        const field = document.getElementById(`field-${subFlagName}`);
+                        if (subFlagConfig.depends_on && subFlagConfig.depends_value) {
+                            const dependsValue = tempAdvancedState[subFlagConfig.depends_on];
+                            if (dependsValue === subFlagConfig.depends_value) {
+                                field.style.display = 'block';
+                            } else {
+                                field.style.display = 'none';
+                                // Clear value when hidden
+                                if (subFlagConfig.type === 'text') {
+                                    tempAdvancedState[subFlagName] = '';
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Initial visibility check
+                updateFieldVisibility();
+                
+                modal.classList.remove('hidden');
+            }
+
+            function closeAdvancedModal() {
+                document.getElementById('advancedModal').classList.add('hidden');
+                currentAdvancedBoxIndex = -1;
+                currentAdvancedFlagName = '';
+                currentAdvancedConfig = null;
+                tempAdvancedState = {};
+            }
+
+            function applyAdvancedSettings() {
+                if (currentAdvancedBoxIndex >= 0 && currentAdvancedFlagName) {
+                    // Store the advanced settings in the model flags state
+                    modelFlags_state[currentAdvancedBoxIndex][currentAdvancedFlagName] = { ...tempAdvancedState };
+                    closeAdvancedModal();
+                    showToast('Advanced settings applied!');
+                }
+            }
+
+            // Advanced modal event listeners
+            document.getElementById('closeAdvancedModal').addEventListener('click', closeAdvancedModal);
+            document.getElementById('cancelAdvanced').addEventListener('click', closeAdvancedModal);
+            document.getElementById('applyAdvanced').addEventListener('click', applyAdvancedSettings);
+
+            // Close modal when clicking outside
+            document.getElementById('advancedModal').addEventListener('click', (e) => {
+                if (e.target.id === 'advancedModal') {
+                    closeAdvancedModal();
+                }
+            });
+
+            // Copy state (new top button)
+            document.getElementById('copyState').addEventListener('click', () => {
+                const state = {
+                    conversationHistory: conversationHistory,
+                    responses: responses,
+                    selectedModels: selectedModels,
+                    timestamp: new Date().toISOString()
+                };
+                const stateJson = JSON.stringify(state, null, 2);
+                copyToClipboard(stateJson);
+                showToast('State copied to clipboard!');
+            });
+
+
+
+            // Download all responses
+            document.getElementById('downloadAllResponses').addEventListener('click', () => {
+                const hasContent = responses.some(response => response.trim());
+                if (!hasContent) {
+                    showToast('No responses to download');
+                    return;
+                }
+
+                let allContent = 'Advanced Model Aggregator Export\n';
+                allContent += '================================\n\n';
+                allContent += `Export Date: ${new Date().toLocaleString()}\n\n`;
+                
+                if (conversationHistory.length > 0) {
+                    allContent += 'Conversation History:\n';
+                    allContent += conversationHistory.join('\n\n') + '\n\n';
+                }
+                
+                responses.forEach((response, index) => {
+                    if (response.trim()) {
+                        allContent += `=== Box ${index + 1} (${selectedModels[index] || 'No model selected'}) ===\n`;
+                        allContent += response + '\n\n';
+                    }
+                });
+
+                const filename = `all_responses_${getTimestamp()}.txt`;
+                downloadText(allContent, filename);
+            });
+
+            // Import state modal handlers
+            document.getElementById('cancelImport').addEventListener('click', () => {
+                document.getElementById('importModal').classList.add('hidden');
+            });
+
+            document.getElementById('loadState').addEventListener('click', () => {
+                const stateJson = document.getElementById('stateInput').value.trim();
+                if (!stateJson) {
+                    showToast('Please paste JSON state');
+                    return;
+                }
+
+                try {
+                    const state = JSON.parse(stateJson);
+                    
+                    conversationHistory = state.conversationHistory || [];
+                    responses = state.responses || ['', '', '', ''];
+                    selectedModels = state.selectedModels || ['', '', '', ''];
+                    
+                    responses.forEach((response, index) => {
+                        const responseContent = document.querySelector(`.response-box[data-index="${index}"] .response-content`);
+                        if (responseContent) responseContent.textContent = response;
+                    });
+                    
+                    selectedModels.forEach((model, index) => {
+                        if (model && selectors[index]) {
+                            const selector = selectors[index];
+                            selector.selectedModel = model;
+                            selectedModels[index] = model;
+                            
+                            // Update search input
+                            if (selector.searchInput) {
+                                selector.searchInput.value = model;
+                            }
+                            
+                            // Update clear button visibility
+                            selector.updateClearButtonVisibility();
+                            
+                            // Re-render to ensure model appears and is selected
+                            selector.render();
+                            
+                            // Mark the model as selected in UI
+                            const modelItems = selector.container.querySelectorAll('.model-item');
+                            modelItems.forEach(item => {
+                                item.classList.remove('selected');
+                                if (item.dataset.model === model) {
+                                    item.classList.add('selected');
+                                }
+                            });
+                        }
+                    });
+                    
+                    document.getElementById('importModal').classList.add('hidden');
+                    showToast('State imported successfully!');
+                } catch (err) {
+                    showToast('Failed to import state: Invalid JSON');
+                }
+            });
+
+            // Close modal when clicking outside
+            document.getElementById('importModal').addEventListener('click', (e) => {
+                if (e.target.id === 'importModal') {
+                    document.getElementById('importModal').classList.add('hidden');
+                }
+            });
+
+            // New top control button handlers
+            document.getElementById('pasteState').addEventListener('click', () => {
+                document.getElementById('importModal').classList.remove('hidden');
+                document.getElementById('stateInput').value = '';
+                document.getElementById('stateInput').focus();
+            });
+
+            document.getElementById('downloadStateTop').addEventListener('click', () => {
+                const state = {
+                    conversationHistory: conversationHistory,
+                    responses: responses,
+                    selectedModels: selectedModels,
+                    timestamp: new Date().toISOString()
+                };
+                const filename = `aggregator_state_${getTimestamp()}.json`;
+                downloadJSON(state, filename);
+            });
+
+            // Upload state button handler
+            document.getElementById('uploadState').addEventListener('click', () => {
+                document.getElementById('stateFileInput').click();
+            });
+            
+            // State file upload handler
+            document.getElementById('stateFileInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                if (!file.type.includes('json') && !file.name.endsWith('.json')) {
+                    showToast('Please select a JSON file');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const stateJson = event.target.result;
+                        const state = JSON.parse(stateJson);
+                        
+                        conversationHistory = state.conversationHistory || [];
+                        responses = state.responses || ['', '', '', ''];
+                        selectedModels = state.selectedModels || ['', '', '', ''];
+                        
+                        responses.forEach((response, index) => {
+                            const responseContent = document.querySelector(`.response-box[data-index="${index}"] .response-content`);
+                            if (responseContent) responseContent.textContent = response;
+                        });
+                        
+                        selectedModels.forEach((model, index) => {
+                            if (model && selectors[index]) {
+                                const selector = selectors[index];
+                                selector.selectedModel = model;
+                                selectedModels[index] = model;
+                                
+                                // Update search input
+                                if (selector.searchInput) {
+                                    selector.searchInput.value = model;
+                                }
+                                
+                                // Update clear button visibility
+                                selector.updateClearButtonVisibility();
+                                
+                                // Re-render to ensure model appears and is selected
+                                selector.render();
+                                
+                                // Mark the model as selected in UI
+                                const modelItems = selector.container.querySelectorAll('.model-item');
+                                modelItems.forEach(item => {
+                                    item.classList.remove('selected');
+                                    if (item.dataset.model === model) {
+                                        item.classList.add('selected');
+                                    }
+                                });
+                            }
+                        });
+                        
+                        showToast(`State loaded from ${file.name}!`);
+                        // Reset the input so the same file can be selected again
+                        e.target.value = '';
+                    } catch (err) {
+                        console.error('File upload error:', err);
+                        showToast('Failed to load state: Invalid JSON file');
+                        e.target.value = '';
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            // New preview buttons in preview section
+            document.getElementById('previewBox1').addEventListener('click', () => {
+                const content = responses[0] || 'No response yet';
+                document.getElementById('previewContent').textContent = content;
+            });
+            document.getElementById('previewBox2').addEventListener('click', () => {
+                const content = responses[1] || 'No response yet';
+                document.getElementById('previewContent').textContent = content;
+            });
+            document.getElementById('previewBox3').addEventListener('click', () => {
+                const content = responses[2] || 'No response yet';
+                document.getElementById('previewContent').textContent = content;
+            });
+            document.getElementById('previewBox4').addEventListener('click', () => {
+                const content = responses[3] || 'No response yet';
+                document.getElementById('previewContent').textContent = content;
+            });
+
+            // Clear individual responses (new clear buttons in button area)
+            document.querySelectorAll('.clear-btn').forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    const originalResponse = responses[index];
+                    responses[index] = '';
+                    const responseContent = document.querySelector(`.response-box[data-index="${index}"] .response-content`);
+                    responseContent.textContent = '';
+                    if (document.getElementById('previewContent').textContent === originalResponse) {
+                        document.getElementById('previewContent').textContent = 'Select a response to preview...';
+                    }
+                    showToast('Response cleared!');
+                });
+            });
+
+            // ===== RNG MODEL SELECTOR =====
+            function getAllAvailableModels() {
+                const allModels = [];
+                
+                // Recursively collect all models from the nested structure
+                function collectModels(data) {
+                    if (Array.isArray(data)) {
+                        allModels.push(...data);
+                    } else if (typeof data === 'object') {
+                        Object.values(data).forEach(subData => {
+                            collectModels(subData);
+                        });
+                    }
+                }
+                
+                collectModels(textGenModels);
+                return allModels;
+            }
+
+            function selectRandomModel(boxIndex) {
+                const allModels = getAllAvailableModels();
+                if (allModels.length === 0) {
+                    showToast('No models available');
+                    return;
+                }
+                
+                const randomIndex = Math.floor(Math.random() * allModels.length);
+                const randomModel = allModels[randomIndex];
+                
+                // Use the existing selector to set the model
+                const selector = selectors[boxIndex];
+                if (selector) {
+                    // Clear any existing search/selection
+                    selector.selectedModel = randomModel;
+                    selectedModels[boxIndex] = randomModel;
+                    
+                    if (selector.searchInput) {
+                        selector.searchInput.value = randomModel;
+                    }
+                    
+                    selector.searchTerm = '';
+                    selector.updateClearButtonVisibility();
+                    
+                    // Re-render to ensure model appears and is selected
+                    selector.render();
+                    
+                    // Mark the model as selected in UI
+                    const modelItems = selector.container.querySelectorAll('.model-item');
+                    modelItems.forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.model === randomModel) {
+                            item.classList.add('selected');
+                        }
+                    });
+                    
+                    // Update flag controls for this model
+                    updateFlagControls(boxIndex, randomModel);
+                    
+                    // Collapse the accordion
+                    selector.collapse();
+                    
+                    showToast(`Random model selected: ${randomModel}`);
+                }
+            }
+
+            // RNG button event listeners
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`rng-btn-${i}`).addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectRandomModel(i);
+                });
+            }
+
+            // Copy input button handler
+            document.getElementById('copyInputButton').addEventListener('click', () => {
+                const promptText = document.getElementById('promptInput').value;
+                if (promptText.trim()) {
+                    copyToClipboard(promptText);
+                } else {
+                    showToast('No prompt text to copy');
+                }
+            });
+
+        }); // End DOMContentLoaded
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

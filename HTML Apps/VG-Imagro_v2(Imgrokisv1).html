@@ -1,0 +1,3498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Prompt Rotator & Multi-Model Image Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        'bg-light': '#FFFFFF',
+                        'bg-dark': '#181818',
+                        'tag-bold': '#8B5CF6'
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+    </script>
+    <style>
+        /* Accordion Styles */
+        .accordion-container {
+            position: relative;
+            transition: all 200ms ease;
+        }
+
+        .accordion-container.collapsed {
+            max-height: 42px;
+        }
+
+        .accordion-wrapper {
+            position: relative;
+            opacity: 1;
+            transition: opacity 200ms, max-height 200ms ease;
+            scrollbar-width: thin;
+            scrollbar-color: #6b7280 transparent;
+        }
+
+        .accordion-container.collapsed .accordion-wrapper {
+            max-height: 0 !important;
+            opacity: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .accordion-section {
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .dark .accordion-section {
+            border-bottom-color: #4b5563;
+        }
+
+        .accordion-header {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            font-size: 12px;
+            background: #f9fafb;
+            transition: background 200ms;
+        }
+
+        .dark .accordion-header {
+            background: #374151;
+        }
+
+        .accordion-header:hover {
+            background: #f3f4f6;
+        }
+
+        .dark .accordion-header:hover {
+            background: #4b5563;
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 200ms ease;
+        }
+
+        .accordion-content.expanded {
+            max-height: none;
+        }
+
+        .accordion-item {
+            padding: 6px 12px 6px 24px;
+            cursor: pointer;
+            transition: all 200ms;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
+
+        .accordion-item:hover {
+            background: #f3f4f6;
+            padding-left: 28px;
+        }
+
+        .dark .accordion-item:hover {
+            background: #4b5563;
+        }
+
+        .accordion-item.selected {
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+
+        .dark .accordion-item.selected {
+            background: #1e3a8a;
+            color: #93c5fd;
+        }
+
+        .accordion-item.selected::before {
+            content: "✓";
+            position: absolute;
+            left: 12px;
+            color: #1d4ed8;
+            font-weight: bold;
+        }
+
+        .dark .accordion-item.selected::before {
+            color: #93c5fd;
+        }
+
+        .accordion-empty {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .dark .accordion-empty {
+            color: #9ca3af;
+        }
+
+        /* Undo button styles */
+        .undo-button {
+            padding: 4px 8px;
+            font-size: 12px;
+            background: #6b7280;
+            color: white;
+            border-radius: 4px;
+            transition: all 200ms;
+            opacity: 0.8;
+        }
+
+        .undo-button:hover {
+            opacity: 1;
+            background: #4b5563;
+        }
+
+        .dark .undo-button {
+            background: #4b5563;
+        }
+
+        .dark .undo-button:hover {
+            background: #374151;
+        }
+
+        .undo-button.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-200">
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                AI Prompt Rotator & Multi-Model Image Generator
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400">
+                Systematic prompt variation with multi-model image generation
+            </p>
+        </div>
+
+        <!-- Main Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            
+            <!-- Left Panel: Prompt Rotation & Controls -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Prompt Rotation & Analysis</h2>
+                
+                <!-- Original Prompt Input -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-semibold">Original Prompt:</label>
+                        <div class="flex gap-2">
+                            <button 
+                                id="copyOriginalPrompt" 
+                                class="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                                title="Copy original prompt"
+                            >
+                                📋
+                            </button>
+                            <button 
+                                id="clearPrompt" 
+                                class="px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 transition-colors"
+                            >
+                                🗑️ Clear
+                            </button>
+                            <button 
+                                id="importStateBtn" 
+                                class="px-3 py-1 bg-cyan-600 text-white text-xs rounded-lg hover:bg-cyan-700 transition-colors"
+                            >
+                                📥 Import State
+                            </button>
+                            <button 
+                                id="saveStateBtn" 
+                                class="px-3 py-1 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
+                                title="Save current state"
+                            >
+                                💾 Save State
+                            </button>
+                        </div>
+                    </div>
+                    <textarea 
+                        id="originalPrompt" 
+                        class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-none"
+                        rows="4"
+                        placeholder="Enter your prompt here... (e.g., 'A magical forest with glowing mushrooms at sunset')"
+                    ></textarea>
+                </div>
+
+                <!-- Variable Creation Rules -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Variable Creation Rules (Optional):</label>
+                    <textarea 
+                        id="variableRules" 
+                        class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-base resize-none"
+                        rows="2"
+                        placeholder="e.g., 'Keep all variations within South Asian context' or 'Focus on modern urban settings only'"
+                    ></textarea>
+                </div>
+
+                <!-- Analysis Controls -->
+                <div class="mb-4">
+                    <!-- Unified Model Selector -->
+                    <div class="mb-3">
+                        <label class="text-sm font-medium mb-2 block">Text Processing Model:</label>
+                        
+                        <!-- Unified Model Selector Accordion -->
+                        <div id="unifiedModelSelector" class="accordion-container collapsed border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 relative z-10">
+                            <div id="unifiedAccordionTrigger" class="accordion-selected-display px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <input 
+                                        id="unifiedModelSearch" 
+                                        class="accordion-search bg-transparent border-none text-gray-900 dark:text-gray-100 outline-none flex-1 text-sm"
+                                        placeholder="Search models... (Default: VG-IMGWIZ)"
+                                    />
+                                    <span id="unifiedAccordionChevron" class="accordion-chevron text-gray-500 dark:text-gray-400 transition-transform duration-200">▼</span>
+                                </div>
+                            </div>
+                            <div class="accordion-wrapper max-h-[600px] overflow-y-auto">
+                                <div id="unifiedModelContent">
+                                    <!-- Model options will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Variable Count Selector -->
+                    <div class="mb-3">
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Variables to Generate:</label>
+                            <select id="variableCount" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-sm">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6" selected>6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                            </select>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">per analysis</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2 flex-wrap">
+                        <button 
+                            id="analyzeBtn" 
+                            class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        >
+                            🔍 Analyze Variables
+                        </button>
+                        <button 
+                            id="feedBtn2" 
+                            class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                            title="Feed original prompt to image prompt"
+                        >
+                            ⬇️ Feed
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="analysisLoading" class="hidden mb-4">
+                    <div class="flex items-center text-blue-600">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                        <span id="analysisStatus">Analyzing prompt...</span>
+                    </div>
+                </div>
+
+                <!-- Variable Controls Container -->
+                <div id="variableControls" class="hidden">
+                    <h3 class="text-lg font-medium mb-3">Rotation Variables:</h3>
+                    <div id="variableList" class="space-y-3 mb-4 max-h-96 overflow-y-auto">
+                        <!-- Variables will be populated here -->
+                    </div>
+                    
+                    <!-- Navigation Controls -->
+                    <div class="flex gap-3 items-center">
+                        <button id="prevCombo" class="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm">← Prev</button>
+                        <span id="comboCounter" class="px-3 py-1 text-center bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium">1 / 1</span>
+                        <button id="nextCombo" class="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm">Next →</button>
+                    </div>
+                    
+                    <!-- Add More Variables Section -->
+                    <div class="mb-4 mt-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Add Variables:</label>
+                            <select id="addVariableCount" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-sm">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">variables</span>
+                        </div>
+                        <!-- New Additional Variables Rules Textarea -->
+                        <div class="mb-2">
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Additional Variables Rules (Optional):</label>
+                            <textarea 
+                                id="additionalVariableRules"
+                                class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm resize-none"
+                                rows="2"
+                                placeholder="Enter specific rules for generating additional variables (e.g., 'explore different art styles', 'vary the time of day', 'change camera angles')"
+                            ></textarea>
+                        </div>
+                        <button 
+                            id="addMoreVariablesBtn" 
+                            class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                        >
+                            ➕ Add More Variables
+                        </button>
+                    </div>
+
+                    <!-- Copy Rotated Prompt Button -->
+                    <div class="mt-4">
+                        <button 
+                            id="copyRotatedPrompt" 
+                            class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                            📋 Copy Current Prompt
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Image Generation -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Multi-Model Image Generation</h2>
+                
+                <!-- Model Selection -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Choose AI Models
+                        </label>
+                        <div class="flex gap-2 flex-wrap">
+                            <button id="selectAll" class="text-xs px-2 py-1 bg-primary text-white rounded-lg hover:bg-purple-600 transition-colors" title="Select All Models">
+                                ✅
+                            </button>
+                            <button id="random10Choice" class="text-xs px-2 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors" title="Random 10 Models">
+                                🎲
+                            </button>
+                            <button id="creatorsChoice" class="text-xs px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-colors" title="Creator's Choice - Best Imagen + Ideogram Models">
+                                ⭐
+                            </button>
+                            <button id="excludeToggle" class="text-xs px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" title="Toggle Exclude Mode">
+                                🛑
+                            </button>
+                            <button id="clearAll" class="text-xs px-2 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors" title="Clear All Selections">
+                                ❌
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Model Group - Large Tiles -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 mb-3 max-h-96 overflow-y-auto" id="modelGroup">
+                        <!-- Large model tiles will be populated here -->
+                    </div>
+                    
+                    <div class="text-sm">
+                        <div id="selectedCount" class="text-primary font-semibold">0 models selected, 0 points</div>  
+                    </div>
+                </div>
+
+                <!-- Current Prompt Display -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="promptInput" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Current Image Prompt (Editable)
+                        </label>
+                        <div class="flex gap-2 items-center">
+                            <button 
+                                id="undoPrompt" 
+                                class="undo-button hidden"
+                                title="Undo last change"
+                            >
+                                ↶ Undo
+                            </button>
+                            <button 
+                                id="repeatBtn" 
+                                class="px-3 py-1 bg-orange-600 text-white text-xs rounded-lg hover:bg-orange-700 transition-colors"
+                                title="Copy image prompt back to original"
+                            >
+                                ⬆️ Refeed
+                            </button>
+                            <button 
+                                id="copyImagePrompt" 
+                                class="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                                title="Copy image prompt"
+                            >
+                                📋
+                            </button>
+                        </div>
+                    </div>
+                    <textarea 
+                        id="promptInput" 
+                        rows="3" 
+                        placeholder="Generated prompt will appear here, or enter your own..."
+                        class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none transition-all duration-200"
+                    ></textarea>
+                </div>
+
+                <!-- Custom Enhancement Rules -->
+                <div class="mb-3">
+                    <label for="enhancementRules" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Custom Enhancement Rules (Optional)
+                    </label>
+                    <textarea 
+                        id="enhancementRules"
+                        class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm resize-none"
+                        rows="2"
+                        placeholder="e.g., 'Keep under 500 characters', 'make it more cinematic', 'add technical details', 'simplify'"
+                    ></textarea>
+                </div>
+
+                <!-- Enhance Prompt Buttons -->
+                <div class="mb-4 flex gap-2">
+                    <button 
+                        id="formatPromptBtn" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span id="formatBtnText">📝 Format</span>
+                        <div id="formatBtnLoader" class="hidden inline-flex items-center">
+                            <svg class="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-xs">Formatting...</span>
+                        </div>
+                    </button>
+                    <button 
+                        id="hifiEnhanceBtn" 
+                        class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span id="hifiBtnText">🚀 Hi-Fi Enhance</span>
+                        <div id="hifiBtnLoader" class="hidden inline-flex items-center">
+                            <svg class="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-xs">Enhancing...</span>
+                        </div>
+                    </button>
+                    <button 
+                        id="assistBtn" 
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span id="assistBtnText">🤖 Assist</span>
+                        <div id="assistBtnLoader" class="hidden inline-flex items-center">
+                            <svg class="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-xs">Assisting...</span>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Generate Button -->
+                <button 
+                    id="generateBtn" 
+                    class="w-full bg-primary hover:bg-purple-600 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    disabled
+                >
+                    <span id="btnText">Select Models to Generate Images</span>
+                    <div id="btnLoader" class="hidden inline-flex items-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span id="generatingText">Generating with 0 models...</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Panel: Generated Images -->
+        <div id="resultsSection" class="hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">Generated Images</h2>
+                    <div class="flex gap-2">
+                        <button id="downloadAssets" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span id="downloadAssetsText">Download Assets</span>
+                        </button>
+
+                        <button id="copyEntireFlow" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200">
+                            📋 Copy Flow
+                        </button>
+                        <button id="saveStateBtn2" class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200" title="Save current state">
+                            💾 Save State
+                        </button>
+                        <button id="generateAnother" class="inline-flex items-center px-4 py-2 bg-primary hover:bg-purple-600 text-white rounded-lg transition-colors duration-200">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Generate More
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Images Grid -->
+                <div id="imagesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Image results will be populated here -->
+                </div>
+
+                <!-- Overall Status -->
+                <div id="overallStatus" class="text-center py-8">
+                    <div class="inline-flex items-center text-gray-600 dark:text-gray-400">
+                        <svg class="animate-spin -ml-1 mr-3 h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <div>
+                            <div id="statusText">Starting image generation...</div>
+                            <div id="progressText" class="text-sm mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onclick="closeImageModal()">
+        <div class="relative max-w-[90vw] max-h-[90vh] bg-white dark:bg-gray-800 rounded-lg p-4">
+            <button onclick="closeImageModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl font-bold">
+                ×
+            </button>
+            <div class="text-center">
+                <h3 id="modalImageTitle" class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100"></h3>
+                <img id="modalImage" src="" alt="" class="max-w-full max-h-[75vh] object-contain rounded">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dark mode detection
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Fixed Model Database with proper syntax
+        const MODEL_DATABASE = {
+            "Favorites": [
+                "GPT-5-Chat",
+                "Qwen3-235B-2507-CS", 
+                "Grok-4",
+                "Mistral-Large-2",
+                "Kimi-K2-Instruct",
+                "GLM-4.5-FW",
+                "DeepSeek-V3.1-N",
+                "Claude-Haiku-3.5",
+                "Claude-Sonnet-4",
+                "Claude-Opus-4-Search",
+                "Llama-4-Maverick-B10"
+            ],
+            "Web Search": [
+                "Claude-Opus-4-Search",
+                "Claude-Sonnet-4-Search", 
+                "Claude-Haiku-3.5-Search",
+                "Gemini-2.5-Pro",
+                "Gemini-2.5-Flash",
+                "GPT-4o-Search",
+                "Grok-4",
+                "Perplexity-Sonar",
+                "Perplexity-Sonar-Rsn-Pro",
+                "Linkup-Deep-Search",
+                "Bagoodex-Web-Search",
+                "Reka-Research",
+                "GPT-Researcher"
+            ],
+            "GPT": {
+                "GPT-5 Series": [
+                    "GPT-5",
+                    "GPT-5-Chat", 
+                    "GPT-5-mini",
+                    "GPT-5-nano"
+                ],
+                "GPT-4 Series": [
+                    "GPT-4.1",
+                    "GPT-4.1-mini",
+                    "GPT-4.1-nano",
+                    "GPT-4o",
+                    "GPT-4o-Aug",
+                    "GPT-4o-Search",
+                    "GPT-4o-mini",
+                    "GPT-4o-mini-Search",
+                    "GPT-4-Classic",
+                    "GPT-4-Classic-0314",
+                    "GPT-4-Turbo",
+                    "ChatGPT-4o-Latest"
+                ],
+                "GPT-3.5 Series": [
+                    "GPT-3.5-Turbo",
+                    "GPT-3.5-Turbo-Instruct",
+                    "GPT-3.5-Turbo-Raw"
+                ]
+            },
+            "GPT - Open Weight": {
+                "120B Models": [
+                    "GPT-OSS-120B",
+                    "GPT-OSS-120B-T",
+                    "GPT-OSS-120B-CS",
+                    "GPT-OSS-120B-Omni",
+                    "OpenAI-GPT-OSS-120B"
+                ],
+                "20B Models": [
+                    "GPT-OSS-20B",
+                    "GPT-OSS-20B-T",
+                    "OpenAI-GPT-OSS-20B"
+                ]
+            },
+            "Google": {
+                "Gemini 2.5": [
+                    "Gemini-2.5-Pro",
+                    "Gemini-2.5-Flash",
+                    "Gemini-2.5-Flash-Lite",
+                    "Gemini-2.5-Flash-Image"
+                ],
+                "Gemini 2.0": [
+                    "Gemini-2.0-Flash",
+                    "Gemini-2.0-Flash-Lite",
+                    "Gemini-2.0-Flash-Preview"
+                ],
+                "Gemini 1.5": [
+                    "Gemini-1.5-Pro",
+                    "Gemini-1.5-Pro-Search",
+                    "Gemini-1.5-Flash",
+                    "Gemini-1.5-Flash-Search"
+                ],
+                "Gemma": [
+                    "Gemma-3-27B",
+                    "Gemma-2-27b-T"
+                ]
+            },
+            "Claude": {
+                "Opus": [
+                    "Claude-Opus-4.1",
+                    "Claude-Opus-4",
+                    "Claude-Opus-4-Reasoning",
+                    "Claude-Opus-4-Search",
+                    "Claude-Opus-3"
+                ],
+                "Sonnet": [
+                    "Claude-Sonnet-4",
+                    "Claude-Sonnet-4-Reasoning",
+                    "Claude-Sonnet-4-Search"
+                ],
+                "Haiku": [
+                    "Claude-Haiku-3.5",
+                    "Claude-Haiku-3.5-Search",
+                    "Claude-Haiku-3"
+                ]
+            },
+            "Grok": [
+                "Grok-4",
+                "Grok-3",
+                "Grok-3-Mini"
+            ],
+            "Llama 4": [
+                "Llama-4-Scout-B10",
+                "Llama-4-Scout",
+                "Llama-4-Scout-T",
+                "Llama-4-Scout-CS",
+                "Llama-4-Maverick",
+                "Llama-4-Maverick-B10",
+                "Llama-4-Maverick-T"
+            ],
+            "Llama 3.X": {
+                "405B Models": [
+                    "Llama-3.1-405B",
+                    "Llama-3.1-405B-T",
+                    "Llama-3.1-405B-FW",
+                    "Llama-3.1-405B-FP16"
+                ],
+                "70B Models": [
+                    "Llama-3.3-70B",
+                    "Llama-3.3-70B-CS",
+                    "Llama-3.3-70B-DI",
+                    "Llama-3.3-70B-FW",
+                    "Llama-3.3-70B-N",
+                    "Llama-3.3-70B-Omni",
+                    "Llama-3.1-70B",
+                    "Llama-3.1-70B-FP16",
+                    "Llama-3.1-70B-FW",
+                    "Llama-3.1-70B-T",
+                    "Llama-3.1-Nemotron",
+                    "Llama-3-70B-FP16",
+                    "Llama-3-70B-T"
+                ],
+                "8B Models": [
+                    "Llama-3.1-8B",
+                    "Llama-3.1-8B-CS",
+                    "Llama-3.1-8B-DI",
+                    "Llama-3.1-8B-FP16",
+                    "Llama-3.1-8B-FW",
+                    "Llama-3.1-8B-T-128k",
+                    "Llama-3-8B-T"
+                ]
+            },
+            "Qwen": {
+                "480B": [
+                    "Qwen3-480B-Coder-CS",
+                    "Qwen3-Coder-480B-T",
+                    "Qwen3-Coder-480B-N"
+                ],
+                "235B": [
+                    "Qwen-3-235B-2507-T",
+                    "Qwen3-235B-2507-FW",
+                    "Qwen3-235B-2507-CS",
+                    "Qwen3-235B-A22B",
+                    "Qwen3-235B-A22B-DI",
+                    "Qwen3-235B-A22B-N",
+                    "Qwen3-235B-Think-CS"
+                ],
+                "72B": [
+                    "Qwen-72B-T",
+                    "Qwen2-72B-Instruct-T",
+                    "Qwen2.5-VL-72B-T",
+                    "Qwen-2.5-72B-T"
+                ]
+            },
+            "DeepSeek": {
+                "R1 Series": [
+                    "DeepSeek-R1",
+                    "DeepSeek-R1-FW",
+                    "DeepSeek-R1-DI",
+                    "DeepSeek-R1-N",
+                    "DeepSeek-R1-Distill",
+                    "DeepSeek-R1-Turbo-DI"
+                ],
+                "V3 Series": [
+                    "DeepSeek-V3.1",
+                    "DeepSeek-V3.1-Chat",
+                    "DeepSeek-V3.1-N",
+                    "DeepSeek-V3",
+                    "DeepSeek-V3-DI",
+                    "DeepSeek-V3-Turbo-DI",
+                    "Deepseek-V3-FW"
+                ],
+                "Specialized": [
+                    "DeepSeek-Prover-V2",
+                    "DeepClaude"
+                ]
+            },
+            "Mistral": {
+                "Main Models": [
+                    "Mistral-Large-2",
+                    "Mistral-Medium-3",
+                    "Mistral-Medium",
+                    "Magistral-Medium-2506-Thinking",
+                    "Mistral-Small-3.2",
+                    "Mistral-Small-3.1",
+                    "Mistral-Small-3",
+                    "Mistral-7B-v0.3-DI",
+                    "Mistral-7B-v0.3-T"
+                ],
+                "Specialized": [
+                    "Mistral-NeMo",
+                    "Mixtral8x22b-Inst-FW"
+                ]
+            },
+            "Perplexity": [
+                "Perplexity-Sonar",
+                "Perplexity-Sonar-Pro",
+                "Perplexity-Sonar-Rsn",
+                "Perplexity-Sonar-Rsn-Pro"
+            ],
+            "Reasoning Models": [
+                "QwQ-32B-B10",
+                "QwQ-32B-Preview-T",
+                "QwQ-32B-T"
+            ],
+            "Specialty Tools": [
+                "Python",
+                "MarkItDown"
+            ],
+            "Wildcards": {
+                "Chinese Models": [
+                    "Kimi-K2",
+                    "Kimi-K2-0905-T",
+                    "Kimi-K2-Instruct",
+                    "Kimi-K2-T",
+                    "GLM-4.5",
+                    "GLM-4.5-Air",
+                    "GLM-4.5-Air-T",
+                    "GLM-4.5-FW",
+                    "GLM-4.5-Omni",
+                    "MiniMax-M1"
+                ],
+                "Others": [
+                    "Aya-Expanse-32B",
+                    "Aya-Vision",
+                    "Command-R",
+                    "Command-R-Plus",
+                    "Hermes-3-70B",
+                    "Inception-Mercury",
+                    "Inception-Mercury-Coder",
+                    "Phi-4-DI",
+                    "Reka-Core",
+                    "Reka-Flash",
+                    "Solar-Pro-2"
+                ]
+            }
+        };
+
+        // Available models for image generation
+        const availableModels = {
+            '@DALL-E-3': {
+                name: 'DALL-E 3',
+                cost: 1500
+            },
+            '@Dreamina-3.1': {
+                name: 'Dreamina 3.1',
+                cost: 1000
+            },
+            '@Flux-1-Dev-FW': {
+                name: 'FLUX.1 Dev FW',
+                cost: 375
+            },
+            '@Flux-1-Schnell-FW': {
+                name: 'FLUX.1 Schnell FW',
+                cost: 35
+            },
+            '@FLUX-dev': {
+                name: 'FLUX Dev',
+                cost: 567
+            },
+            '@FLUX-dev-DI': {
+                name: 'FLUX Dev DI',
+                cost: 165
+            },
+            '@Flux-Kontext-Max': {
+                name: 'FLUX Kontext Max',
+                cost: 2667
+            },
+            '@Flux-Kontext-Pro': {
+                name: 'FLUX Kontext Pro',
+                cost: 1334
+            },
+            '@FLUX-Krea': {
+                name: 'FLUX Krea',
+                cost: 709
+            },
+            '@FLUX-pro-1.1-ultra': {
+                name: 'FLUX Pro 1.1 Ultra',
+                cost: 2000
+            },
+            '@FLUX-schnell': {
+                name: 'FLUX Schnell',
+                cost: 40
+            },
+            '@FLUX-schnell-DI': {
+                name: 'FLUX Schnell DI',
+                cost: 33
+            },
+            '@Flux-Schnell-T': {
+                name: 'FLUX Schnell T',
+                cost: 70
+            },
+            '@Gemini-2.5-Flash-Image': {
+                name: 'Gemini 2.5 Flash Image',
+                cost: 989
+            },
+            '@GPT-Image-1': {
+                name: 'GPT Image 1',
+                cost: 1500
+            },
+            '@Hidream-I1-full': {
+                name: 'Hidream I1 Full',
+                cost: 1417
+            },
+            '@Ideogram-v2': {
+                name: 'Ideogram v2',
+                cost: 1900
+            },
+            '@Ideogram-v2a': {
+                name: 'Ideogram v2a',
+                cost: 1300
+            },
+            '@Ideogram-v2a-Turbo': {
+                name: 'Ideogram v2a Turbo',
+                cost: 800
+            },
+            '@Ideogram-v3': {
+                name: 'Ideogram v3',
+                cost: 2000
+            },
+            '@Imagen-3': {
+                name: 'Imagen 3',
+                cost: 800
+            },
+            '@Imagen-3-Fast': {
+                name: 'Imagen 3 Fast',
+                cost: 400
+            },
+            '@Imagen-4': {
+                name: 'Imagen 4',
+                cost: 800
+            },
+            '@Imagen-4-Fast': {
+                name: 'Imagen 4 Fast',
+                cost: 400
+            },
+            '@Imagen-4-Ultra-Exp': {
+                name: 'Imagen 4 Ultra Exp',
+                cost: 800
+            },
+            '@Luma-Photon': {
+                name: 'Luma Photon',
+                cost: 634
+            },
+            '@Luma-Photon-Flash': {
+                name: 'Luma Photon Flash',
+                cost: 167
+            },
+            '@Phoenix-1.0': {
+                name: 'Phoenix 1.0',
+                cost: 560
+            },
+            '@Qwen-Edit': {
+                name: 'Qwen Edit',
+                cost: 850
+            },
+            '@Qwen-Image': {
+                name: 'Qwen Image',
+                cost: 617
+            },
+            '@Qwen-Image-20B': {
+                name: 'Qwen Image 20B',
+                cost: 617
+            },
+            '@Recraft-V3': {
+                name: 'Recraft V3',
+                cost: 2267
+            },
+            '@Sana-T2I': {
+                name: 'Sana T2I',
+                cost: 29
+            },
+            '@Seedream-4.0': {
+                name: 'Seedream 4.0',
+                cost: 1334
+            },
+            '@StableDiffusion3.5-L': {
+                name: 'Stable Diffusion 3.5 Large',
+                cost: 1842
+            },
+            '@StableDiffusion3.5-T': {
+                name: 'Stable Diffusion 3.5 Turbo',
+                cost: 284
+            },
+            '@StableDiffusionXL': {
+                name: 'Stable Diffusion XL',
+                cost: 120
+            }
+        };
+
+        // Global state
+        let currentVariables = [];
+        let currentCombination = 0;
+        let totalCombinations = 0;
+        let originalPrompt = '';
+        let selectedModels = new Set();
+        let excludedModels = new Set(); // Track excluded models
+        let excludeMode = false; // Track exclude toggle mode
+        let generationResults = new Map();
+        let isGridInitialized = false;
+        let autoSaveEnabled = true;
+        let lastAutoSave = null;
+
+        // Prompt history for undo functionality
+        let promptHistory = [];
+        const MAX_HISTORY_SIZE = 5;
+
+        // Unified model selector state
+        let selectedUnifiedModel = 'VG-IMGWIZ';
+        let accordionExpanded = false;
+        let expandedSections = new Set();
+        let filteredModelData = MODEL_DATABASE;
+
+        // Initialize DOM elements after DOM is ready
+        let elements = {};
+        
+        function initializeElements() {
+            console.log('🔧 Initializing DOM elements...');
+            
+            elements = {
+                originalPrompt: document.getElementById('originalPrompt'),
+                analyzeBtn: document.getElementById('analyzeBtn'),
+                analysisLoading: document.getElementById('analysisLoading'),
+                analysisStatus: document.getElementById('analysisStatus'),
+                variableControls: document.getElementById('variableControls'),
+                variableList: document.getElementById('variableList'),
+                prevCombo: document.getElementById('prevCombo'),
+                nextCombo: document.getElementById('nextCombo'),
+                comboCounter: document.getElementById('comboCounter'),
+                copyRotatedPrompt: document.getElementById('copyRotatedPrompt'),
+                clearPrompt: document.getElementById('clearPrompt'),
+                promptInput: document.getElementById('promptInput'),
+                generateBtn: document.getElementById('generateBtn'),
+                btnText: document.getElementById('btnText'),
+                btnLoader: document.getElementById('btnLoader'),
+                generatingText: document.getElementById('generatingText'),
+                resultsSection: document.getElementById('resultsSection'),
+                imagesGrid: document.getElementById('imagesGrid'),
+                overallStatus: document.getElementById('overallStatus'),
+                statusText: document.getElementById('statusText'),
+                progressText: document.getElementById('progressText'),
+                generateAnother: document.getElementById('generateAnother'),
+                selectedCount: document.getElementById('selectedCount'),
+                selectAll: document.getElementById('selectAll'),
+                clearAll: document.getElementById('clearAll'),
+                modelGroup: document.getElementById('modelGroup'),
+                feedBtn: document.getElementById('feedBtn2'),
+                repeatBtn: document.getElementById('repeatBtn'),
+                copyEntireFlow: document.getElementById('copyEntireFlow'),
+                downloadAssets: document.getElementById('downloadAssets'),
+                downloadAssetsText: document.getElementById('downloadAssetsText'),
+                // Additional elements
+                saveStateBtn: document.getElementById('saveStateBtn'),
+                saveStateBtn2: document.getElementById('saveStateBtn2'),
+                importStateBtn: document.getElementById('importStateBtn'),
+                copyOriginalPrompt: document.getElementById('copyOriginalPrompt'),
+                copyImagePrompt: document.getElementById('copyImagePrompt'),
+                addMoreVariablesBtn: document.getElementById('addMoreVariablesBtn'),
+                formatPromptBtn: document.getElementById('formatPromptBtn'),
+                hifiEnhanceBtn: document.getElementById('hifiEnhanceBtn'),
+                assistBtn: document.getElementById('assistBtn'),
+                undoPrompt: document.getElementById('undoPrompt'),
+                variableRules: document.getElementById('variableRules'),
+                enhancementRules: document.getElementById('enhancementRules'),
+                additionalVariableRules: document.getElementById('additionalVariableRules'),
+                imagenChoice: document.getElementById('imagenChoice'),
+                // Unified model selector elements
+                unifiedModelSelector: document.getElementById('unifiedModelSelector'),
+                unifiedAccordionTrigger: document.getElementById('unifiedAccordionTrigger'),
+                unifiedModelSearch: document.getElementById('unifiedModelSearch'),
+                unifiedModelContent: document.getElementById('unifiedModelContent')
+            };
+            
+            // Only check critical elements for initialization
+            const criticalElements = ['modelGroup', 'originalPrompt', 'generateBtn', 'selectedCount', 'unifiedModelSelector'];
+            let allCriticalFound = true;
+            
+            criticalElements.forEach(elementName => {
+                const element = elements[elementName] || document.getElementById(elementName);
+                if (!element) {
+                    console.error(`❌ Critical element missing: ${elementName}`);
+                    allCriticalFound = false;
+                } else {
+                    console.log(`✅ Found element: ${elementName}`);
+                    if (!elements[elementName]) {
+                        elements[elementName] = element;
+                    }
+                }
+            });
+            
+            // Count missing non-critical elements for debugging
+            const missingElements = Object.entries(elements).filter(([name, el]) => !el && !criticalElements.includes(name));
+            if (missingElements.length > 0) {
+                console.warn(`⚠️ Non-critical elements missing: ${missingElements.map(([name]) => name).join(', ')}`);
+            }
+            
+            return allCriticalFound;
+        }
+
+        // Poe API handlers
+        window.Poe.registerHandler("analysis-handler", handleAnalysisResponse);
+        window.Poe.registerHandler("multi-image-handler", handleImageResponse);
+
+        // Custom alert function (no alert() allowed)
+        function showAlert(message) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">${message}</p>
+                    <div class="flex justify-end">
+                        <button class="px-4 py-2 bg-primary text-white hover:bg-purple-600 rounded" onclick="this.closest('.fixed').remove()">OK</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // === PROMPT HISTORY AND UNDO FUNCTIONALITY ===
+        function saveToHistory() {
+            const currentPrompt = elements.promptInput.value;
+            
+            // Don't save if it's the same as the last history item
+            if (promptHistory.length > 0 && promptHistory[promptHistory.length - 1] === currentPrompt) {
+                return;
+            }
+            
+            promptHistory.push(currentPrompt);
+            
+            // Keep only the last MAX_HISTORY_SIZE items
+            if (promptHistory.length > MAX_HISTORY_SIZE) {
+                promptHistory.shift();
+            }
+            
+            updateUndoButton();
+        }
+
+        function undoPromptChange() {
+            if (promptHistory.length === 0) return;
+            
+            const previousPrompt = promptHistory.pop();
+            elements.promptInput.value = previousPrompt;
+            
+            // Add visual feedback
+            elements.promptInput.classList.add('ring-2', 'ring-green-500');
+            setTimeout(() => {
+                elements.promptInput.classList.remove('ring-2', 'ring-green-500');
+            }, 500);
+            
+            updateUndoButton();
+        }
+
+        function updateUndoButton() {
+            const undoBtn = elements.undoPrompt;
+            if (!undoBtn) return;
+            
+            if (promptHistory.length > 0) {
+                undoBtn.classList.remove('hidden');
+                undoBtn.title = `Undo to previous version (${promptHistory.length} available)`;
+            } else {
+                undoBtn.classList.add('hidden');
+            }
+        }
+
+        // === CHARACTER LIMIT DETECTION ===
+        function detectCharacterLimit(text) {
+            if (!text) return null;
+            
+            // Look for patterns like "500 characters", "under 300 chars", "maximum 200 characters", etc.
+            const patterns = [
+                /(\d+)\s*(?:characters?|chars?)/i,
+                /(?:under|below|max(?:imum)?|less than)\s*(\d+)\s*(?:characters?|chars?)/i,
+                /(?:keep|limit)\s*(?:under|to|below)?\s*(\d+)\s*(?:characters?|chars?)/i
+            ];
+            
+            for (const pattern of patterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    return parseInt(match[1] || match[0].match(/\d+/)[0]);
+                }
+            }
+            
+            return null;
+        }
+
+        function applyCharacterLimit(text, limit) {
+            if (!limit || text.length <= limit) return text;
+            
+            // Truncate to limit minus 3 for ellipsis
+            return text.substring(0, limit - 3) + '...';
+        }
+
+        // Initialize model tiles (large clickable cards)
+        function initializeModelGrid() {
+            console.log('🔧 Initializing model grid...');
+            
+            if (!elements.modelGroup) {
+                console.error('❌ Model group element not found!');
+                return;
+            }
+            
+            // Clear any existing content
+            elements.modelGroup.innerHTML = '';
+            selectedModels.clear();
+            
+            console.log(`📊 Found ${Object.keys(availableModels).length} available models`);
+            
+            try {
+                const modelEntries = Object.entries(availableModels);
+                let modelsAdded = 0;
+                
+                modelEntries.forEach(([modelId, modelInfo]) => {
+                    const modelTile = document.createElement('div');
+                    modelTile.className = 'model-tile relative p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-400 hover:shadow-md';
+                    modelTile.dataset.modelId = modelId;
+                    
+                    modelTile.innerHTML = `
+                        <div class="text-center">
+                            <div class="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-1 leading-tight">${modelInfo.name}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">${modelInfo.cost} points</div>
+                            <div class="checkmark-icon hidden absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add click handler for tile selection
+                    modelTile.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log(`🎯 Tile clicked: ${modelId}`);
+                        toggleModelSelection(modelId, modelTile);
+                    });
+                    
+                    elements.modelGroup.appendChild(modelTile);
+                    modelsAdded++;
+                });
+                
+                isGridInitialized = true;
+                console.log(`✅ Model grid initialized successfully with ${modelsAdded} large tiles`);
+                
+                // Force update to show initial state
+                updateSelectedModels();
+                
+            } catch (error) {
+                console.error('❌ Error initializing model grid:', error);
+                showAlert('Error loading models. Please refresh the page.');
+            }
+        }
+
+        // Toggle model selection for tiles
+        function toggleModelSelection(modelId, tileElement) {
+            console.log(`🔄 Toggling model: ${modelId}, currently selected: ${selectedModels.has(modelId)}, exclude mode: ${excludeMode}`);
+            
+            if (excludeMode) {
+                // In exclude mode: toggle exclusion
+                if (excludedModels.has(modelId)) {
+                    // Un-exclude
+                    excludedModels.delete(modelId);
+                    tileElement.classList.remove('opacity-50', 'grayscale');
+                } else {
+                    // Exclude
+                    excludedModels.add(modelId);
+                    tileElement.classList.add('opacity-50', 'grayscale');
+                }
+                console.log(`🛑 Excluded models:`, Array.from(excludedModels));
+            } else {
+                // Normal mode: toggle selection
+                if (selectedModels.has(modelId)) {
+                    // Deselect
+                    selectedModels.delete(modelId);
+                    tileElement.classList.remove('selected-tile');
+                    tileElement.classList.add('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                    tileElement.classList.remove('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                    const checkmark = tileElement.querySelector('.checkmark-icon');
+                    if (checkmark) checkmark.classList.add('hidden');
+                } else {
+                    // Select
+                    selectedModels.add(modelId);
+                    tileElement.classList.add('selected-tile');
+                    tileElement.classList.remove('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                    tileElement.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                    const checkmark = tileElement.querySelector('.checkmark-icon');
+                    if (checkmark) checkmark.classList.remove('hidden');
+                }
+                
+                console.log(`📊 Selected models after toggle:`, Array.from(selectedModels));
+                updateSelectedModels();
+            }
+        }
+
+        // Toggle exclude mode functionality  
+        function toggleExcludeMode() {
+            excludeMode = !excludeMode;
+            const excludeBtn = document.getElementById('excludeToggle');
+            
+            if (excludeMode) {
+                // Enable exclude mode
+                excludeBtn.style.backgroundColor = '#dc2626'; // red-600 (darker)
+                excludeBtn.title = 'Exclude Mode ON - Click models to exclude them (click again to disable)';
+                console.log('🛑 Exclude mode enabled');
+            } else {
+                // Disable exclude mode
+                excludeBtn.style.backgroundColor = '#ef4444'; // red-500 (original)
+                excludeBtn.title = 'Toggle Exclude Mode';
+                console.log('🛑 Exclude mode disabled');
+            }
+        }
+
+        // Update selected models and UI
+        function updateSelectedModels() {
+            const count = selectedModels.size;
+            const totalPoints = Array.from(selectedModels).reduce((sum, modelId) => sum + (availableModels[modelId]?.cost || 0), 0);
+            
+            console.log(`📊 Updating selection: ${count} models, ${totalPoints} points`);
+            
+            if (elements.selectedCount) {
+                elements.selectedCount.textContent = `${count} model${count !== 1 ? 's' : ''} selected, ${totalPoints} points`;
+            }
+            
+            if (elements.generateBtn && elements.btnText) {
+                if (count === 0) {
+                    elements.generateBtn.disabled = true;
+                    elements.btnText.textContent = 'Select Models to Generate Images';
+                    console.log('🔴 Generate button disabled - no models selected');
+                } else {
+                    elements.generateBtn.disabled = false;
+                    elements.btnText.textContent = `Generate Images with ${count} Model${count !== 1 ? 's' : ''}`;
+                    console.log(`🟢 Generate button enabled - ${count} models selected`);
+                }
+            }
+        }
+
+        // Prompt rotation functions
+        async function analyzePrompt() {
+            const prompt = elements.originalPrompt.value.trim();
+            if (!prompt) {
+                showAlert('Please enter a prompt to analyze.');
+                return;
+            }
+
+            originalPrompt = prompt;
+            showAnalysisLoading(true, 'Analyzing prompt variables...');
+
+            // Get variable creation rules
+            const rules = document.getElementById('variableRules').value.trim();
+            const rulesInstruction = rules ? `\n\nIMPORTANT RULES: ${rules}` : '';
+
+            // Get the number of variables to generate
+            const variableCount = document.getElementById('variableCount').value;
+
+            const analysisPrompt = `
+Analyze this prompt and identify key variables that could be rotated for systematic research: "${prompt}"${rulesInstruction}
+
+Your task:
+1. Identify exactly ${variableCount} of the most important nouns, adjectives, locations, or concepts that could be varied
+2. For each variable, generate exactly 5 diverse, relevant alternatives (keep it lean for cost optimization)
+3. Use the EXACT text from the original prompt as current_value for each variable
+4. Follow any provided rules strictly when generating alternatives
+
+CRITICAL: Output ONLY pure JSON with NO additional text, explanations, footnotes, citations, or markdown formatting.
+
+{
+  "variables": [
+    {
+      "name": "variable_name",
+      "current_value": "exact_text_from_original_prompt", 
+      "options": ["option1", "option2", "option3", "option4", "option5"]
+    }
+  ]
+}
+
+Generate exactly ${variableCount} variable${variableCount !== '1' ? 's' : ''}. Each variable should have exactly 5 options for cost efficiency. NO additional text or formatting.`;
+
+            try {
+                await window.Poe.sendUserMessage(`@${selectedUnifiedModel} ${analysisPrompt}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'analyze' }
+                });
+            } catch (error) {
+                showAnalysisLoading(false);
+                showAlert('Error sending analysis request: ' + error.message);
+            }
+        }
+
+        function handleAnalysisResponse(result, context) {
+            if (result.status === "error") {
+                showAnalysisLoading(false);
+                showAlert("Analysis error: " + (result.responses[0].statusText || 'Unknown error'));
+                return;
+            }
+            
+            if (result.status !== "complete") return;
+
+            const response = result.responses[0].content;
+
+            if (context?.type === 'analyze') {
+                // Handle variable analysis - generate variables only
+                try {
+                    // Extract JSON from response
+                    const jsonMatch = response.match(/\{[\s\S]*\}/);
+                    if (!jsonMatch) {
+                        throw new Error('No JSON found in response');
+                    }
+                    
+                    const data = JSON.parse(jsonMatch[0]);
+                    
+                    if (!data.variables || !Array.isArray(data.variables)) {
+                        throw new Error('Invalid variables structure');
+                    }
+
+                    // Cap variables to 7 maximum
+                    currentVariables = data.variables.slice(0, 7);
+                    
+                    setupVariableControls();
+                    calculateCombinations();
+                    updateGeneratedPrompt();
+                    showAnalysisLoading(false);
+                    
+                } catch (error) {
+                    showAnalysisLoading(false);
+                    showAlert('Error parsing analysis results: ' + error.message);
+                }
+                return;
+            }
+
+            if (context?.type === 'expand') {
+                // Handle AI expansion of custom options
+                try {
+                    const expandedOptions = response.trim().split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+                    const variableIndex = context.variableIndex;
+                    const originalOptions = context.originalOptions;
+                    
+                    // Combine original examples with AI-generated options
+                    const allNewOptions = [...originalOptions, ...expandedOptions];
+                    
+                    // Add to the textarea for user to review
+                    const customTextArea = document.getElementById(`customText-${variableIndex}`);
+                    customTextArea.value = allNewOptions.join('\n');
+                    
+                    showAnalysisLoading(false);
+                    
+                } catch (error) {
+                    showAnalysisLoading(false);
+                    showAlert('Error processing AI expansion: ' + error.message);
+                }
+                return;
+            }
+
+            if (context?.type === 'format') {
+                // Handle prompt formatting - update the current image prompt
+                const formattedText = response.trim();
+                elements.promptInput.value = formattedText;
+                setFormatLoadingState(false);
+                updateUndoButton(); // Update undo button after format
+                return;
+            }
+
+            if (context?.type === 'hifi') {
+                // Handle Hi-Fi enhancement - update the current image prompt
+                const enhancedText = response.trim();
+                elements.promptInput.value = enhancedText;
+                setHiFiLoadingState(false);
+                updateUndoButton(); // Update undo button after enhancement
+                return;
+            }
+
+            if (context?.type === 'assist') {
+                // Handle Assist functionality
+                const assistedText = response.trim();
+                elements.promptInput.value = assistedText;
+                setAssistLoadingState(false);
+                updateUndoButton(); // Update undo button after assist
+                return;
+            }
+
+            if (context?.type === 'replace') {
+                // Handle variable replacement
+                try {
+                    const jsonMatch = response.match(/\{[\s\S]*\}/);
+                    if (!jsonMatch) {
+                        throw new Error('No JSON found in response');
+                    }
+                    
+                    const data = JSON.parse(jsonMatch[0]);
+                    
+                    if (!data.variable || !data.variable.name) {
+                        throw new Error('Invalid variable structure');
+                    }
+
+                    const variableIndex = context.variableIndex;
+                    
+                    // Replace the variable at the specified index
+                    currentVariables[variableIndex] = data.variable;
+                    
+                    // Refresh the UI
+                    setupVariableControls();
+                    calculateCombinations();
+                    updateGeneratedPrompt();
+                    showAnalysisLoading(false);
+                    
+                    showAlert('Variable replaced successfully!');
+                    
+                } catch (error) {
+                    showAnalysisLoading(false);
+                    showAlert('Error parsing variable replacement: ' + error.message);
+                }
+                return;
+            }
+
+            if (context?.type === 'addMore') {
+                // Handle adding more variables - add to existing ones
+                try {
+                    // Extract JSON from response
+                    const jsonMatch = response.match(/\{[\s\S]*\}/);
+                    if (!jsonMatch) {
+                        throw new Error('No JSON found in response');
+                    }
+                    
+                    const data = JSON.parse(jsonMatch[0]);
+                    
+                    if (!data.variables || !Array.isArray(data.variables)) {
+                        throw new Error('Invalid variables structure');
+                    }
+
+                    // Add new variables to existing ones (cap at 3-4 new variables)
+                    const newVariables = data.variables.slice(0, 4);
+                    currentVariables = [...currentVariables, ...newVariables];
+                    
+                    setupVariableControls();
+                    calculateCombinations();
+                    updateGeneratedPrompt();
+                    showAnalysisLoading(false);
+                    
+                    showAlert(`${newVariables.length} new variable${newVariables.length !== 1 ? 's' : ''} added successfully!`);
+                    
+                } catch (error) {
+                    showAnalysisLoading(false);
+                    showAlert('Error adding more variables: ' + error.message);
+                }
+                return;
+            }
+
+            // Fallback for old behavior (should not reach here with proper context)
+            showAnalysisLoading(false);
+            showAlert('Unknown analysis type. Please try again.');
+        }
+
+        function setupVariableControls() {
+            elements.variableList.innerHTML = '';
+            
+            currentVariables.forEach((variable, index) => {
+                const variableDiv = document.createElement('div');
+                variableDiv.className = 'p-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700';
+                
+                // Ensure original value is always included in options and comes first
+                let allOptions = [];
+                
+                // Add original value first (marked as "Original")
+                if (variable.current_value && variable.current_value.trim()) {
+                    allOptions.push({
+                        value: variable.current_value,
+                        display: `${variable.current_value} (Original)`,
+                        isOriginal: true
+                    });
+                }
+                
+                // Add all other options, but skip if they match the original value
+                variable.options.forEach(option => {
+                    if (option !== variable.current_value) {
+                        allOptions.push({
+                            value: option,
+                            display: option,
+                            isOriginal: false
+                        });
+                    }
+                });
+                
+                variableDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-medium">${variable.name}:</label>
+                        <button 
+                            class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs transition-colors"
+                            onclick="removeVariable(${index})"
+                            title="Remove this variable"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <select 
+                            class="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-sm" 
+                            data-variable-index="${index}"
+                        >
+                            ${allOptions.map(optionObj => 
+                                `<option value="${optionObj.value}" ${optionObj.isOriginal ? 'selected' : ''}>${optionObj.display}</option>`
+                            ).join('')}
+                        </select>
+                        <button 
+                            class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
+                            onclick="addCustomOption(${index})"
+                            title="Add custom options"
+                        >
+                            +
+                        </button>
+                    </div>
+                    <div id="customInput-${index}" class="hidden mt-2">
+                        <div class="flex flex-col gap-2">
+                            <textarea 
+                                id="customText-${index}"
+                                class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-sm resize-none"
+                                rows="3"
+                                placeholder="Add custom options (one per line)&#10;e.g.:&#10;Indian rasgulla&#10;Indian laddu&#10;Indian jalebi"
+                            ></textarea>
+                            <div class="flex gap-2">
+                                <button 
+                                    class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                    onclick="confirmCustomOptions(${index})"
+                                >
+                                    Add Options
+                                </button>
+                                <button 
+                                    class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs"
+                                    onclick="aiExpandOptions(${index})"
+                                >
+                                    AI Expand
+                                </button>
+                                <button 
+                                    class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs"
+                                    onclick="replaceVariable(${index})"
+                                >
+                                    Replace Variable
+                                </button>
+                                <button 
+                                    class="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs"
+                                    onclick="cancelCustomOptions(${index})"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const select = variableDiv.querySelector('select');
+                select.addEventListener('change', updateGeneratedPrompt);
+                
+                elements.variableList.appendChild(variableDiv);
+            });
+            
+            elements.variableControls.classList.remove('hidden');
+        }
+
+        function calculateCombinations() {
+            totalCombinations = Math.min(currentVariables.reduce((total, variable) => total * variable.options.length, 1), 10000);
+            currentCombination = 0;
+            updateComboCounter();
+        }
+
+        function updateGeneratedPrompt() {
+            if (currentVariables.length === 0) return;
+
+            let prompt = originalPrompt;
+            
+            // Replace variables in the prompt
+            currentVariables.forEach((variable, index) => {
+                const select = document.querySelector(`[data-variable-index="${index}"]`);
+                const selectedValue = select ? select.value : variable.current_value;
+                
+                // Try multiple replacement patterns
+                const patterns = [
+                    new RegExp(`\\b${escapeRegExp(variable.current_value)}\\b`, 'gi'),
+                    new RegExp(escapeRegExp(variable.current_value), 'gi')
+                ];
+                
+                for (const pattern of patterns) {
+                    if (pattern.test(prompt)) {
+                        prompt = prompt.replace(pattern, selectedValue);
+                        break;
+                    }
+                }
+            });
+
+            // Auto-populate the image generation prompt
+            elements.promptInput.value = prompt;
+        }
+
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function navigateCombination(direction) {
+            if (currentVariables.length === 0) return;
+
+            const newIndex = currentCombination + direction;
+            if (newIndex < 0 || newIndex >= totalCombinations) return;
+
+            currentCombination = newIndex;
+            
+            // Convert linear index to variable selections
+            let remaining = currentCombination;
+            currentVariables.forEach((variable, varIndex) => {
+                const optionIndex = remaining % variable.options.length;
+                remaining = Math.floor(remaining / variable.options.length);
+                
+                const select = document.querySelector(`[data-variable-index="${varIndex}"]`);
+                if (select) {
+                    select.selectedIndex = optionIndex;
+                }
+            });
+
+            updateGeneratedPrompt();
+            updateComboCounter();
+        }
+
+        function updateComboCounter() {
+            elements.comboCounter.textContent = `${currentCombination + 1} / ${totalCombinations}`;
+            elements.prevCombo.disabled = currentCombination === 0;
+            elements.nextCombo.disabled = currentCombination === totalCombinations - 1;
+        }
+
+        async function copyRotatedPrompt() {
+            const prompt = elements.promptInput.value;
+            if (!prompt) return;
+
+            try {
+                await navigator.clipboard.writeText(prompt);
+                
+                // Visual feedback
+                const originalText = elements.copyRotatedPrompt.textContent;
+                elements.copyRotatedPrompt.textContent = '✓ Copied!';
+                elements.copyRotatedPrompt.classList.add('bg-green-700');
+                
+                setTimeout(() => {
+                    elements.copyRotatedPrompt.textContent = originalText;
+                    elements.copyRotatedPrompt.classList.remove('bg-green-700');
+                }, 1500);
+            } catch (error) {
+                console.error('Copy failed:', error);
+            }
+        }
+
+        function showAnalysisLoading(loading, status = 'Analyzing prompt...') {
+            elements.analysisLoading.classList.toggle('hidden', !loading);
+            if (loading) {
+                elements.analysisStatus.textContent = status;
+            }
+        }
+
+        function clearPrompt() {
+            elements.originalPrompt.value = '';
+            elements.promptInput.value = '';
+            elements.variableControls.classList.add('hidden');
+            currentVariables = [];
+            originalPrompt = '';
+            promptHistory = []; // Clear history
+            updateUndoButton();
+        }
+
+        // Image generation functions
+        async function generateImages() {
+            const prompt = elements.promptInput.value.trim();
+
+            if (!prompt) {
+                showAlert('Please enter a prompt for your images');
+                return;
+            }
+
+            if (selectedModels.size === 0) {
+                showAlert('Please select at least one model');
+                return;
+            }
+
+            // Clear previous results
+            generationResults.clear();
+            elements.imagesGrid.innerHTML = '';
+
+            // Show loading state
+            setLoadingState(true);
+            elements.resultsSection.classList.remove('hidden');
+            elements.overallStatus.classList.remove('hidden');
+            
+            elements.statusText.textContent = 'Starting generation...';
+            elements.progressText.textContent = `0 of ${selectedModels.size} models completed`;
+
+            // Create empty placeholder containers immediately
+            createPlaceholderContainers();
+
+            console.log('🎨 Starting image generation with models:', Array.from(selectedModels));
+
+            try {
+                // Create prompt with all selected models
+                const modelMentions = Array.from(selectedModels).join(' ');
+                const fullPrompt = `${modelMentions} ${prompt}`;
+                
+                console.log('📤 Sending prompt:', fullPrompt);
+
+                const result = await window.Poe.sendUserMessage(fullPrompt, {
+                    handler: "multi-image-handler",
+                    stream: true,  // Get responses as each model completes
+                    openChat: false
+                });
+                
+                console.log('✅ Message sent successfully:', result);
+            } catch (err) {
+                console.error("❌ Error during generation:", err);
+                elements.statusText.textContent = "Error starting generation: " + err.message;
+                elements.progressText.textContent = '';
+                setLoadingState(false);
+            }
+        }
+
+        // NEW FUNCTION: Create empty placeholder containers immediately
+        function createPlaceholderContainers() {
+            console.log('🎯 Creating placeholder containers for', selectedModels.size, 'models');
+            
+            // Clear any existing grid
+            elements.imagesGrid.innerHTML = '';
+            
+            // Create placeholder for each selected model
+            Array.from(selectedModels).forEach((modelId, index) => {
+                const modelInfo = availableModels[modelId];
+                const modelName = modelInfo?.name || modelId;
+                
+                const placeholderDiv = document.createElement('div');
+                placeholderDiv.id = `placeholder-${modelId}`;
+                placeholderDiv.className = 'bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600';
+                placeholderDiv.dataset.modelId = modelId;
+                
+                placeholderDiv.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-gray-600 dark:text-gray-400">
+                            <svg class="animate-spin w-6 h-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <div class="font-semibold">${modelName}</div>
+                            <div class="text-sm">Generating...</div>
+                        </div>
+                    </div>
+                `;
+                
+                elements.imagesGrid.appendChild(placeholderDiv);
+                console.log(`✅ Created placeholder for ${modelName} (${modelId})`);
+            });
+            
+            console.log('🎯 All placeholders created successfully');
+        }
+
+        function handleImageResponse(result, context) {
+            console.log('📨 Received response:', result);
+            
+            result.responses.forEach(response => {
+                const { messageId, senderId, content, status, attachments } = response;
+                
+                console.log(`📝 Processing response from ${senderId}:`, { messageId, status, hasAttachments: !!attachments?.length });
+                
+                if (!generationResults.has(messageId)) {
+                    generationResults.set(messageId, {
+                        modelId: senderId,
+                        modelName: availableModels[senderId]?.name || senderId,
+                        status: status,
+                        content: content,
+                        attachments: attachments
+                    });
+                } else {
+                    const existing = generationResults.get(messageId);
+                    existing.status = status;
+                    existing.content = content;
+                    existing.attachments = attachments;
+                }
+
+                // Find and update the corresponding placeholder
+                updateImagePlaceholder(senderId, messageId);
+            });
+
+            updateOverallProgress();
+        }
+
+        // NEW FUNCTION: Update existing placeholder with response data
+        function updateImagePlaceholder(senderId, messageId) {
+            console.log(`🎯 Looking for placeholder for ${senderId}`);
+            
+            // Try to find placeholder by exact model ID match first
+            let placeholderDiv = document.getElementById(`placeholder-${senderId}`);
+            
+            // If not found, try exact match with @ prefix
+            if (!placeholderDiv) {
+                const withAtPrefix = senderId.startsWith('@') ? senderId : `@${senderId}`;
+                placeholderDiv = document.getElementById(`placeholder-${withAtPrefix}`);
+                if (placeholderDiv) {
+                    console.log(`✅ Found exact match with @ prefix: ${senderId} -> ${withAtPrefix}`);
+                }
+            }
+            
+            // If still not found, try intelligent matching with selected models
+            if (!placeholderDiv) {
+                console.log(`❌ No exact match for ${senderId}, searching selected models...`);
+                
+                const cleanSenderId = senderId.replace('@', '').toLowerCase();
+                let bestMatch = null;
+                let bestMatchLength = 0;
+                
+                // Find the longest/most specific match
+                for (const selectedModelId of selectedModels) {
+                    const cleanSelectedId = selectedModelId.replace('@', '').toLowerCase();
+                    
+                    // Check for exact match (highest priority)
+                    if (cleanSenderId === cleanSelectedId) {
+                        bestMatch = selectedModelId;
+                        bestMatchLength = cleanSelectedId.length;
+                        console.log(`✅ Found exact clean match: ${senderId} -> ${selectedModelId}`);
+                        break;
+                    }
+                    
+                    // Check if senderId matches the selectedModelId pattern 
+                    // But prefer longer matches over shorter ones
+                    if (cleanSenderId.includes(cleanSelectedId) && cleanSelectedId.length > bestMatchLength) {
+                        // Additional check: make sure it's a meaningful match
+                        // Avoid matching "imagen-4-fast" to "imagen-4" when "imagen-4-fast" is available
+                        const hasMoreSpecificMatch = Array.from(selectedModels).some(otherModelId => {
+                            const otherCleanId = otherModelId.replace('@', '').toLowerCase();
+                            return otherCleanId !== cleanSelectedId && 
+                                   otherCleanId.includes(cleanSelectedId) && 
+                                   cleanSenderId.includes(otherCleanId);
+                        });
+                        
+                        if (!hasMoreSpecificMatch) {
+                            bestMatch = selectedModelId;
+                            bestMatchLength = cleanSelectedId.length;
+                        }
+                    }
+                    
+                    // Also check reverse matching (selectedId contains senderId)
+                    if (cleanSelectedId.includes(cleanSenderId) && cleanSenderId.length > bestMatchLength) {
+                        bestMatch = selectedModelId;
+                        bestMatchLength = cleanSenderId.length;
+                    }
+                }
+                
+                if (bestMatch) {
+                    placeholderDiv = document.getElementById(`placeholder-${bestMatch}`);
+                    console.log(`✅ Found best match: ${senderId} -> ${bestMatch} (length: ${bestMatchLength})`);
+                }
+            }
+            
+            if (!placeholderDiv) {
+                console.error(`❌ No placeholder found for model: ${senderId}`);
+                console.log('Available placeholders:', Array.from(document.querySelectorAll('[id^="placeholder-"]')).map(el => el.id));
+                return;
+            }
+            
+            const result = generationResults.get(messageId);
+            if (!result) {
+                console.error(`❌ No result found for messageId: ${messageId}`);
+                return;
+            }
+            
+            console.log(`🔄 Updating placeholder for ${result.modelName} with status: ${result.status}`);
+            
+            // Update the placeholder content based on result status
+            if (result.status === 'error') {
+                placeholderDiv.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-red-600 dark:text-red-400 mb-2">
+                            <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div class="font-semibold">${result.modelName}</div>
+                            <div class="text-sm">Generation failed</div>
+                        </div>
+                    </div>
+                `;
+            } else if (result.status === 'incomplete') {
+                placeholderDiv.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-gray-600 dark:text-gray-400">
+                            <svg class="animate-spin w-6 h-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <div class="font-semibold">${result.modelName}</div>
+                            <div class="text-sm">Generating...</div>
+                        </div>
+                    </div>
+                `;
+            } else if (result.status === 'complete') {
+                if (result.attachments?.length > 0) {
+                    const imageAttachment = result.attachments[0];
+                    placeholderDiv.innerHTML = `
+                        <div class="text-center">
+                            <div class="font-semibold text-sm mb-3 text-gray-900 dark:text-gray-100">${result.modelName}</div>
+                            <div class="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-600 mb-3 cursor-pointer hover:opacity-90 transition-opacity" onclick="openImageModal('${imageAttachment.url}', '${result.modelName}')">
+                                <img src="${imageAttachment.url}" alt="Generated by ${result.modelName}" class="w-full h-48 object-cover">
+                                <div class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black bg-opacity-30">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <a href="${imageAttachment.url}" download="${imageAttachment.name || 'generated-image.png'}" 
+                               class="inline-flex items-center px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Download
+                            </a>
+                        </div>
+                    `;
+                    console.log(`✅ Successfully updated placeholder with image for ${result.modelName}`);
+                } else {
+                    placeholderDiv.innerHTML = `
+                        <div class="text-center py-8">
+                            <div class="text-yellow-600 dark:text-yellow-400">
+                                <div class="font-semibold">${result.modelName}</div>
+                                <div class="text-sm">No image generated</div>
+                            </div>
+                        </div>
+                    `;
+                    console.log(`⚠️ Updated placeholder but no image attachment for ${result.modelName}`);
+                }
+            }
+        }
+
+        function updateOverallProgress() {
+            const completed = Array.from(generationResults.values()).filter(r => r.status === 'complete' || r.status === 'error').length;
+            const total = selectedModels.size;
+            
+            if (completed === total) {
+                elements.overallStatus.classList.add('hidden');
+                setLoadingState(false);
+            } else {
+                elements.statusText.textContent = 'Generating images...';
+                elements.progressText.textContent = `${completed} of ${total} models completed`;
+            }
+        }
+
+        function setLoadingState(loading) {
+            // Never disable the button - just show/hide spinner
+            if (!loading && selectedModels.size > 0) {
+                elements.btnText.textContent = `Generate Images with ${selectedModels.size} Model${selectedModels.size !== 1 ? 's' : ''}`;
+            } else if (!loading) {
+                elements.btnText.textContent = 'Select Models to Generate Images';
+            }
+            
+            elements.btnText.classList.toggle('hidden', loading);
+            elements.btnLoader.classList.toggle('hidden', !loading);
+            elements.generatingText.textContent = loading ? `Generating with ${selectedModels.size} model${selectedModels.size !== 1 ? 's' : ''}...` : 'Select Models to Generate Images';
+        }
+
+        function resetForm() {
+            elements.resultsSection.classList.add('hidden');
+            generationResults.clear();
+            setLoadingState(false);
+            elements.promptInput.focus();
+        }
+
+        // Custom options functionality
+        function addCustomOption(variableIndex) {
+            const customInput = document.getElementById(`customInput-${variableIndex}`);
+            customInput.classList.remove('hidden');
+            document.getElementById(`customText-${variableIndex}`).focus();
+        }
+
+        function cancelCustomOptions(variableIndex) {
+            const customInput = document.getElementById(`customInput-${variableIndex}`);
+            customInput.classList.add('hidden');
+            document.getElementById(`customText-${variableIndex}`).value = '';
+        }
+
+        function confirmCustomOptions(variableIndex) {
+            const customText = document.getElementById(`customText-${variableIndex}`).value.trim();
+            if (!customText) {
+                showAlert('Please enter some custom options.');
+                return;
+            }
+
+            const newOptions = customText.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+            if (newOptions.length === 0) {
+                showAlert('Please enter valid options.');
+                return;
+            }
+
+            // Add to variable options
+            const variable = currentVariables[variableIndex];
+            newOptions.forEach(option => {
+                if (!variable.options.includes(option)) {
+                    variable.options.push(option);
+                }
+            });
+
+            // Refresh the dropdown
+            const select = document.querySelector(`[data-variable-index="${variableIndex}"]`);
+            const currentValue = select.value;
+            
+            // Rebuild options
+            let allOptions = [];
+            
+            // Add original value first
+            if (variable.current_value && variable.current_value.trim()) {
+                allOptions.push({
+                    value: variable.current_value,
+                    display: `${variable.current_value} (Original)`,
+                    isOriginal: true
+                });
+            }
+            
+            // Add all other options
+            variable.options.forEach(option => {
+                if (option !== variable.current_value) {
+                    allOptions.push({
+                        value: option,
+                        display: option,
+                        isOriginal: false
+                    });
+                }
+            });
+
+            select.innerHTML = allOptions.map(optionObj => 
+                `<option value="${optionObj.value}" ${optionObj.value === currentValue ? 'selected' : ''}>${optionObj.display}</option>`
+            ).join('');
+
+            // Update combinations count
+            calculateCombinations();
+            
+            // Hide input area
+            cancelCustomOptions(variableIndex);
+        }
+
+        async function aiExpandOptions(variableIndex) {
+            const customText = document.getElementById(`customText-${variableIndex}`).value.trim();
+            if (!customText) {
+                showAlert('Please enter at least one example option for AI to expand on.');
+                return;
+            }
+
+            const variable = currentVariables[variableIndex];
+            const examples = customText.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+            
+            showAnalysisLoading(true, 'AI expanding your options...');
+
+            const expandPrompt = `
+Based on these examples: ${examples.join(', ')}
+And this variable context: "${variable.name}" from original prompt "${originalPrompt}"
+
+Generate exactly 8 more similar options that follow the same pattern/style/category.
+
+Output ONLY a simple list, one option per line, no explanations or formatting:`;
+
+            try {
+                await window.Poe.sendUserMessage(`@${selectedUnifiedModel} ${expandPrompt}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'expand', variableIndex: variableIndex, originalOptions: examples }
+                });
+            } catch (error) {
+                showAnalysisLoading(false);
+                showAlert('Error expanding options: ' + error.message);
+            }
+        }
+
+        // AI-Powered Format Function - Intelligently Incorporates All Selected Variables
+        async function formatPrompt() {
+            const basePrompt = elements.promptInput.value.trim();
+            if (!basePrompt) {
+                showAlert('Please enter a prompt to format.');
+                return;
+            }
+
+            // Save current prompt to history before modifying
+            saveToHistory();
+
+            setFormatLoadingState(true);
+
+            // Collect all currently selected variables and their values
+            let selectedVariables = [];
+            currentVariables.forEach((variable, index) => {
+                const select = document.querySelector(`[data-variable-index="${index}"]`);
+                const selectedValue = select ? select.value : variable.current_value;
+                
+                // Only include if not set to original value AND it's different from original
+                if (selectedValue && selectedValue !== variable.current_value) {
+                    selectedVariables.push({
+                        name: variable.name,
+                        original: variable.current_value,
+                        selected: selectedValue,
+                        isEnrichment: variable.current_value === "Not specified"
+                    });
+                }
+            });
+
+            // Get custom enhancement rules and check for character limits
+            const customRules = document.getElementById('enhancementRules').value.trim();
+            const charLimit = detectCharacterLimit(customRules);
+            
+            let customRulesInstruction = '';
+            if (charLimit) {
+                customRulesInstruction = `\n\nCRITICAL CHARACTER LIMIT: Keep the output under ${charLimit} characters. This is MANDATORY.`;
+            }
+            if (customRules) {
+                customRulesInstruction += `\n\nCUSTOM ENHANCEMENT RULES (HIGHEST PRIORITY): ${customRules}`;
+            }
+
+            // Build variables instruction
+            let variablesInstruction = '';
+            if (selectedVariables.length > 0) {
+                variablesInstruction = '\n\nSELECTED VARIABLES TO INCORPORATE:\n';
+                selectedVariables.forEach(variable => {
+                    if (variable.isEnrichment) {
+                        variablesInstruction += `- ADD "${variable.name}": ${variable.selected} (new enrichment element)\n`;
+                    } else {
+                        variablesInstruction += `- CHANGE "${variable.original}" → "${variable.selected}"\n`;
+                    }
+                });
+                variablesInstruction += '\nYou MUST incorporate ALL these changes into the final prompt naturally.';
+            }
+
+            const formatPromptText = `INTELLIGENT PROMPT FORMATTING WITH VARIABLE INTEGRATION
+
+BASE PROMPT: "${basePrompt}"${variablesInstruction}${customRulesInstruction}
+
+YOUR TASK:
+1. Start with the base prompt as your foundation
+2. Intelligently incorporate ALL selected variables:
+   - For REPLACEMENT variables: naturally substitute the original text with the selected value
+   - For ENRICHMENT variables: seamlessly add these new elements where they fit best contextually
+3. Ensure the result flows naturally and makes logical sense
+4. Fix any grammar, syntax, or flow issues
+5. Resolve logical conflicts and contradictions
+6. Maintain simplicity - don't over-elaborate unless variables require it
+${charLimit ? `7. CRITICAL: Keep under ${charLimit} characters` : '7. Keep within reasonable length (under 1200 characters)'}
+
+INTEGRATION PRINCIPLES:
+- Variables should feel naturally integrated, not forced or appended
+- For enrichment variables (lighting, style, etc.), weave them into appropriate parts of the scene
+- Maintain the core intent and mood of the original prompt
+- Ensure physical and logical consistency
+- If variables conflict, choose the most coherent interpretation
+${charLimit ? `- If character limit requires truncation, prioritize the most important elements` : ''}
+
+OUTPUT RESTRICTIONS:
+- NEVER add prefixes like "Here is your formatted prompt:"
+- NEVER add suffixes like "Total characters: X" or explanations  
+- NEVER add quotation marks around the result
+- NEVER add metadata, instructions, or commentary
+- Output ONLY the final integrated prompt text, nothing else
+${charLimit ? `- MUST be under ${charLimit} characters` : ''}
+
+Focus on creating a seamless, natural prompt that incorporates all selected variables while maintaining simplicity and coherence.`;
+
+            try {
+                const result = await window.Poe.sendUserMessage(`@${selectedUnifiedModel} ${formatPromptText}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'format' }
+                });
+                
+                // If character limit is specified, apply it after getting the response
+                if (charLimit) {
+                    const currentPrompt = elements.promptInput.value;
+                    elements.promptInput.value = applyCharacterLimit(currentPrompt, charLimit);
+                }
+            } catch (error) {
+                setFormatLoadingState(false);
+                showAlert('Error formatting prompt: ' + error.message);
+            }
+        }
+
+        // Fixed Hi-Fi Enhancement functionality (NO "masterpiece", respects character limits)
+        async function enhancePromptHiFi() {
+            const prompt = elements.promptInput.value.trim();
+            if (!prompt) {
+                showAlert('Please enter a prompt to enhance.');
+                return;
+            }
+
+            // Save current prompt to history before modifying
+            saveToHistory();
+
+            setHiFiLoadingState(true);
+
+            // Get custom enhancement rules and check for character limits
+            const customRules = document.getElementById('enhancementRules').value.trim();
+            const charLimit = detectCharacterLimit(customRules);
+            
+            let customRulesInstruction = '';
+            if (charLimit) {
+                customRulesInstruction = `\n\nCRITICAL CHARACTER LIMIT: Keep the output under ${charLimit} characters. This is MANDATORY and OVERRIDES all other instructions.`;
+            }
+            if (customRules) {
+                customRulesInstruction += `\n\nCUSTOM ENHANCEMENT RULES (HIGHEST PRIORITY - APPLY THESE FIRST): ${customRules}`;
+            }
+
+            const hifiPrompt = `Transform this prompt into a hyper-detailed, ultra high quality image description: "${prompt}"${customRulesInstruction}
+
+${charLimit ? `CRITICAL: Output MUST be under ${charLimit} characters. This overrides all other requirements.` : ''}
+
+QUALITY ENHANCEMENT FRAMEWORK (DO NOT use the word "masterpiece"):
+
+ADD QUALITY MARKERS:
+- Use terms like: ultra detailed, high resolution, professional quality, award-winning, photorealistic
+- NEVER use the word "masterpiece" 
+- Add technical excellence indicators without clichéd terms
+
+ATOMIC DECONSTRUCTION:
+- Break down into: Subject, Action, Environment, Lighting
+- Describe each component with precision
+
+SPECIFICITY OVER VAGUENESS:
+- Transform subjective qualities into objective descriptions
+- Instead of "beautiful eyes" → "detailed eyes with visible iris patterns"
+- Instead of "sad expression" → "downturned eyes with relaxed facial muscles"
+
+TECHNICAL DETAILS:
+- Include camera settings, lens type, lighting setup
+- Add material properties and surface details
+- Specify atmospheric conditions and environmental context
+
+${charLimit ? `
+CRITICAL LENGTH REQUIREMENT:
+- Must be under ${charLimit} characters
+- If needed, prioritize the most important visual elements
+- Remove redundant descriptions to meet the limit
+- End with "..." if truncation is necessary
+` : 'Keep within reasonable length while maintaining detail'}
+
+OUTPUT RESTRICTIONS:
+- NEVER add prefixes like "Here is your enhanced prompt:" 
+- NEVER add suffixes like "Total characters: X"
+- NEVER add quotation marks or metadata
+- NEVER use the word "masterpiece"
+- Output ONLY the enhanced prompt text, absolutely nothing else
+${charLimit ? `- MUST be under ${charLimit} characters - truncate if necessary` : ''}
+
+Transform the prompt into a sophisticated, technically precise description for stunning high-quality results.`;
+
+            try {
+                const result = await window.Poe.sendUserMessage(`@${selectedUnifiedModel} ${hifiPrompt}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'hifi' }
+                });
+                
+                // If character limit is specified, apply it after getting the response
+                if (charLimit) {
+                    const currentPrompt = elements.promptInput.value;
+                    elements.promptInput.value = applyCharacterLimit(currentPrompt, charLimit);
+                }
+            } catch (error) {
+                setHiFiLoadingState(false);
+                showAlert('Error enhancing prompt: ' + error.message);
+            }
+        }
+
+        // NEW: Assist Button Functionality
+        async function assistPrompt() {
+            const customRules = document.getElementById('enhancementRules').value.trim();
+            
+            if (!customRules) {
+                showAlert('Please provide instructions in Custom Enhancement Rules for the Assist function.');
+                return;
+            }
+
+            const currentPrompt = elements.promptInput.value.trim();
+            
+            // Save current prompt to history before modifying
+            if (currentPrompt) {
+                saveToHistory();
+            }
+
+            setAssistLoadingState(true);
+
+            // Check for character limits in the instructions
+            const charLimit = detectCharacterLimit(customRules);
+
+            let assistPromptText = '';
+            
+            if (currentPrompt) {
+                // Modify existing prompt
+                assistPromptText = `Modify this prompt according to the instructions: "${currentPrompt}"
+
+INSTRUCTIONS: ${customRules}
+
+${charLimit ? `CRITICAL: Keep the output under ${charLimit} characters.` : ''}
+
+Apply the instructions to transform the prompt. Focus on what the user is asking for:
+- If they say "make it more cinematic" → add cinematic descriptors
+- If they say "focus on emotions" → emphasize emotional elements
+- If they say "add technical details" → include camera settings, aperture, ISO
+- If they say "simplify" → remove excessive descriptors
+- Follow any other specific instructions provided
+
+OUTPUT ONLY the enhanced/modified prompt text - no explanations, no "Here's your prompt:", just the prompt itself.
+${charLimit ? `Must be under ${charLimit} characters.` : ''}`;
+            } else {
+                // Create new prompt from scratch
+                assistPromptText = `Create a new image generation prompt based on these instructions: ${customRules}
+
+${charLimit ? `CRITICAL: Keep the output under ${charLimit} characters.` : ''}
+
+Generate a complete, detailed prompt that follows the instructions provided.
+Focus on creating exactly what the user is asking for.
+
+OUTPUT ONLY the prompt text - no explanations, no "Here's your prompt:", just the prompt itself.
+${charLimit ? `Must be under ${charLimit} characters.` : ''}`;
+            }
+
+            try {
+                const result = await window.Poe.sendUserMessage(`@${selectedUnifiedModel} ${assistPromptText}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'assist' }
+                });
+                
+                // If character limit is specified, apply it after getting the response
+                if (charLimit) {
+                    const resultPrompt = elements.promptInput.value;
+                    elements.promptInput.value = applyCharacterLimit(resultPrompt, charLimit);
+                }
+            } catch (error) {
+                setAssistLoadingState(false);
+                showAlert('Error with assist function: ' + error.message);
+            }
+        }
+
+        function setFormatLoadingState(loading) {
+            // Never disable the button - just show/hide spinner
+            document.getElementById('formatBtnText').classList.toggle('hidden', loading);
+            document.getElementById('formatBtnLoader').classList.toggle('hidden', !loading);
+        }
+
+        function setHiFiLoadingState(loading) {
+            // Never disable the button - just show/hide spinner
+            document.getElementById('hifiBtnText').classList.toggle('hidden', loading);
+            document.getElementById('hifiBtnLoader').classList.toggle('hidden', !loading);
+        }
+
+        function setAssistLoadingState(loading) {
+            // Never disable the button - just show/hide spinner
+            document.getElementById('assistBtnText').classList.toggle('hidden', loading);
+            document.getElementById('assistBtnLoader').classList.toggle('hidden', !loading);
+        }
+
+        // Replace Variable functionality
+        async function replaceVariable(variableIndex) {
+            const customText = document.getElementById(`customText-${variableIndex}`).value.trim();
+            const rules = customText || 'Generate alternative variables for this prompt section';
+            
+            if (!originalPrompt) {
+                showAlert('Please enter an original prompt first.');
+                return;
+            }
+
+            const variable = currentVariables[variableIndex];
+            showAnalysisLoading(true, 'Replacing variable...');
+
+            const replacePrompt = `
+Replace this variable in the prompt: "${originalPrompt}"
+
+Variable to replace: "${variable.name}" (currently: "${variable.current_value}")
+Rules: ${rules}
+
+Generate a completely NEW variable name and 10 diverse options that would work better in this context.
+
+CRITICAL: Output ONLY pure JSON with NO additional text, explanations, footnotes, citations, or markdown formatting.
+
+{
+  "variable": {
+    "name": "new_variable_name",
+    "current_value": "exact_text_from_original_prompt", 
+    "options": ["option1", "option2", "option3", "option4", "option5", "option6", "option7", "option8", "option9", "option10"]
+  }
+}
+
+NO additional text or formatting.`;
+
+            try {
+                await window.Poe.sendUserMessage(`@${selectedUnifiedModel} ${replacePrompt}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'replace', variableIndex: variableIndex }
+                });
+            } catch (error) {
+                showAnalysisLoading(false);
+                showAlert('Error replacing variable: ' + error.message);
+            }
+        }
+
+        // Remove Variable functionality
+        function removeVariable(variableIndex) {
+            if (currentVariables.length <= 1) {
+                showAlert('Cannot remove the last variable. Use "Clear" to remove all variables.');
+                return;
+            }
+            
+            // Remove the variable
+            currentVariables.splice(variableIndex, 1);
+            
+            // Refresh the UI
+            setupVariableControls();
+            calculateCombinations();
+            updateGeneratedPrompt();
+        }
+
+        // Fixed Add More Variables functionality - uses separate textarea
+        async function addMoreVariables() {
+            if (currentVariables.length === 0) {
+                showAlert('Please analyze a prompt first to generate initial variables.');
+                return;
+            }
+
+            const prompt = elements.originalPrompt.value.trim();
+            if (!prompt) {
+                showAlert('Original prompt is required for adding more variables.');
+                return;
+            }
+
+            showAnalysisLoading(true, 'Adding more variables...');
+
+            // Get rules from the new Additional Variables Rules textarea
+            const rules = document.getElementById('additionalVariableRules').value.trim();
+            const rulesInstruction = rules ? `\n\nIMPORTANT RULES: ${rules}` : '';
+
+            // List existing variables to avoid duplicates
+            const existingVariables = currentVariables.map(v => `"${v.name}" (focuses on: ${v.current_value})`).join(', ');
+
+            // Get the number of variables to generate for adding more
+            const variableCount = document.getElementById('addVariableCount').value;
+
+            const addMorePrompt = `
+CUSTOM VARIABLE CREATION RULES - ABSOLUTE HIGHEST PRIORITY:${rulesInstruction}
+
+${rules ? 'FOLLOW THESE RULES ABOVE ALL ELSE. Every variable and option must strictly comply with these rules.' : 'No custom rules specified.'}
+
+Find additional variables for systematic prompt variation: "${prompt}"
+
+EXISTING VARIABLES TO AVOID: ${existingVariables}
+
+Your task is to identify exactly ${variableCount} NEW variables that can be added${rules ? ', while STRICTLY following the custom rules above' : ''}. Look for BOTH types:
+
+TYPE 1 - EXTRACTION VARIABLES (from existing prompt text):
+- Identify elements already mentioned in the prompt that weren't captured yet
+- Extract the EXACT text from the original prompt as current_value
+- Generate 5 alternative options for that element${rules ? ' (all options must comply with custom rules)' : ''}
+
+TYPE 2 - ENRICHMENT VARIABLES (new additions):
+- Identify missing elements that could enhance the scene naturally
+- Use "Not specified" as current_value since these are NEW additions
+- Focus on: lighting, camera angles, artistic styles, mood, composition, technical details${rules ? ' (all options must comply with custom rules)' : ''}
+
+${rules ? `
+CRITICAL REMINDER: ALL variables and ALL options must strictly follow these rules: ${rules}
+If any variable or option would violate the custom rules, DO NOT include it.
+` : ''}
+
+CRITICAL: Output ONLY pure JSON with NO additional text, explanations, footnotes, citations, or markdown formatting.
+
+{
+  "variables": [
+    {
+      "name": "variable_name",
+      "current_value": "exact_text_from_prompt_OR_Not_specified", 
+      "options": ["option1", "option2", "option3", "option4", "option5"]
+    }
+  ]
+}
+
+Generate exactly ${variableCount} variable${variableCount !== '1' ? 's' : ''}. Each variable should have exactly 5 options${rules ? ' that ALL comply with the custom rules' : ''}. NO additional text or formatting.`;
+
+            try {
+                await window.Poe.sendUserMessage(`@${selectedUnifiedModel} ${addMorePrompt}`, {
+                    handler: "analysis-handler",
+                    stream: false,
+                    openChat: false,
+                    handlerContext: { type: 'addMore' }
+                });
+            } catch (error) {
+                showAnalysisLoading(false);
+                showAlert('Error adding more variables: ' + error.message);
+            }
+        }
+
+        // Feed and Repeat functionality
+        function feedPrompt() {
+            const originalText = elements.originalPrompt.value.trim();
+            if (!originalText) {
+                showAlert('Original prompt is empty. Please enter a prompt first.');
+                return;
+            }
+            elements.promptInput.value = originalText;
+            updateUndoButton();
+        }
+
+        function repeatPrompt() {
+            const imageText = elements.promptInput.value.trim();
+            if (!imageText) {
+                showAlert('Image prompt is empty. Please enter a prompt first.');
+                return;
+            }
+            elements.originalPrompt.value = imageText;
+        }
+
+        // Copy text flow functionality (no image URLs)
+        async function copyEntireFlow() {
+            const originalPrompt = elements.originalPrompt.value.trim();
+            const imagePrompt = elements.promptInput.value.trim();
+            const selectedModelsArray = Array.from(selectedModels);
+            
+            let flowData = `=== AI Prompt Rotator & Multi-Model Image Generator Text Flow ===\n\n`;
+            
+            if (originalPrompt) {
+                flowData += `ORIGINAL PROMPT:\n${originalPrompt}\n\n`;
+            }
+            
+            if (imagePrompt && imagePrompt !== originalPrompt) {
+                flowData += `IMAGE GENERATION PROMPT:\n${imagePrompt}\n\n`;
+            }
+            
+            if (currentVariables.length > 0) {
+                flowData += `VARIABLES ANALYZED:\n`;
+                currentVariables.forEach((variable, index) => {
+                    const select = document.querySelector(`[data-variable-index="${index}"]`);
+                    const currentSelection = select ? select.value : variable.current_value;
+                    flowData += `- ${variable.name}: ${currentSelection}\n`;
+                    flowData += `  Options: ${variable.options.join(', ')}\n`;
+                });
+                flowData += `\nTotal Combinations: ${totalCombinations}\nCurrent Combination: ${currentCombination + 1}\n\n`;
+            }
+            
+            if (selectedModelsArray.length > 0) {
+                flowData += `SELECTED MODELS:\n`;
+                selectedModelsArray.forEach(modelId => {
+                    const modelInfo = availableModels[modelId];
+                    flowData += `- ${modelInfo?.name || modelId} (${modelInfo?.cost || 0} points)\n`;
+                });
+                
+                const totalCost = selectedModelsArray.reduce((sum, modelId) => sum + (availableModels[modelId]?.cost || 0), 0);
+                flowData += `Total Cost: ${totalCost} points\n\n`;
+            }
+            
+            if (generationResults.size > 0) {
+                flowData += `GENERATION SUMMARY:\n`;
+                const completed = Array.from(generationResults.values()).filter(r => r.status === 'complete' && r.attachments?.length > 0).length;
+                const failed = Array.from(generationResults.values()).filter(r => r.status === 'error').length;
+                flowData += `- Images generated: ${completed}\n`;
+                flowData += `- Failed generations: ${failed}\n`;
+                flowData += `- Total models used: ${generationResults.size}\n\n`;
+                
+                flowData += `MODELS USED:\n`;
+                Array.from(generationResults.values()).forEach(result => {
+                    flowData += `- ${result.modelName}: ${result.status === 'complete' && result.attachments?.length > 0 ? 'Success' : 'Failed'}\n`;
+                });
+            }
+            
+            flowData += `\n=== End of Text Flow ===`;
+            
+            try {
+                await navigator.clipboard.writeText(flowData);
+                
+                // Visual feedback
+                const originalText = elements.copyEntireFlow.innerHTML;
+                elements.copyEntireFlow.innerHTML = `
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Copied!
+                `;
+                elements.copyEntireFlow.classList.add('bg-green-700');
+                
+                setTimeout(() => {
+                    elements.copyEntireFlow.innerHTML = originalText;
+                    elements.copyEntireFlow.classList.remove('bg-green-700');
+                }, 2000);
+                
+            } catch (error) {
+                showAlert('Failed to copy workflow: ' + error.message);
+            }
+        }
+
+        // Download all images as files
+        async function downloadAllAssets() {
+            const completedResults = Array.from(generationResults.values()).filter(
+                result => result.status === 'complete' && result.attachments?.length > 0
+            );
+            
+            if (completedResults.length === 0) {
+                showAlert('No images available todownload.');
+                return;
+            }
+            
+            // Update button text to show progress
+            elements.downloadAssetsText.textContent = `Downloading ${completedResults.length} images...`;
+            
+            // Download each image
+            for (let i = 0; i < completedResults.length; i++) {
+                const result = completedResults[i];
+                const imageUrl = result.attachments[0].url;
+                const fileName = `${result.modelName.replace(/[^a-z0-9]/gi, '-')}-${Date.now()}-${i}.png`;
+                
+                try {
+                    // Create a temporary anchor element to trigger download
+                    const link = document.createElement('a');
+                    link.href = imageUrl;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    // Small delay between downloads to avoid overwhelming the browser
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                } catch (error) {
+                    console.error(`Failed to download image from ${result.modelName}:`, error);
+                }
+            }
+            
+            // Reset button text
+            elements.downloadAssetsText.textContent = 'Download Assets';
+            
+            showAlert(`Downloaded ${completedResults.length} images successfully!`);
+        }
+
+        // Image Modal Functions
+        function openImageModal(imageUrl, modelName) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            const modalTitle = document.getElementById('modalImageTitle');
+            
+            modalImage.src = imageUrl;
+            modalTitle.textContent = modelName;
+            modal.classList.remove('hidden');
+            
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.add('hidden');
+            
+            // Re-enable body scroll
+            document.body.style.overflow = '';
+        }
+
+        // State Management Functions
+        function saveState() {
+            const state = {
+                version: '1.0',
+                timestamp: new Date().toISOString(),
+                originalPrompt: elements.originalPrompt.value,
+                imagePrompt: elements.promptInput.value,
+                variableRules: document.getElementById('variableRules').value,
+                enhancementRules: document.getElementById('enhancementRules').value,
+                additionalVariableRules: document.getElementById('additionalVariableRules').value,
+                variables: currentVariables,
+                currentCombination: currentCombination,
+                selectedModels: Array.from(selectedModels),
+                selectedUnifiedModel: selectedUnifiedModel,
+                variableCount: document.getElementById('variableCount').value,
+                addVariableCount: document.getElementById('addVariableCount').value
+            };
+            
+            const stateJson = JSON.stringify(state, null, 2);
+            const blob = new Blob([stateJson], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `prompt-state-${Date.now()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showAlert('State saved successfully!');
+        }
+
+        function importState() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const text = await file.text();
+                    const state = JSON.parse(text);
+                    
+                    // Restore state
+                    elements.originalPrompt.value = state.originalPrompt || '';
+                    elements.promptInput.value = state.imagePrompt || '';
+                    document.getElementById('variableRules').value = state.variableRules || '';
+                    document.getElementById('enhancementRules').value = state.enhancementRules || '';
+                    document.getElementById('additionalVariableRules').value = state.additionalVariableRules || '';
+                    
+                    if (state.variableCount) {
+                        document.getElementById('variableCount').value = state.variableCount;
+                    }
+                    if (state.addVariableCount) {
+                        document.getElementById('addVariableCount').value = state.addVariableCount;
+                    }
+                    
+                    // Restore variables
+                    if (state.variables && state.variables.length > 0) {
+                        currentVariables = state.variables;
+                        originalPrompt = state.originalPrompt || '';
+                        currentCombination = state.currentCombination || 0;
+                        setupVariableControls();
+                        calculateCombinations();
+                        updateGeneratedPrompt();
+                    }
+                    
+                    // Restore selected models
+                    if (state.selectedModels && state.selectedModels.length > 0) {
+                        selectedModels.clear();
+                        state.selectedModels.forEach(modelId => {
+                            if (availableModels[modelId]) {
+                                selectedModels.add(modelId);
+                                const tile = document.querySelector(`[data-model-id="${modelId}"]`);
+                                if (tile) {
+                                    tile.classList.add('selected-tile');
+                                    tile.classList.remove('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                                    tile.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                                    const checkmark = tile.querySelector('.checkmark-icon');
+                                    if (checkmark) checkmark.classList.remove('hidden');
+                                }
+                            }
+                        });
+                        updateSelectedModels();
+                    }
+                    
+                    // Restore unified model selection
+                    if (state.selectedUnifiedModel) {
+                        selectedUnifiedModel = state.selectedUnifiedModel;
+                        updateUnifiedModelDisplay();
+                    }
+                    
+                    showAlert('State imported successfully!');
+                    
+                } catch (error) {
+                    showAlert('Error importing state: ' + error.message);
+                }
+            };
+            
+            input.click();
+        }
+
+        // Copy functions
+        async function copyOriginalPrompt() {
+            const text = elements.originalPrompt.value;
+            if (!text) {
+                showAlert('No original prompt to copy.');
+                return;
+            }
+            
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = elements.copyOriginalPrompt;
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                btn.classList.add('bg-green-600');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('bg-green-600');
+                }, 1500);
+            } catch (error) {
+                showAlert('Failed to copy: ' + error.message);
+            }
+        }
+
+        async function copyImagePrompt() {
+            const text = elements.promptInput.value;
+            if (!text) {
+                showAlert('No image prompt to copy.');
+                return;
+            }
+            
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = elements.copyImagePrompt;
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                btn.classList.add('bg-green-600');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('bg-green-600');
+                }, 1500);
+            } catch (error) {
+                showAlert('Failed to copy: ' + error.message);
+            }
+        }
+
+        // Model selection quick actions
+        function selectAllModels() {
+            selectedModels.clear();
+            document.querySelectorAll('.model-tile').forEach(tile => {
+                const modelId = tile.dataset.modelId;
+                selectedModels.add(modelId);
+                tile.classList.add('selected-tile');
+                tile.classList.remove('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                tile.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                const checkmark = tile.querySelector('.checkmark-icon');
+                if (checkmark) checkmark.classList.remove('hidden');
+            });
+            updateSelectedModels();
+        }
+
+        function clearAllModels() {
+            selectedModels.clear();
+            document.querySelectorAll('.model-tile').forEach(tile => {
+                tile.classList.remove('selected-tile');
+                tile.classList.add('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                tile.classList.remove('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                const checkmark = tile.querySelector('.checkmark-icon');
+                if (checkmark) checkmark.classList.add('hidden');
+            });
+            updateSelectedModels();
+        }
+
+        // Toggle model exclusion functionality
+        function toggleModelExclusion(modelId, tileElement) {
+            console.log(`🛑 Toggling exclusion for: ${modelId}, currently excluded: ${excludedModels.has(modelId)}`);
+            
+            if (excludedModels.has(modelId)) {
+                // Un-exclude
+                excludedModels.delete(modelId);
+                tileElement.classList.remove('opacity-50', 'grayscale');
+                const excludeBtn = tileElement.querySelector('.exclude-btn');
+                if (excludeBtn) {
+                    excludeBtn.style.backgroundColor = '#ef4444'; // red-500
+                    excludeBtn.title = 'Exclude from randomization';
+                }
+            } else {
+                // Exclude
+                excludedModels.add(modelId);
+                tileElement.classList.add('opacity-50', 'grayscale');
+                const excludeBtn = tileElement.querySelector('.exclude-btn');
+                if (excludeBtn) {
+                    excludeBtn.style.backgroundColor = '#dc2626'; // red-600 (darker)
+                    excludeBtn.title = 'Excluded from randomization (click to include)';
+                }
+            }
+            
+            console.log(`🛑 Excluded models:`, Array.from(excludedModels));
+        }
+
+        // Proper Fisher-Yates shuffle algorithm for true randomness
+        function fisherYatesShuffle(array) {
+            const shuffled = [...array]; // Create a copy to avoid mutating original
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function selectRandom10() {
+            selectedModels.clear();
+            
+            // Clear all selections first
+            document.querySelectorAll('.model-tile').forEach(tile => {
+                tile.classList.remove('selected-tile');
+                tile.classList.add('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                tile.classList.remove('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                const checkmark = tile.querySelector('.checkmark-icon');
+                if (checkmark) checkmark.classList.add('hidden');
+            });
+            
+            // Get all model IDs and filter out excluded ones
+            const allModelIds = Object.keys(availableModels).filter(id => !excludedModels.has(id));
+            
+            if (allModelIds.length === 0) {
+                showAlert('All models are excluded! Please un-exclude some models first.');
+                return;
+            }
+            
+            const numToSelect = Math.min(10, allModelIds.length);
+            const shuffled = fisherYatesShuffle(allModelIds);
+            const selected = shuffled.slice(0, numToSelect);
+            
+            console.log('🎲 Truly random selection (excluding excluded models):', selected);
+            
+            // Select the random models
+            selected.forEach(modelId => {
+                selectedModels.add(modelId);
+                const tile = document.querySelector(`[data-model-id="${modelId}"]`);
+                if (tile) {
+                    tile.classList.add('selected-tile');
+                    tile.classList.remove('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                    tile.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                    const checkmark = tile.querySelector('.checkmark-icon');
+                    if (checkmark) checkmark.classList.remove('hidden');
+                }
+            });
+            
+            updateSelectedModels();
+        }
+
+        // Creator's Choice - select the best Imagen + Ideogram + Flash Image models
+        function selectCreatorsChoice() {
+            selectedModels.clear();
+            
+            // Clear all selections first
+            document.querySelectorAll('.model-tile').forEach(tile => {
+                tile.classList.remove('selected-tile');
+                tile.classList.add('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                tile.classList.remove('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                const checkmark = tile.querySelector('.checkmark-icon');
+                if (checkmark) checkmark.classList.add('hidden');
+            });
+            
+            // Define Creator's Choice models: Imagen + Ideogram + Flash Image 2.5
+            const creatorsChoiceModels = [
+                '@Imagen-4',
+                '@Imagen-4-Fast',
+                '@Imagen-4-Ultra-Exp',
+                '@Imagen-3',
+                '@Imagen-3-Fast',
+                '@Ideogram-v3',
+                '@Ideogram-v2',
+                '@Ideogram-v2a',
+                '@Ideogram-v2a-Turbo',
+                '@Gemini-2.5-Flash-Image'
+            ];
+            
+            // Filter to only include models that exist and aren't excluded
+            const availableCreatorsChoice = creatorsChoiceModels.filter(id => 
+                availableModels[id] && !excludedModels.has(id)
+            );
+            
+            console.log('⭐ Creator\'s Choice selection (Imagen + Ideogram + Flash Image):', availableCreatorsChoice);
+            
+            // Select the Creator's Choice models
+            availableCreatorsChoice.forEach(modelId => {
+                selectedModels.add(modelId);
+                const tile = document.querySelector(`[data-model-id="${modelId}"]`);
+                if (tile) {
+                    tile.classList.add('selected-tile');
+                    tile.classList.remove('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                    tile.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                    const checkmark = tile.querySelector('.checkmark-icon');
+                    if (checkmark) checkmark.classList.remove('hidden');
+                }
+            });
+            
+            updateSelectedModels();
+        }
+
+        function selectImagenModels() {
+            selectedModels.clear();
+            
+            // Clear all selections first
+            document.querySelectorAll('.model-tile').forEach(tile => {
+                tile.classList.remove('selected-tile');
+                tile.classList.add('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                tile.classList.remove('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                const checkmark = tile.querySelector('.checkmark-icon');
+                if (checkmark) checkmark.classList.add('hidden');
+            });
+            
+            // Select all Imagen models
+            const imagenModels = Object.keys(availableModels).filter(id => id.toLowerCase().includes('imagen'));
+            
+            imagenModels.forEach(modelId => {
+                selectedModels.add(modelId);
+                const tile = document.querySelector(`[data-model-id="${modelId}"]`);
+                if (tile) {
+                    tile.classList.add('selected-tile');
+                    tile.classList.remove('bg-white', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+                    tile.classList.add('bg-green-50', 'dark:bg-green-900/20', 'border-green-500', 'dark:border-green-400');
+                    const checkmark = tile.querySelector('.checkmark-icon');
+                    if (checkmark) checkmark.classList.remove('hidden');
+                }
+            });
+            
+            updateSelectedModels();
+        }
+
+        // Unified Model Selector Implementation
+        function initializeUnifiedModelSelector() {
+            console.log('🔧 Initializing unified model selector...');
+            
+            if (!elements.unifiedModelSelector) {
+                console.error('❌ Unified model selector not found');
+                return;
+            }
+            
+            renderUnifiedModelContent();
+            
+            // Click handler for accordion trigger
+            elements.unifiedAccordionTrigger.addEventListener('click', function(e) {
+                if (e.target === elements.unifiedModelSearch) return;
+                toggleUnifiedAccordion();
+            });
+            
+            // Search functionality
+            elements.unifiedModelSearch.addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                if (searchTerm) {
+                    filterUnifiedModels(searchTerm);
+                    if (!accordionExpanded) {
+                        expandUnifiedAccordion();
+                    }
+                } else {
+                    filteredModelData = MODEL_DATABASE;
+                    renderUnifiedModelContent();
+                }
+            });
+            
+            // Focus handler
+            elements.unifiedModelSearch.addEventListener('focus', function() {
+                if (!accordionExpanded) {
+                    expandUnifiedAccordion();
+                }
+            });
+            
+            // Click outside to close
+            document.addEventListener('click', function(e) {
+                if (!elements.unifiedModelSelector.contains(e.target) && accordionExpanded) {
+                    collapseUnifiedAccordion();
+                }
+            });
+            
+            updateUnifiedModelDisplay();
+        }
+
+        function renderUnifiedModelContent() {
+            const content = elements.unifiedModelContent;
+            content.innerHTML = '';
+            
+            // Check if filtered data is empty
+            const hasResults = Object.keys(filteredModelData).some(category => {
+                if (Array.isArray(filteredModelData[category])) {
+                    return filteredModelData[category].length > 0;
+                } else {
+                    return Object.keys(filteredModelData[category]).length > 0;
+                }
+            });
+            
+            if (!hasResults) {
+                content.innerHTML = '<div class="accordion-empty">No models found</div>';
+                return;
+            }
+            
+            // Render categories and models
+            Object.entries(filteredModelData).forEach(([category, models]) => {
+                if (Array.isArray(models) && models.length === 0) return;
+                if (!Array.isArray(models) && Object.keys(models).length === 0) return;
+                
+                const section = document.createElement('div');
+                section.className = 'accordion-section';
+                
+                // Category header
+                const header = document.createElement('div');
+                header.className = 'accordion-header';
+                header.innerHTML = `
+                    <span>${category}</span>
+                    <span class="text-gray-500 text-xs">▼</span>
+                `;
+                
+                // Category content
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'accordion-content';
+                
+                if (Array.isArray(models)) {
+                    // Direct array of models
+                    models.forEach(model => {
+                        const item = createUnifiedModelItem(model);
+                        contentDiv.appendChild(item);
+                    });
+                } else {
+                    // Nested subcategories
+                    Object.entries(models).forEach(([subCategory, subModels]) => {
+                        if (subModels.length === 0) return;
+                        
+                        const subHeader = document.createElement('div');
+                        subHeader.className = 'accordion-item font-semibold text-gray-600 dark:text-gray-400';
+                        subHeader.textContent = subCategory;
+                        contentDiv.appendChild(subHeader);
+                        
+                        subModels.forEach(model => {
+                            const item = createUnifiedModelItem(model);
+                            item.style.paddingLeft = '36px';
+                            contentDiv.appendChild(item);
+                        });
+                    });
+                }
+                
+                section.appendChild(header);
+                section.appendChild(contentDiv);
+                content.appendChild(section);
+                
+                // Add click handler for section expansion
+                header.addEventListener('click', function() {
+                    contentDiv.classList.toggle('expanded');
+                    const chevron = header.querySelector('.text-gray-500');
+                    if (contentDiv.classList.contains('expanded')) {
+                        chevron.textContent = '▲';
+                    } else {
+                        chevron.textContent = '▼';
+                    }
+                });
+                
+                // Auto-expand if it contains the selected model or has search results
+                if (shouldAutoExpand(models)) {
+                    contentDiv.classList.add('expanded');
+                    header.querySelector('.text-gray-500').textContent = '▲';
+                }
+            });
+        }
+
+        function createUnifiedModelItem(model) {
+            const item = document.createElement('div');
+            item.className = 'accordion-item';
+            if (model === selectedUnifiedModel) {
+                item.classList.add('selected');
+            }
+            item.textContent = model;
+            
+            item.addEventListener('click', function() {
+                selectUnifiedModel(model);
+            });
+            
+            return item;
+        }
+
+        function shouldAutoExpand(models) {
+            if (Array.isArray(models)) {
+                return models.includes(selectedUnifiedModel);
+            } else {
+                return Object.values(models).some(subModels => 
+                    subModels.includes(selectedUnifiedModel)
+                );
+            }
+        }
+
+        function filterUnifiedModels(searchTerm) {
+            filteredModelData = {};
+            
+            Object.entries(MODEL_DATABASE).forEach(([category, models]) => {
+                if (Array.isArray(models)) {
+                    const filtered = models.filter(model => 
+                        model.toLowerCase().includes(searchTerm)
+                    );
+                    if (filtered.length > 0) {
+                        filteredModelData[category] = filtered;
+                    }
+                } else {
+                    const filteredSub = {};
+                    Object.entries(models).forEach(([subCategory, subModels]) => {
+                        const filtered = subModels.filter(model => 
+                            model.toLowerCase().includes(searchTerm)
+                        );
+                        if (filtered.length > 0) {
+                            filteredSub[subCategory] = filtered;
+                        }
+                    });
+                    if (Object.keys(filteredSub).length > 0) {
+                        filteredModelData[category] = filteredSub;
+                    }
+                }
+            });
+            
+            renderUnifiedModelContent();
+        }
+
+        function selectUnifiedModel(model) {
+            selectedUnifiedModel = model;
+            updateUnifiedModelDisplay();
+            collapseUnifiedAccordion();
+            
+            // Re-render to update selection state
+            renderUnifiedModelContent();
+        }
+
+        function updateUnifiedModelDisplay() {
+            elements.unifiedModelSearch.value = '';
+            elements.unifiedModelSearch.placeholder = `Selected: ${selectedUnifiedModel}`;
+        }
+
+        function toggleUnifiedAccordion() {
+            if (accordionExpanded) {
+                collapseUnifiedAccordion();
+            } else {
+                expandUnifiedAccordion();
+            }
+        }
+
+        function expandUnifiedAccordion() {
+            elements.unifiedModelSelector.classList.remove('collapsed');
+            document.getElementById('unifiedAccordionChevron').style.transform = 'rotate(180deg)';
+            accordionExpanded = true;
+        }
+
+        function collapseUnifiedAccordion() {
+            elements.unifiedModelSelector.classList.add('collapsed');
+            document.getElementById('unifiedAccordionChevron').style.transform = 'rotate(0deg)';
+            accordionExpanded = false;
+            // Reset search when closing
+            elements.unifiedModelSearch.value = '';
+            filteredModelData = MODEL_DATABASE;
+            renderUnifiedModelContent();
+        }
+
+        // Initialize everything when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM Content Loaded - Starting initialization...');
+            
+            // Initialize all DOM elements
+            if (!initializeElements()) {
+                console.error('❌ Failed to initialize critical elements. Some features may not work.');
+                showAlert('Warning: Some elements could not be initialized. Please refresh the page.');
+            }
+            
+            // Initialize model grid
+            if (elements.modelGroup) {
+                initializeModelGrid();
+            } else {
+                console.error('❌ Model group not found - cannot initialize model grid');
+            }
+            
+            // Initialize unified model selector
+            if (elements.unifiedModelSelector) {
+                initializeUnifiedModelSelector();
+            }
+            
+            // Add event listeners
+            if (elements.analyzeBtn) {
+                elements.analyzeBtn.addEventListener('click', analyzePrompt);
+            }
+            
+            if (elements.generateBtn) {
+                elements.generateBtn.addEventListener('click', generateImages);
+            }
+            
+            if (elements.prevCombo) {
+                elements.prevCombo.addEventListener('click', () => navigateCombination(-1));
+            }
+            
+            if (elements.nextCombo) {
+                elements.nextCombo.addEventListener('click', () => navigateCombination(1));
+            }
+            
+            if (elements.copyRotatedPrompt) {
+                elements.copyRotatedPrompt.addEventListener('click', copyRotatedPrompt);
+            }
+            
+            if (elements.clearPrompt) {
+                elements.clearPrompt.addEventListener('click', clearPrompt);
+            }
+            
+            if (elements.generateAnother) {
+                elements.generateAnother.addEventListener('click', resetForm);
+            }
+            
+            if (elements.selectAll) {
+                elements.selectAll.addEventListener('click', selectAllModels);
+            }
+            
+            if (elements.clearAll) {
+                elements.clearAll.addEventListener('click', clearAllModels);
+            }
+            
+            if (elements.feedBtn) {
+                elements.feedBtn.addEventListener('click', feedPrompt);
+            }
+            
+            if (elements.repeatBtn) {
+                elements.repeatBtn.addEventListener('click', repeatPrompt);
+            }
+            
+            if (elements.copyEntireFlow) {
+                elements.copyEntireFlow.addEventListener('click', copyEntireFlow);
+            }
+            
+            if (elements.downloadAssets) {
+                elements.downloadAssets.addEventListener('click', downloadAllAssets);
+            }
+            
+            if (elements.saveStateBtn) {
+                elements.saveStateBtn.addEventListener('click', saveState);
+            }
+            
+            if (elements.saveStateBtn2) {
+                elements.saveStateBtn2.addEventListener('click', saveState);
+            }
+            
+            if (elements.importStateBtn) {
+                elements.importStateBtn.addEventListener('click', importState);
+            }
+            
+            if (elements.copyOriginalPrompt) {
+                elements.copyOriginalPrompt.addEventListener('click', copyOriginalPrompt);
+            }
+            
+            if (elements.copyImagePrompt) {
+                elements.copyImagePrompt.addEventListener('click', copyImagePrompt);
+            }
+            
+            if (elements.addMoreVariablesBtn) {
+                elements.addMoreVariablesBtn.addEventListener('click', addMoreVariables);
+            }
+            
+            if (elements.formatPromptBtn) {
+                elements.formatPromptBtn.addEventListener('click', formatPrompt);
+            }
+            
+            if (elements.hifiEnhanceBtn) {
+                elements.hifiEnhanceBtn.addEventListener('click', enhancePromptHiFi);
+            }
+            
+            if (elements.assistBtn) {
+                elements.assistBtn.addEventListener('click', assistPrompt);
+            }
+            
+            if (elements.undoPrompt) {
+                elements.undoPrompt.addEventListener('click', undoPromptChange);
+            }
+            
+            if (elements.imagenChoice) {
+                elements.imagenChoice.addEventListener('click', selectImagenModels);
+            }
+            
+            // Random 10 button
+            const random10Btn = document.getElementById('random10Choice');
+            if (random10Btn) {
+                random10Btn.addEventListener('click', selectRandom10);
+            }
+            
+            // Creator's Choice button
+            const creatorsChoiceBtn = document.getElementById('creatorsChoice');
+            if (creatorsChoiceBtn) {
+                creatorsChoiceBtn.addEventListener('click', selectCreatorsChoice);
+            }
+            
+            // Exclude Toggle button
+            const excludeToggleBtn = document.getElementById('excludeToggle');
+            if (excludeToggleBtn) {
+                excludeToggleBtn.addEventListener('click', toggleExcludeMode);
+            }
+            
+            // Track changes to prompt input for undo functionality
+            if (elements.promptInput) {
+                let typingTimer;
+                const doneTypingInterval = 1000; // 1 second after user stops typing
+                
+                elements.promptInput.addEventListener('input', function() {
+                    clearTimeout(typingTimer);
+                    typingTimer = setTimeout(() => {
+                        saveToHistory();
+                    }, doneTypingInterval);
+                });
+            }
+            
+            console.log('✅ Initialization complete!');
+        });
+
+        console.log('📜 Script loaded successfully');
+    </script>
+</body>
+</html>
+

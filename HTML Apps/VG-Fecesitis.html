@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Perfectionist - Iterative AI Refinement</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        secondary: '#059669',
+                        accent: '#10B981',
+                        enrich: '#F59E0B' // Amber color for the new panel
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        .clickable-image { cursor: pointer; transition: opacity 0.2s; }
+        .clickable-image:hover { opacity: 0.8; }
+        
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.9); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal img { max-width: 90vw; max-height: 90vh; object-fit: contain; }
+        
+        .loading-dots::after { content: ''; animation: dots 1.5s steps(4, end) infinite; }
+        @keyframes dots {
+            0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; }
+        }
+
+        .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out; }
+        .collapsible-content.expanded { max-height: 500px; /* Adjust as needed */ }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-primary">Face Perfectionist</h1>
+            <p class="text-gray-300 mt-2">Iterative AI-driven synthesis of text prompts + reference guidance</p>
+        </div>
+
+        <!-- Main 4-Box Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Panel 1: Reference Image -->
+            <div class="bg-gray-800 rounded-xl p-6 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold"><i class="fas fa-image mr-2 text-gray-400"></i>Reference Image</h2>
+                    <div class="flex gap-2">
+                        <button id="saveBtn" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm" title="Save current state to clipboard"><i class="fas fa-save"></i></button>
+                        <button id="importBtn" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm" title="Import saved state"><i class="fas fa-folder-open"></i></button>
+                    </div>
+                </div>
+                <div id="uploadArea" class="flex-grow border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-primary transition-colors cursor-pointer flex flex-col justify-center items-center">
+                    <div id="uploadPrompt">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="text-gray-300">Drop reference image or click to upload</p>
+                        <p class="text-sm text-gray-500 mt-2">Guides the generation style/structure</p>
+                    </div>
+                    <div id="imagePreview" class="hidden">
+                        <img id="previewImg" class="max-w-full max-h-48 mx-auto rounded-lg mb-3 clickable-image">
+                        <div class="flex justify-center gap-2">
+                            <button id="replaceBtn" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Replace</button>
+                            <button id="removeBgBtn" class="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm">Remove BG</button>
+                            <button id="removeBtn" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" class="hidden" accept="image/*">
+            </div>
+
+            <!-- Panel 2: Main Prompt -->
+            <div class="bg-gray-800 rounded-xl p-6 flex flex-col">
+                <h2 class="text-xl font-semibold mb-4"><i class="fas fa-pencil-alt mr-2 text-gray-400"></i>Main Prompt</h2>
+                <textarea id="userPrompt" class="w-full flex-grow p-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-base resize-none" placeholder="Describe the person you want to generate (face, build, style, etc.)..."></textarea>
+                <div class="mt-2 text-sm text-gray-400"><p>💡 Focus on facial features, expression, build, clothing, and overall style</p></div>
+            </div>
+        </div>
+
+        <!-- AI Assistant - Full Width -->
+        <div class="bg-gray-800 rounded-xl p-6 mb-8 relative">
+            <button id="feedBtn" class="absolute top-6 right-6 bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm" title="Feed AI response to Main Prompt"><i class="fas fa-arrow-up"></i></button>
+            <h2 class="text-xl font-semibold mb-4 text-purple-400"><i class="fas fa-brain mr-2"></i>AI Assistant</h2>
+            <div class="mb-4">
+                <label class="block text-xs font-medium mb-1">Multimodal AI Model</label>
+                <select id="multimodalModel" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"></select>
+            </div>
+            <textarea id="askInput" class="w-full p-3 mb-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm resize-none" rows="3" placeholder="Ask for prompt ideas, style changes..."></textarea>
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <button id="iterateBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-sync-alt mr-1"></i> Iterate</button>
+                <button id="askBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-comment-dots mr-1"></i> Ask</button>
+                <button id="askWebSearchBtn" class="bg-enrich hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-search mr-1"></i> <span id="webSearchBtnText">Prepare Query</span></button>
+            </div>
+            
+            <!-- AI Response Display Area - Now Editable -->
+            <div class="relative">
+                <textarea id="aiResponseDisplay" class="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm resize-none min-h-[12rem] max-h-[20rem]" placeholder="AI responses will appear here and can be edited..."></textarea>
+                <button id="feedAiResponseBtn" class="absolute bottom-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-xs" title="Feed AI response to Main Prompt"><i class="fas fa-arrow-up"></i></button>
+            </div>
+            
+            <div id="iterateStatus" class="mt-4 text-center text-gray-500 hidden"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto mb-2"></div><p class="loading-dots">Analyzing</p></div>
+        </div>
+
+        <!-- Image Generation and Web Search Side by Side -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Panel 3: Image Generation -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4 text-green-400"><i class="fas fa-film mr-2"></i>Image Generation</h2>
+                <div class="mb-4">
+                    <label class="block text-xs font-medium mb-1">Image Generation Model</label>
+                    <select id="generationModel" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"></select>
+                </div>
+                <div id="dynamicModelSettings" class="space-y-4 mb-4"></div>
+                <button id="generateBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-palette mr-2"></i> Generate</button>
+                <div id="generateStatus" class="mt-4 text-center text-gray-500 hidden"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-green-400 mx-auto mb-2"></div><p class="loading-dots">Generating image</p></div>
+            </div>
+
+            <!-- Panel 4: Manual Web Search -->
+            <div class="bg-gray-800 rounded-xl p-6 border-t-4 border-enrich">
+                <h2 class="text-xl font-semibold mb-4 text-enrich"><i class="fas fa-search mr-2"></i>Manual Web Search</h2>
+                <div class="mb-4">
+                    <label class="block text-xs font-medium mb-1">Web Search Model</label>
+                    <select id="webSearchModel" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"></select>
+                </div>
+                <textarea id="enrichQuery" class="w-full p-3 mb-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm resize-none" rows="3" placeholder="Enter any search query, e.g., 'cricket match scores today' or '1920s fashion details'"></textarea>
+                <button id="manualSearchBtn" class="w-full bg-enrich hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-4"><i class="fas fa-search mr-2"></i>Search</button>
+                
+                <div class="flex justify-between items-center mb-1">
+                    <label class="block text-xs font-medium">Search Results</label>
+                    <button id="feedSearchBtn" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-xs" title="Feed search results to AI Assistant"><i class="fas fa-arrow-up"></i></button>
+                </div>
+                <textarea id="enrichResultArea" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs resize-none" rows="4" placeholder="Web search results will appear here and can be edited..."></textarea>
+                
+                <div id="enrichStatus" class="mt-4 text-center text-gray-500 hidden"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-enrich mx-auto mb-2"></div><p class="loading-dots">Searching</p></div>
+            </div>
+        </div>
+
+        <!-- Collapsible Sections -->
+        <div class="space-y-4 mb-8">
+            <!-- Advanced Settings -->
+            <div>
+                <button id="toggleSettingsBtn" class="w-full text-left bg-gray-800 hover:bg-gray-700 text-white py-2 px-4 rounded text-sm flex justify-between items-center">
+                    <span><i class="fas fa-sliders-h mr-2"></i>Advanced Settings</span><i class="fas fa-chevron-down transform transition-transform"></i>
+                </button>
+                <div id="settingsSection" class="collapsible-content bg-gray-800 rounded-b-lg">
+                    <div class="p-4 border-t border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-xs font-medium mb-1">Target Score</label><input type="number" id="targetScore" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm" value="85" min="60" max="100"></div>
+                        <div><label class="block text-xs font-medium mb-1">Focus Areas</label><select id="focusAreas" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"><option value="overall">Overall Match</option><option value="face">Face Primary</option><option value="face-build">Face + Build</option></select></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Custom Instructions -->
+            <div>
+                 <button id="toggleInstructionsBtn" class="w-full text-left bg-gray-800 hover:bg-gray-700 text-white py-2 px-4 rounded text-sm flex justify-between items-center">
+                    <span><i class="fas fa-cog mr-2"></i>Custom Refinement Instructions</span><i class="fas fa-chevron-down transform transition-transform"></i>
+                </button>
+                <div id="instructionsSection" class="collapsible-content bg-gray-800 rounded-b-lg">
+                    <div class="p-4 border-t border-gray-700">
+                        <div class="relative">
+                            <textarea id="refinementInstructions" class="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-base resize-none" rows="2" placeholder="Optional: Add specific instructions for refinement..."></textarea>
+                            <button id="feedInstructionsBtn" class="absolute bottom-2 right-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-xs" title="Feed instructions to AI Assistant"><i class="fas fa-arrow-up"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+             <!-- AI Response Log -->
+            <div>
+                 <button id="toggleAiResponseBtn" class="w-full text-left bg-gray-800 hover:bg-gray-700 text-white py-2 px-4 rounded text-sm flex justify-between items-center">
+                    <span><i class="fas fa-robot mr-2"></i>AI Response Log</span><i class="fas fa-chevron-down transform transition-transform"></i>
+                </button>
+                <div id="aiResponseSection" class="collapsible-content bg-gray-800 rounded-b-lg"><div class="p-4 border-t border-gray-700"><div id="aiResponse" class="bg-gray-700 border border-gray-600 rounded-lg p-4 min-h-[8rem]"><div id="aiResponseText" class="text-gray-300 text-sm">AI responses will appear here...</div></div></div></div>
+            </div>
+        </div>
+
+        <div class="text-center mb-8"><button id="resetBtn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200"><i class="fas fa-undo mr-2"></i> Reset Session</button></div>
+
+        <div id="generatedImagesSection" class="hidden mb-8"><div class="bg-gray-800 rounded-xl p-6"><h2 class="text-xl font-semibold mb-6"><i class="fas fa-images mr-2"></i>Generated Images</h2><div id="generatedImages" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></div></div>
+        <div id="analysisSection" class="hidden mb-8"><div class="bg-gray-800 rounded-xl p-6"><h2 class="text-xl font-semibold mb-4"><i class="fas fa-search-plus mr-2"></i>Analysis Results</h2><div id="analysisResults" class="space-y-4"></div></div></div>
+    </div>
+
+    <script>
+        // --- MODEL CONFIGURATIONS ---
+        const imageModelConfigs = {
+            '@Flux-Kontext-Max': { displayName: 'FLUX Kontext Max', aspectRatios: ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16', '9:21'], syntax: '--' },
+            '@GPT-Image-1': { displayName: 'GPT-Image-1', aspectRatios: ['1:1', '3:2', '2:3'], qualityOptions: ['high', 'medium', 'low'], features: ['use_mask'], syntax: '--' },
+            '@Ideogram-v3': { displayName: 'Ideogram v3', aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16'], styleOptions: ['AUTO', 'GENERAL', 'REALISTIC', 'DESIGN'], features: ['use_mask'], specialNote: 'Exceptional typography', syntax: '--' },
+            '@FLUX-pro-1.1-ultra': { displayName: 'FLUX Pro 1.1 Ultra', aspectRatios: ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16', '9:21'], features: ['raw', 'strength'], syntax: '--' },
+            '@Flux-Kontext-Pro': { displayName: 'FLUX Kontext Pro', aspectRatios: ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16', '9:21'], syntax: '--' },
+            '@FLUX-schnell': { displayName: 'FLUX Schnell', aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16'], syntax: '--' },
+            '@FLUX-Krea': { displayName: 'FLUX Krea', aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16'], syntax: '--' },
+            '@FLUX-dev': { displayName: 'FLUX Dev', aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16'], syntax: '--' },
+            '@Gemini-2.0-Flash-Preview': { displayName: 'Gemini 2.0 Flash', aspectRatios: [], features: [], syntax: '--' }  
+        };
+        const multimodalModelConfigs = {
+            '@GPT-5': { displayName: 'GPT-5' },
+            '@GPT-5-Chat': { displayName: 'GPT-5 Chat' },
+            '@Claude-Sonnet-4': { displayName: 'Claude Sonnet 4' },
+            '@Gemini-2.5-Pro': { displayName: 'Gemini 2.5 Pro' },
+            '@Grok-4': { displayName: 'Grok 4' },
+            '@DeepSeek-V3-FW': { displayName: 'DeepSeek V3 (Fireworks)' },
+            '@Llama-4-Scout-B10': { displayName: 'Llama 4 Scout (Baseten)' },
+            '@Llama-4-Maverick-T': { displayName: 'Llama 4 Maverick (Together)' },
+            '@Qwen3-235B-2507-FW': { displayName: 'Qwen3 235B (Fireworks)' },
+            '@Mixtral8x22b-Inst-FW': { displayName: 'Mixtral 8x22B (Fireworks)' },
+            '@Reka-Core': { displayName: 'Reka Core' },
+            '@Aya-Vision': { displayName: 'Aya Vision' },
+            '@Kimi-K2': { displayName: 'Kimi K2' }
+        };
+        const webSearchModelConfigs = {
+            '@Web-Search': { displayName: 'Web Search (Poe)' },
+            '@Gemini-2.5-Flash': { displayName: 'Gemini 2.5 Flash' },
+            '@GPT-4o-Search': { displayName: 'GPT-4o Search' },
+            '@Claude-Sonnet-4-Search': { displayName: 'Claude Sonnet 4 Search' },
+            '@Perplexity-Sonar': { displayName: 'Perplexity Sonar' },
+            '@Perplexity-Sonar-Pro': { displayName: 'Perplexity Sonar Pro' },
+            '@Perplexity-Sonar-Rsn': { displayName: 'Perplexity Sonar Reasoning' },
+            '@Perplexity-Sonar-Rsn-Pro': { displayName: 'Perplexity Sonar Reasoning Pro' },
+            '@Reka-Research': { displayName: 'Reka Research' },
+            '@Bagoodex-Web-Search': { displayName: 'Bagoodex Web Search' }
+        };
+
+        // Global state
+        let uploadedFile = null, generatedImages = [], lastAIResponse = '', lastEnrichmentResult = null;
+        let isGenerating = false, isAIThinking = false, isEnriching = false;
+
+        // DOM elements
+        const dom = {
+            uploadArea: document.getElementById('uploadArea'), fileInput: document.getElementById('fileInput'), uploadPrompt: document.getElementById('uploadPrompt'), imagePreview: document.getElementById('imagePreview'), previewImg: document.getElementById('previewImg'), replaceBtn: document.getElementById('replaceBtn'), removeBgBtn: document.getElementById('removeBgBtn'), removeBtn: document.getElementById('removeBtn'),
+            userPrompt: document.getElementById('userPrompt'), generationModel: document.getElementById('generationModel'), multimodalModel: document.getElementById('multimodalModel'), targetScore: document.getElementById('targetScore'), focusAreas: document.getElementById('focusAreas'), refinementInstructions: document.getElementById('refinementInstructions'), dynamicModelSettings: document.getElementById('dynamicModelSettings'),
+            askInput: document.getElementById('askInput'),
+            generateBtn: document.getElementById('generateBtn'), iterateBtn: document.getElementById('iterateBtn'), askBtn: document.getElementById('askBtn'), feedBtn: document.getElementById('feedBtn'), resetBtn: document.getElementById('resetBtn'), saveBtn: document.getElementById('saveBtn'), importBtn: document.getElementById('importBtn'),
+            generateStatus: document.getElementById('generateStatus'), iterateStatus: document.getElementById('iterateStatus'), aiResponse: document.getElementById('aiResponse'), aiResponseText: document.getElementById('aiResponseText'),
+            generatedImagesSection: document.getElementById('generatedImagesSection'), generatedImages: document.getElementById('generatedImages'), analysisSection: document.getElementById('analysisSection'), analysisResults: document.getElementById('analysisResults'),
+            toggleSettingsBtn: document.getElementById('toggleSettingsBtn'), settingsSection: document.getElementById('settingsSection'), toggleInstructionsBtn: document.getElementById('toggleInstructionsBtn'), instructionsSection: document.getElementById('instructionsSection'), toggleAiResponseBtn: document.getElementById('toggleAiResponseBtn'), aiResponseSection: document.getElementById('aiResponseSection'),
+            // New AI Response Display Elements
+            aiResponseDisplay: document.getElementById('aiResponseDisplay'),
+            // New Enrich Elements
+            enrichQuery: document.getElementById('enrichQuery'), webSearchModel: document.getElementById('webSearchModel'), enrichResultArea: document.getElementById('enrichResultArea'), feedSearchBtn: document.getElementById('feedSearchBtn'), enrichStatus: document.getElementById('enrichStatus'),
+            // New Ask with Web Search Elements
+            askWebSearchBtn: document.getElementById('askWebSearchBtn'), webSearchBtnText: document.getElementById('webSearchBtnText'), manualSearchBtn: document.getElementById('manualSearchBtn')
+        };
+
+        // Check if Poe API is available and register handlers
+        if (window.Poe) {
+            // Poe handlers registration
+            window.Poe.registerHandler("generation-handler", handleGenerationResponse);
+            window.Poe.registerHandler("iterate-handler", handleIterateResponse);
+            window.Poe.registerHandler("ask-handler", handleAskResponse);
+            window.Poe.registerHandler("remove-bg-handler", handleRemoveBgResponse);
+            window.Poe.registerHandler("query-generation-handler", handleQueryGenerationResponse);
+            window.Poe.registerHandler("web-search-handler", handleWebSearchResponse);
+        } else {
+            showAlert('Poe API not available. Some features may not work.');
+        }
+
+        // File handling
+        function handleFile(file) { if (!file || !file.type.startsWith('image/')) return; uploadedFile = file; const reader = new FileReader(); reader.onload = e => { dom.previewImg.src = e.target.result; dom.uploadPrompt.classList.add('hidden'); dom.imagePreview.classList.remove('hidden'); }; reader.readAsDataURL(file); }
+        function removeImage() { uploadedFile = null; dom.uploadPrompt.classList.remove('hidden'); dom.imagePreview.classList.add('hidden'); dom.fileInput.value = ''; }
+
+        // Validation
+        function validateInputs(requireReferenceImage = true) { if (requireReferenceImage && !uploadedFile) { showAlert('Please upload a reference image first.'); return false; } if (!dom.userPrompt.value.trim()) { showAlert('Please enter a main prompt.'); return false; } return true; }
+
+        // --- DYNAMIC UI LOGIC ---
+        function populateSelect(selectElement, config, defaultKey) { selectElement.innerHTML = ''; for (const key in config) { const option = document.createElement('option'); option.value = key; option.textContent = config[key].displayName; if (key === defaultKey) option.selected = true; selectElement.appendChild(option); } }
+        function updateDynamicSettings(modelKey) { const config = imageModelConfigs[modelKey]; let settingsHTML = ''; if (config.aspectRatios && config.aspectRatios.length > 0) { settingsHTML += `<div><label class="block text-xs font-medium mb-1">Aspect Ratio</label><select id="aspectRatioSelect" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">${config.aspectRatios.map(ar => `<option value="${ar}">${ar}</option>`).join('')}</select></div>`; } if (config.qualityOptions) { settingsHTML += `<div><label class="block text-xs font-medium mb-1">Quality</label><select id="qualitySelect" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">${config.qualityOptions.map(q => `<option value="${q}">${q}</option>`).join('')}</select></div>`; } if (config.styleOptions) { settingsHTML += `<div><label class="block text-xs font-medium mb-1">Style</label><select id="styleSelect" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">${config.styleOptions.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>`; } if (config.specialNote) { settingsHTML += `<div class="text-xs text-amber-300 p-2 bg-amber-900/50 rounded"><i class="fas fa-star mr-1"></i> ${config.specialNote}</div>`; } dom.dynamicModelSettings.innerHTML = settingsHTML; }
+
+        // Main Actions
+        function generateImage() { if (!validateInputs(false) || isGenerating) return; isGenerating = true; dom.generateBtn.disabled = true; dom.generateStatus.classList.remove('hidden'); let finalPrompt = dom.userPrompt.value.trim(); const selectedModelKey = dom.generationModel.value; const config = imageModelConfigs[selectedModelKey]; const syntax = config.syntax || '--'; const arSelect = document.getElementById('aspectRatioSelect'); if (arSelect) finalPrompt += ` ${syntax}ar ${arSelect.value}`; const qualitySelect = document.getElementById('qualitySelect'); if (qualitySelect) finalPrompt += ` ${syntax}quality ${qualitySelect.value}`; const styleSelect = document.getElementById('styleSelect'); if (styleSelect) finalPrompt += ` ${syntax}style ${styleSelect.value}`; console.log("Final generated prompt:", finalPrompt); window.Poe.sendUserMessage(`${selectedModelKey} ${finalPrompt}`, { handler: "generation-handler", attachments: uploadedFile ? [uploadedFile] : undefined, handlerContext: { prompt: finalPrompt }, openChat: false }).catch(handleError); }
+        function analyzeAndIterate() { 
+            if (!validateInputs() || isAIThinking) return; 
+            isAIThinking = true; 
+            dom.iterateBtn.disabled = true; 
+            dom.askBtn.disabled = true; 
+            dom.iterateStatus.classList.remove('hidden'); 
+            
+            const latestImage = generatedImages.length > 0 ? generatedImages[generatedImages.length - 1] : null; 
+            const model = dom.multimodalModel.value; 
+            const prompt = dom.userPrompt.value.trim(); 
+            const instructions = dom.refinementInstructions.value.trim(); 
+            const targetScore = dom.targetScore.value;
+            const focusArea = dom.focusAreas.value;
+            
+            let iteratePrompt, attachments = [uploadedFile], handlerContext; 
+            
+            if (latestImage) { 
+                iteratePrompt = `Analyze the generated image compared to the reference image and text prompt. Rate how well they match on a scale of 1-100.
+
+REFERENCE IMAGE: [First attachment - uploaded reference]
+GENERATED IMAGE: [Second attachment - AI generated image]
+TEXT PROMPT: "${prompt}"
+TARGET SCORE: ${targetScore}
+FOCUS AREA: ${focusArea}
+${instructions ? `CUSTOM INSTRUCTIONS: ${instructions}` : ''}
+
+Please provide your analysis in this exact format:
+SCORE: [number 1-100]
+ANALYSIS: [detailed comparison explaining what works well and what could be improved]
+IMPROVED_PROMPT: [enhanced version of the text prompt that would generate a better match]
+
+Focus on facial features, pose, clothing, lighting, and overall composition.`; 
+                handlerContext = { type: 'iteration', prompt }; 
+                fetch(latestImage.url).then(r => r.blob()).then(blob => { 
+                    attachments.push(new File([blob], 'generated.png', { type: 'image/png' })); 
+                    window.Poe.sendUserMessage(`${model} ${iteratePrompt}`, { 
+                        handler: "iterate-handler", 
+                        attachments, 
+                        handlerContext,
+                        openChat: false,
+                        stream: false
+                    }).catch(handleError); 
+                }).catch(handleError); 
+            } else { 
+                iteratePrompt = `Enhance this image generation prompt to make it more detailed and effective. Focus on improving facial features, pose, clothing, and overall composition.
+
+CURRENT PROMPT: "${prompt}"
+TARGET SCORE: ${targetScore}
+FOCUS AREA: ${focusArea}
+${instructions ? `CUSTOM INSTRUCTIONS: ${instructions}` : ''}
+
+Please provide an enhanced version that would generate better results. Return only the improved prompt text without any additional commentary.`; 
+                handlerContext = { type: 'enhancement', prompt }; 
+                window.Poe.sendUserMessage(`${model} ${iteratePrompt}`, { 
+                    handler: "iterate-handler", 
+                    attachments, 
+                    handlerContext,
+                    openChat: false,
+                    stream: false
+                }).catch(handleError); 
+            } 
+        }
+        function askAI() { 
+            const askText = dom.askInput.value.trim(); 
+            if (!askText || isAIThinking) return; 
+            isAIThinking = true; 
+            dom.iterateBtn.disabled = true; 
+            dom.askBtn.disabled = true; 
+            dom.iterateStatus.classList.remove('hidden'); 
+            
+            const currentPrompt = dom.userPrompt.value.trim();
+            const contextPrompt = `You are an expert AI assistant specializing in image generation and prompt crafting. Help the user with their request about creating better prompts for face/portrait generation.
+
+${uploadedFile ? 'REFERENCE IMAGE: [See attached image for context]' : ''}
+${currentPrompt ? `CURRENT PROMPT: "${currentPrompt}"` : ''}
+
+USER REQUEST: ${askText}
+
+Please provide helpful, specific advice about prompt writing, artistic techniques, or style suggestions. Be concise but detailed.`; 
+
+            window.Poe.sendUserMessage(`${dom.multimodalModel.value} ${contextPrompt}`, { 
+                handler: "ask-handler", 
+                attachments: uploadedFile ? [uploadedFile] : undefined,
+                openChat: false,
+                stream: false
+            }).catch(handleError); 
+        }
+        function feedToPrompt() { if (!lastAIResponse) return showAlert('No AI response to feed.'); const improvedPromptMatch = lastAIResponse.match(/IMPROVED_PROMPT:\s*([^]*?)$/i); dom.userPrompt.value = improvedPromptMatch ? improvedPromptMatch[1].trim() : lastAIResponse; showAlert('AI response fed to main prompt!'); }
+        function removeBackground() { if (!uploadedFile || isAIThinking) return; isAIThinking = true; dom.removeBgBtn.disabled = true; dom.removeBgBtn.textContent = '...'; window.Poe.sendUserMessage('@remove-background Remove background', { handler: "remove-bg-handler", attachments: [uploadedFile] }).catch(handleError); }
+        
+        // --- TWO-STEP ASK WITH WEB SEARCH WORKFLOW ---
+        let webSearchStep = 'prepare'; // 'prepare' or 'execute'
+        let preparedQuery = '';
+
+        function askWithWebSearch() {
+            if (webSearchStep === 'prepare') {
+                // Step 1: Prepare Query
+                const askText = dom.askInput.value.trim();
+                const currentPrompt = dom.userPrompt.value.trim();
+                
+                if (!askText) return showAlert('Please enter a question in AI Assistant first.');
+                if (isAIThinking) return;
+                
+                isAIThinking = true;
+                dom.askWebSearchBtn.disabled = true;
+                dom.iterateBtn.disabled = true;
+                dom.askBtn.disabled = true;
+                dom.iterateStatus.classList.remove('hidden');
+                
+                const queryGenerationPrompt = `Based on the following conversation context, generate multiple comprehensive web search queries to find relevant information. Generate 3-5 different search queries that cover various aspects of the request. Separate each query with a newline.
+
+${uploadedFile ? 'REFERENCE IMAGE CONTEXT: Present' : ''}
+${currentPrompt ? `CURRENT PROMPT: "${currentPrompt}"` : ''}
+USER QUESTION: "${askText}"
+
+Generate multiple search queries that would help answer the user's question with factual, relevant information from different angles. Return only the search queries, one per line, nothing else.`;
+
+                window.Poe.sendUserMessage(`${dom.multimodalModel.value} ${queryGenerationPrompt}`, {
+                    handler: "query-generation-handler",
+                    handlerContext: { originalAsk: askText, currentPrompt, step: 'prepare' },
+                    openChat: false,
+                    stream: false
+                }).catch(handleError);
+                
+            } else if (webSearchStep === 'execute') {
+                // Step 2: Execute Search
+                if (!preparedQuery) return showAlert('No query prepared.');
+                if (isEnriching) return;
+                
+                isEnriching = true;
+                dom.askWebSearchBtn.disabled = true;
+                dom.enrichStatus.classList.remove('hidden');
+                
+                const webSearchModel = dom.webSearchModel.value;
+                window.Poe.sendUserMessage(`${webSearchModel} ${preparedQuery}`, {
+                    handler: "web-search-handler",
+                    handlerContext: { step: 'execute', originalAsk: lastOriginalAsk, currentPrompt: lastCurrentPrompt },
+                    openChat: false,
+                    stream: false
+                }).catch(handleError);
+            }
+        }
+
+        // Manual Web Search
+        function manualWebSearch() {
+            const searchQuery = dom.enrichQuery.value.trim();
+            if (!searchQuery) return showAlert('Please enter a search query.');
+            if (isEnriching) return;
+            
+            isEnriching = true;
+            dom.manualSearchBtn.disabled = true;
+            dom.enrichStatus.classList.remove('hidden');
+            
+            const webSearchModel = dom.webSearchModel.value;
+            window.Poe.sendUserMessage(`${webSearchModel} ${searchQuery}`, {
+                handler: "web-search-handler",
+                handlerContext: { step: 'manual' },
+                openChat: false,
+                stream: false
+            }).catch(handleError);
+        }
+
+        let lastOriginalAsk = '';
+        let lastCurrentPrompt = '';
+
+        function handleQueryGenerationResponse(result, context) {
+            if (result.status === "complete") {
+                const searchQuery = result.responses[0].content.trim();
+                preparedQuery = searchQuery;
+                lastOriginalAsk = context.originalAsk;
+                lastCurrentPrompt = context.currentPrompt;
+                
+                // Update UI to show prepared query and change button
+                dom.enrichResultArea.value = `Prepared query: "${searchQuery}"\n\nClick "Execute Search" to run this query.`;
+                dom.webSearchBtnText.textContent = 'Execute Search';
+                webSearchStep = 'execute';
+                
+                // Re-enable buttons
+                isAIThinking = false;
+                dom.askWebSearchBtn.disabled = false;
+                dom.iterateBtn.disabled = false;
+                dom.askBtn.disabled = false;
+                dom.iterateStatus.classList.add('hidden');
+                
+                showAlert('Query prepared! Click "Execute Search" to run it.');
+            } else {
+                handleError(new Error(result.responses[0].statusText || 'Query generation failed'));
+            }
+        }
+
+        function handleWebSearchResponse(result, context) {
+            isEnriching = false;
+            dom.manualSearchBtn.disabled = false;
+            dom.enrichStatus.classList.add('hidden');
+            
+            if (result.status === "complete") {
+                const webSearchContent = result.responses[0].content;
+                lastEnrichmentResult = webSearchContent;
+                
+                if (context.step === 'execute') {
+                    // This was from Ask with Web Search - feed to AI input box
+                    const enrichedInput = `Using the following web search data as context:\n\n"${webSearchContent}"\n\nOriginal question: ${lastOriginalAsk}`;
+                    dom.askInput.value = enrichedInput;
+                    
+                    // Reset button state
+                    dom.askWebSearchBtn.disabled = false;
+                    dom.webSearchBtnText.textContent = 'Prepare Query';
+                    webSearchStep = 'prepare';
+                    preparedQuery = '';
+                    
+                    showAlert('Web search data fed to AI Assistant! Ready to ask.');
+                } else {
+                    // This was manual search - just show results
+                    dom.enrichResultArea.value = webSearchContent;
+                    showAlert('Web search complete! Results ready to feed to AI.');
+                }
+            } else {
+                handleError(new Error(result.responses[0].statusText || 'Web search failed'));
+            }
+        }
+
+        // Response Handlers
+        function handleGenerationResponse(result, context) { isGenerating = false; dom.generateBtn.disabled = false; dom.generateStatus.classList.add('hidden'); if (result.status === "complete" && result.responses[0].attachments?.length > 0) { const imageData = { id: Date.now(), url: result.responses[0].attachments[0].url, prompt: context.prompt, timestamp: new Date().toISOString() }; generatedImages.push(imageData); addGeneratedImage(imageData); dom.generatedImagesSection.classList.remove('hidden'); showAlert('Image generated!'); } else { handleError(new Error(result.responses[0].statusText || 'Generation failed')); } }
+        function handleIterateResponse(result, context) { 
+            isAIThinking = false; 
+            dom.iterateBtn.disabled = false; 
+            dom.askBtn.disabled = false; 
+            dom.iterateStatus.classList.add('hidden'); 
+            
+            if (result.status === "complete") { 
+                lastAIResponse = result.responses[0].content; 
+                
+                // Display in the new prominent AI response area
+                displayAIResponse(lastAIResponse);
+                
+                // Also update the collapsible log
+                dom.aiResponseText.textContent = lastAIResponse; 
+                
+                if (context.type === 'iteration') { 
+                    const scoreMatch = lastAIResponse.match(/SCORE:\s*(\d+)/i); 
+                    const improvedPromptMatch = lastAIResponse.match(/IMPROVED_PROMPT:\s*([^]*?)$/i); 
+                    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0; 
+                    displayAnalysisResult({ ...context, score, analysis: lastAIResponse, improvedPrompt: improvedPromptMatch ? improvedPromptMatch[1].trim() : '' }); 
+                    if (improvedPromptMatch) { 
+                        dom.userPrompt.value = improvedPromptMatch[1].trim(); 
+                        showAlert(`Analysis complete! Score: ${score}/100. Prompt updated.`); 
+                    } else { 
+                        showAlert(`Analysis complete! Score: ${score}/100.`); 
+                    } 
+                } else { 
+                    dom.userPrompt.value = lastAIResponse; 
+                    showAlert('Prompt enhanced and updated!'); 
+                } 
+                dom.analysisSection.classList.remove('hidden'); 
+            } else { 
+                handleError(new Error(result.responses[0].statusText || 'Iteration failed')); 
+            } 
+        }
+        function handleAskResponse(result, context) { 
+            isAIThinking = false; 
+            dom.iterateBtn.disabled = false; 
+            dom.askBtn.disabled = false; 
+            dom.iterateStatus.classList.add('hidden'); 
+            
+            if (result.status === "complete") { 
+                lastAIResponse = result.responses[0].content; 
+                
+                // Display in the new prominent AI response area
+                displayAIResponse(lastAIResponse);
+                
+                // Also update the collapsible log
+                dom.aiResponseText.textContent = lastAIResponse; 
+                showAlert('AI response received!'); 
+            } else { 
+                handleError(new Error(result.responses[0].statusText || 'Ask AI failed')); 
+            } 
+        }
+        function handleRemoveBgResponse(result, context) { isAIThinking = false; dom.removeBgBtn.disabled = false; dom.removeBgBtn.textContent = 'Remove BG'; if (result.status === "complete" && result.responses[0].attachments?.length > 0) { fetch(result.responses[0].attachments[0].url).then(r => r.blob()).then(blob => handleFile(new File([blob], 'reference_no_bg.png', { type: 'image/png' }))).then(() => showAlert('Background removed!')); } else { handleError(new Error(result.responses[0].statusText || 'BG removal failed')); } }
+
+        // UI Helpers
+        function addGeneratedImage(imageData) { const imageElement = document.createElement('div'); imageElement.className = 'bg-gray-700 rounded-lg p-3'; imageElement.innerHTML = `<img src="${imageData.url}" class="w-full rounded-lg mb-2 clickable-image" alt="Generated image"><div class="text-xs text-gray-400 mb-2">${new Date(imageData.timestamp).toLocaleString()}</div><div class="text-xs text-gray-300 mb-2 break-words">${imageData.prompt}</div><button onclick="feedImageToReference('${imageData.url}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded"><i class="fas fa-arrow-up mr-1"></i> Feed to Reference</button>`; dom.generatedImages.prepend(imageElement); }
+        function displayAnalysisResult(data) { const analysisElement = document.createElement('div'); analysisElement.className = 'bg-gray-700 rounded-lg p-4 border-l-4 border-blue-400'; const scoreColor = data.score >= 80 ? 'text-green-400' : data.score >= 60 ? 'text-yellow-400' : 'text-red-400'; analysisElement.innerHTML = `<div class="flex justify-between items-center mb-3"><h3 class="font-semibold">Analysis: ${new Date().toLocaleTimeString()}</h3><span class="text-2xl font-bold ${scoreColor}">${data.score}/100</span></div><div class="space-y-3 text-sm"><p class="text-gray-300 text-xs">${data.analysis.replace(/IMPROVED_PROMPT:.*/is, '').replace(/ANALYSIS:/i, '').trim()}</p></div>`; dom.analysisResults.prepend(analysisElement); }
+        function feedImageToReference(imageUrl) { fetch(imageUrl).then(r => r.blob()).then(blob => handleFile(new File([blob], 'reference.png', { type: 'image/png' }))).then(() => showAlert('Image fed to reference!')); }
+        // Feed search data to AI Assistant
+        function feedSearchToAI() {
+            const searchData = dom.enrichResultArea.value.trim();
+            if (!searchData) return showAlert('No search data to feed.');
+            const currentAskText = dom.askInput.value.trim();
+            const prefix = `Using the following web search data as context, help me improve my prompt.\n\nWEB SEARCH DATA:\n"${searchData}"\n\n`;
+            dom.askInput.value = prefix + (currentAskText ? `Original request: ${currentAskText}` : '');
+            showAlert('Search data fed to AI Assistant!');
+        }
+        // Feed AI response to main prompt
+        function feedAiResponseToPrompt() {
+            const responseData = dom.aiResponseDisplay.value.trim();
+            if (!responseData) return showAlert('No AI response to feed.');
+            const improvedPromptMatch = responseData.match(/IMPROVED_PROMPT:\s*([^]*?)$/i);
+            dom.userPrompt.value = improvedPromptMatch ? improvedPromptMatch[1].trim() : responseData;
+            showAlert('AI response fed to main prompt!');
+        }
+        // Feed instructions to AI Assistant
+        function feedInstructionsToAI() {
+            const instructionsData = dom.refinementInstructions.value.trim();
+            if (!instructionsData) return showAlert('No instructions to feed.');
+            const currentAskText = dom.askInput.value.trim();
+            const prefix = `Consider these custom instructions when helping with my request:\n\nINSTRUCTIONS:\n"${instructionsData}"\n\n`;
+            dom.askInput.value = prefix + (currentAskText ? `Original request: ${currentAskText}` : '');
+            showAlert('Instructions fed to AI Assistant!');
+        }
+
+        function resetSystem() { 
+            uploadedFile = null; generatedImages = []; lastAIResponse = ''; lastEnrichmentResult = null; 
+            isGenerating = false; isAIThinking = false; isEnriching = false; 
+            webSearchStep = 'prepare'; preparedQuery = ''; lastOriginalAsk = ''; lastCurrentPrompt = '';
+            ['generatedImagesSection', 'analysisSection'].forEach(id => dom[id].classList.add('hidden')); 
+            ['generatedImages', 'analysisResults'].forEach(id => dom[id].innerHTML = ''); 
+            ['askInput', 'userPrompt', 'refinementInstructions', 'enrichQuery'].forEach(id => dom[id].value = ''); 
+            dom.enrichResultArea.value = ''; 
+            removeImage(); 
+            ['generateBtn', 'iterateBtn', 'askBtn', 'askWebSearchBtn', 'manualSearchBtn'].forEach(id => dom[id].disabled = false); 
+            ['generateStatus', 'iterateStatus', 'enrichStatus'].forEach(id => dom[id].classList.add('hidden')); 
+            dom.webSearchBtnText.textContent = 'Prepare Query';
+            showAlert('Session reset.'); 
+        }
+        function handleError(error) { 
+            console.error(error); showAlert(`An error occurred: ${error.message}`); 
+            isGenerating = false; isAIThinking = false; isEnriching = false; 
+            webSearchStep = 'prepare'; preparedQuery = '';
+            dom.generateBtn.disabled = false; dom.iterateBtn.disabled = false; dom.askBtn.disabled = false; 
+            dom.askWebSearchBtn.disabled = false; dom.manualSearchBtn.disabled = false; dom.removeBgBtn.disabled = false; 
+            dom.removeBgBtn.textContent = 'Remove BG'; dom.webSearchBtnText.textContent = 'Prepare Query';
+            dom.generateStatus.classList.add('hidden'); dom.iterateStatus.classList.add('hidden'); dom.enrichStatus.classList.add('hidden'); 
+        }
+
+        // Save/Import State
+        async function saveState() { try { const uploadedFileData = uploadedFile ? await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = e => resolve({ dataUrl: e.target.result, name: uploadedFile.name, type: uploadedFile.type }); reader.onerror = reject; reader.readAsDataURL(uploadedFile); }) : null; const state = { version: "4.0", uploadedFileData, userPrompt: dom.userPrompt.value, askInput: dom.askInput.value, refinementInstructions: dom.refinementInstructions.value, generationModel: dom.generationModel.value, multimodalModel: dom.multimodalModel.value, webSearchModel: dom.webSearchModel.value, enrichQuery: dom.enrichQuery.value, targetScore: dom.targetScore.value, focusAreas: dom.focusAreas.value, generatedImages, lastAIResponse, lastEnrichmentResult, analysisResultsHTML: dom.analysisResults.innerHTML }; await navigator.clipboard.writeText(JSON.stringify(state, null, 2)); showAlert('State saved to clipboard!'); } catch (error) { handleError(error); } }
+        function showImportDialog() { const modal = document.createElement('div'); modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'; modal.innerHTML = `<div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4"><h3 class="text-lg font-semibold mb-4">Import State</h3><textarea id="importTextarea" class="w-full h-48 p-3 bg-gray-700 border-gray-600 rounded-lg text-sm resize-none font-mono" placeholder="Paste state JSON here..."></textarea><div class="flex justify-end space-x-3 mt-4"><button id="cancelImport" class="px-4 py-2 text-gray-400 hover:bg-gray-700 rounded">Cancel</button><button id="confirmImport" class="px-4 py-2 bg-primary text-white rounded">Import</button></div></div>`; document.body.appendChild(modal); const closeModal = () => modal.remove(); modal.querySelector('#cancelImport').addEventListener('click', closeModal); modal.addEventListener('click', (e) => e.target === modal && closeModal()); modal.querySelector('#confirmImport').addEventListener('click', () => { try { importState(JSON.parse(modal.querySelector('#importTextarea').value)); closeModal(); } catch (error) { showAlert('Invalid JSON format.'); } }); }
+        async function importState(state) { try { resetSystem(); if (state.uploadedFileData) { const r = await fetch(state.uploadedFileData.dataUrl); const blob = await r.blob(); handleFile(new File([blob], state.uploadedFileData.name, { type: state.uploadedFileData.type })); } Object.keys(state).forEach(key => { if (dom[key] && typeof dom[key].value !== 'undefined') dom[key].value = state[key] || ''; }); generatedImages = state.generatedImages || []; lastAIResponse = state.lastAIResponse || ''; lastEnrichmentResult = state.lastEnrichmentResult || null; if (generatedImages.length > 0) { dom.generatedImagesSection.classList.remove('hidden'); generatedImages.forEach(addGeneratedImage); } if (state.analysisResultsHTML) { dom.analysisResults.innerHTML = state.analysisResultsHTML; dom.analysisSection.classList.remove('hidden'); } updateDynamicSettings(dom.generationModel.value); showAlert('State imported successfully!'); } catch (error) { handleError(error); } }
+
+        // Collapsible logic
+        function toggleCollapsible(button, content) { const icon = button.querySelector('.fa-chevron-down'); const isExpanded = content.classList.contains('expanded'); if (isExpanded) { content.classList.remove('expanded'); content.style.maxHeight = '0'; icon.classList.remove('rotate-180'); } else { content.classList.add('expanded'); content.style.maxHeight = content.scrollHeight + 'px'; icon.classList.add('rotate-180'); } }
+
+        // Event Listeners
+        function setupEventListeners() {
+            dom.uploadArea.addEventListener('click', () => dom.fileInput.click());
+            dom.fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+            dom.replaceBtn.addEventListener('click', () => dom.fileInput.click());
+            dom.removeBgBtn.addEventListener('click', removeBackground);
+            dom.removeBtn.addEventListener('click', removeImage);
+            dom.generateBtn.addEventListener('click', generateImage);
+            dom.iterateBtn.addEventListener('click', analyzeAndIterate);
+            dom.askBtn.addEventListener('click', askAI);
+            dom.feedBtn.addEventListener('click', feedToPrompt);
+            dom.resetBtn.addEventListener('click', resetSystem);
+            dom.saveBtn.addEventListener('click', saveState);
+            dom.importBtn.addEventListener('click', showImportDialog);
+            dom.generationModel.addEventListener('change', (e) => updateDynamicSettings(e.target.value));
+            // New Web Search Listeners
+            dom.askWebSearchBtn.addEventListener('click', askWithWebSearch);
+            dom.manualSearchBtn.addEventListener('click', manualWebSearch);
+            dom.feedSearchBtn.addEventListener('click', feedSearchToAI);
+            // New Feed Button Listeners
+            document.getElementById('feedAiResponseBtn').addEventListener('click', feedAiResponseToPrompt);
+            document.getElementById('feedInstructionsBtn').addEventListener('click', feedInstructionsToAI);
+            // Collapsible toggles
+            dom.toggleSettingsBtn.addEventListener('click', () => toggleCollapsible(dom.toggleSettingsBtn, dom.settingsSection));
+            dom.toggleInstructionsBtn.addEventListener('click', () => toggleCollapsible(dom.toggleInstructionsBtn, dom.instructionsSection));
+            dom.toggleAiResponseBtn.addEventListener('click', () => toggleCollapsible(dom.toggleAiResponseBtn, dom.aiResponseSection));
+            // Drag and drop
+            dom.uploadArea.addEventListener('dragover', e => { e.preventDefault(); dom.uploadArea.classList.add('border-primary'); });
+            dom.uploadArea.addEventListener('dragleave', e => { e.preventDefault(); dom.uploadArea.classList.remove('border-primary'); });
+            dom.uploadArea.addEventListener('drop', e => { e.preventDefault(); dom.uploadArea.classList.remove('border-primary'); if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]); });
+            // Image modal
+            document.addEventListener('click', e => { if (e.target.classList.contains('clickable-image')) { showImageModal(e.target.src); } });
+        }
+        
+        // Missing showImageModal function
+        function showImageModal(imageSrc) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<img src="${imageSrc}" alt="Full size image">`;
+            modal.addEventListener('click', () => modal.remove());
+            document.body.appendChild(modal);
+        }
+
+        // Helper function to display AI response in the new area
+        function displayAIResponse(content) {
+            dom.aiResponseDisplay.value = content;
+        }
+
+        function showAlert(message) { const toast = document.createElement('div'); toast.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50'; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => toast.remove(), 4000); }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            populateSelect(dom.generationModel, imageModelConfigs, '@Flux-Kontext-Max');
+            populateSelect(dom.multimodalModel, multimodalModelConfigs, '@Claude-Sonnet-4');
+            populateSelect(dom.webSearchModel, webSearchModelConfigs, '@Web-Search');
+            updateDynamicSettings(dom.generationModel.value);
+            dom.focusAreas.value = 'overall';
+            dom.userPrompt.focus();
+        });
+        
+        // Backup initialization if DOMContentLoaded already fired
+        if (document.readyState === 'loading') {
+            // Do nothing, DOMContentLoaded will fire
+        } else {
+            // DOM already loaded
+            setupEventListeners();
+            populateSelect(dom.generationModel, imageModelConfigs, '@Flux-Kontext-Max');
+            populateSelect(dom.multimodalModel, multimodalModelConfigs, '@Claude-Sonnet-4');
+            populateSelect(dom.webSearchModel, webSearchModelConfigs, '@Web-Search');
+            updateDynamicSettings(dom.generationModel.value);
+            dom.focusAreas.value = 'overall';
+            dom.userPrompt.focus();
+        }
+    </script>
+</body>
+</html>
+
+
+
