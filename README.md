@@ -3,6 +3,7 @@
 Purpose
 - House Poe Canvas apps as canonical sources. Documentation of canvas stored in the repo as Poe Canvas Docs August 29th.md. link for documentation: https://creator.poe.com/docs/ 
 - Extract features, components, and code snippets into `components/` with brief explanations of what they are and what they do.
+- When files look similar in functionality, and are mostly very much identical, figure out the difference between the two or whatever number it is. Potential such files have been grouped in subfolders but not all subfolders follow that rule. We will only move sequentially so this is a stage that will be executed after components are extracted/not considered unique or good enough for extraction. 
 
 Critical rule
 - Do not edit the app HTML files. Treat them as source-of-truth artifacts only. Keeping HTML untouched avoids needless merge conflicts. All refactoring and explanations belong in `components/` and related docs.
