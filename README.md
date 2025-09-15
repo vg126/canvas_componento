@@ -1,7 +1,7 @@
 # canvas_componento
 
 Purpose
-- House Poe Canvas apps as canonical sources.
+- House Poe Canvas apps as canonical sources. Documentation of canvas stored in the repo as Poe Canvas Docs August 29th.md. link for documentation: https://creator.poe.com/docs/ 
 - Extract features, components, and code snippets into `components/` with brief explanations of what they are and what they do.
 
 Critical rule
