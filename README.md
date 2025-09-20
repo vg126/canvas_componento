@@ -10,7 +10,9 @@ Critical rule
 
 Notes
 - This repository focuses on organization and component extraction. Implementation “how-tos” may vary by contributor and are intentionally not prescribed here.
+- The `components/` directory mirrors the `HTML Apps/` hierarchy so extracted bundles stay colocated with their source canvases.
 
 ## Updates
 
 - 15-09-2025 - Added Canvas HTML files
+- 20-09-2025 - Synced `components/` directory layout with `HTML Apps/` for easier navigation
