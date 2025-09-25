@@ -1,0 +1,3861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="x-poe-datastore-behavior" content="local_only">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Perfectionist - Iterative AI Refinement</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        secondary: '#059669',
+                        accent: '#10B981',
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+    </script>
+    <style>
+        .clickable-image {
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .clickable-image:hover {
+            opacity: 0.8;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal img {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+        
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+
+        /* ============================================
+           ACCORDION STYLES - PRODUCTION READY
+           ============================================ */
+
+        :root {
+            --bg-primary: #374151;
+            --bg-secondary: #4b5563;
+            --bg-hover: rgba(93, 92, 222, 0.1);
+            --bg-selected: rgba(93, 92, 222, 0.2);
+            --text-primary: #f3f4f6;
+            --text-secondary: #d1d5db;
+            --text-muted: #9ca3af;
+            --border: #6b7280;
+            --border-hover: #9ca3af;
+            --accent: #5D5CDE;
+            --accent-hover: #4a49c5;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .accordion-container {
+            position: relative;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
+            min-width: 200px;
+        }
+
+        .accordion-container:hover {
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-md);
+        }
+
+        .accordion-container.expanded {
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent);
+        }
+
+        .accordion-header {
+            position: relative;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            cursor: pointer;
+            user-select: none;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .accordion-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .accordion-container.expanded .accordion-header {
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .accordion-display {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+        }
+
+        .accordion-container.expanded .accordion-display {
+            display: none;
+        }
+
+        .accordion-search-wrapper {
+            flex: 1;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .accordion-container.expanded .accordion-search-wrapper {
+            display: flex;
+        }
+
+        .accordion-search-icon {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .accordion-search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            padding: 2px;
+            font-family: inherit;
+        }
+
+        .accordion-search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .accordion-chevron {
+            color: var(--text-secondary);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .accordion-container.expanded .accordion-chevron {
+            transform: rotate(180deg);
+        }
+
+        .accordion-content-wrapper {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg-primary);
+        }
+
+        .accordion-container.expanded .accordion-content-wrapper {
+            max-height: 320px;
+        }
+
+        .accordion-content {
+            max-height: 320px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+
+        .accordion-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .accordion-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .accordion-content::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .accordion-content::-webkit-scrollbar-thumb:hover {
+            background: var(--border-hover);
+        }
+
+        .accordion-section {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .accordion-section:last-child {
+            border-bottom: none;
+        }
+
+        .accordion-section-header {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            font-size: 12px;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            transition: background 0.2s ease;
+            user-select: none;
+        }
+
+        .accordion-section-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .accordion-section-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .accordion-section-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: normal;
+        }
+
+        .accordion-section-chevron {
+            font-size: 10px;
+            color: var(--text-secondary);
+            transition: transform 0.2s ease;
+        }
+
+        .accordion-section.expanded .accordion-section-chevron {
+            transform: rotate(90deg);
+        }
+
+        .accordion-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease;
+        }
+
+        .accordion-section.expanded .accordion-section-content {
+            max-height: 500px;
+        }
+
+        .accordion-subsection {
+            padding-left: 8px;
+            border-left: 2px solid var(--border);
+            margin-left: 8px;
+        }
+
+        .accordion-subsection-header {
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            margin: 2px 0;
+            border-radius: 4px;
+        }
+
+        .accordion-item {
+            padding: 7px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+            position: relative;
+            border-radius: 4px;
+            margin: 2px 4px;
+        }
+
+        .accordion-item:hover {
+            background: var(--bg-hover);
+            padding-left: 16px;
+        }
+
+        .accordion-item.selected {
+            background: var(--bg-selected);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .accordion-item.selected::before {
+            content: "✓";
+            position: absolute;
+            left: 4px;
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .accordion-item.highlighted {
+            background: var(--bg-hover);
+            box-shadow: inset 0 0 0 1px var(--accent);
+        }
+
+        .accordion-empty {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+    </style>
+    <script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.bd4eeeb8e8e02052ee92.js"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-primary">Face Perfectionist</h1>
+            <p class="text-gray-300">Iterative AI-driven synthesis of text prompts + reference guidance</p>
+        </div>
+
+        <!-- Left/Right Layout for Top Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Left: Reference Images Box -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-primary">📁 References</h2>
+                    <div class="flex gap-2">
+                        <button id="copyStateBtn" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm" title="Copy current state to clipboard">
+                            💾
+                        </button>
+                        <button id="loadStateBtn" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm" title="Load state from clipboard">
+                            📁
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="uploadArea" class="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-primary transition-colors cursor-pointer">
+                    <div id="uploadPrompt">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <p class="text-gray-300">Drop reference images or click to upload</p>
+                        <p class="text-sm text-gray-500 mt-2">Multiple images supported</p>
+                    </div>
+                    <div id="imagesContainer" class="hidden">
+                        <div id="imageGrid" class="grid grid-cols-2 gap-3"></div>
+                    </div>
+                </div>
+                
+                <!-- Reference Controls -->
+                <div class="flex justify-center gap-3 mt-4">
+                    <button id="removeBgBtn" class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg disabled:opacity-50" title="Remove Background">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <rect x="4" y="4" width="16" height="16" fill="black" rx="2"/>
+                            <circle cx="12" cy="12" r="3" fill="white"/>
+                        </svg>
+                    </button>
+                    <button id="clearAllBtn" class="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg" title="Clear All Images">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- State Management Buttons -->
+                <div class="flex justify-end gap-2 mt-4">
+                    <button id="downloadStateBtn" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm" title="Download state as JSON file">
+                        ⬇️
+                    </button>
+                    <button id="uploadStateBtn" class="bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded text-sm" title="Upload state from JSON file">
+                        ⬆️
+                    </button>
+                </div>
+                
+                <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
+            </div>
+            
+            <!-- Right: Current Images Box -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4 text-primary">🎯 Current Images</h2>
+                <div id="currentImagesContainer" class="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center min-h-64">
+                    <div id="currentImagesPlaceholder" class="text-gray-500">
+                        <div class="text-6xl mb-3">🎨</div>
+                        <p class="text-sm">Latest generated images will appear here automatically</p>
+                    </div>
+                    <div id="currentImagesDisplay" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left/Right Layout for Bot Previous Images -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Left: Bot 1 Previous Images Box -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-xl font-semibold text-blue-400">
+                            <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full text-sm font-bold mr-2">1</span>
+                        </h2>
+                        <button id="bot1ImagesToggleBtn" class="bg-gray-600 hover:bg-gray-700 text-white py-1 px-3 rounded text-sm transition-all" title="Collapse/Expand Bot 1 images">
+                            <span id="bot1ImagesArrow">▶</span>
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="uploadToBot1Btn" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded text-sm transition-all" title="Upload Images to Bot 1">
+                            📤
+                        </button>
+                        <button id="downloadBot1Btn" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded text-sm transition-all" title="Download All Bot 1 Images">
+                            ⬇️
+                        </button>
+                    </div>
+                </div>
+                <div id="bot1ImagesContent" class="hidden">
+                    <div id="bot1Images" class="grid grid-cols-2 gap-3 min-h-32">
+                        <div class="text-gray-500 text-center py-8 col-span-2">
+                            <div class="text-4xl mb-2">🤖</div>
+                            <p class="text-sm">Bot 1 images will appear here...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Bot 2 Previous Images Box -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-xl font-semibold text-green-400">
+                            <span class="inline-flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold mr-2">2</span>
+                        </h2>
+                        <button id="bot2ImagesToggleBtn" class="bg-gray-600 hover:bg-gray-700 text-white py-1 px-3 rounded text-sm transition-all" title="Collapse/Expand Bot 2 images">
+                            <span id="bot2ImagesArrow">▶</span>
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="uploadToGeneratedBtn" class="bg-green-600 hover:bg-green-700 text-white py-1 px-2 rounded text-sm transition-all" title="Upload Images to Bot 2">
+                            📤
+                        </button>
+                        <button id="downloadBot2Btn" class="bg-green-600 hover:bg-green-700 text-white py-1 px-2 rounded text-sm transition-all" title="Download All Bot 2 Images">
+                            ⬇️
+                        </button>
+                    </div>
+                </div>
+                <div id="bot2ImagesContent" class="hidden">
+                    <div id="bot2Images" class="grid grid-cols-2 gap-3 min-h-32">
+                        <div class="text-gray-500 text-center py-8 col-span-2">
+                            <div class="text-4xl mb-2">🤖</div>
+                            <p class="text-sm">Bot 2 images will appear here...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Inputs for Both Bots -->
+        <input type="file" id="uploadToBot1Input" class="hidden" accept="image/*" multiple>
+        <input type="file" id="uploadToGeneratedInput" class="hidden" accept="image/*" multiple>
+
+        <!-- Dual Main Prompt Section -->
+        <div class="space-y-6 mb-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Main Prompt 1 -->
+                <div class="bg-gray-800 rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-blue-400">✏️ Prompt 1</h2>
+                        <div class="flex gap-2">
+                            <button id="undoBtn1" class="bg-orange-600 hover:bg-orange-700 text-white py-1 px-2 rounded text-xs" title="Undo last change" disabled>
+                                ⟲
+                            </button>
+                            <button onclick="copyTextToClipboard('userPrompt1')" class="bg-gray-600 hover:bg-gray-500 text-white py-1 px-2 rounded text-xs" title="Copy">
+                                📋
+                            </button>
+                            <button onclick="transferText('userPrompt1', 'userPrompt2')" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded text-xs" title="Send to Prompt 2">
+                                →
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="userPrompt1" class="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-base resize-none" rows="4" placeholder="Describe the person you want to generate (face, build, style, etc.)..."></textarea>
+                    <div id="promptStatus1" class="mt-2 text-center text-gray-500 hidden">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400 mx-auto mb-1"></div>
+                        <p class="text-xs loading-dots">Processing prompt</p>
+                    </div>
+                </div>
+
+                <!-- Main Prompt 2 -->
+                <div class="bg-gray-800 rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-green-400">✏️ Prompt 2</h2>
+                        <div class="flex gap-2">
+                            <button id="undoBtn2" class="bg-orange-600 hover:bg-orange-700 text-white py-1 px-2 rounded text-xs" title="Undo last change" disabled>
+                                ⟲
+                            </button>
+                            <button onclick="copyTextToClipboard('userPrompt2')" class="bg-gray-600 hover:bg-gray-500 text-white py-1 px-2 rounded text-xs" title="Copy">
+                                📋
+                            </button>
+                            <button onclick="transferText('userPrompt2', 'userPrompt1')" class="bg-green-600 hover:bg-green-700 text-white py-1 px-2 rounded text-xs" title="Send to Prompt 1">
+                                ←
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="userPrompt2" class="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg text-white text-base resize-none" rows="4" placeholder="Describe the person you want to generate (face, build, style, etc.)..."></textarea>
+                    <div id="promptStatus2" class="mt-2 text-center text-gray-500 hidden">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-green-400 mx-auto mb-1"></div>
+                        <p class="text-xs loading-dots">Processing prompt</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Configuration Section -->
+        <div class="bg-gray-800 rounded-xl p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-6 text-primary">⚙️ Configuration</h2>
+            
+            <!-- Target Score -->
+            <div class="mb-6">
+                <label class="block text-xs font-medium mb-1">Target Score</label>
+                <input type="number" id="targetScore" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm" value="85" min="60" max="100">
+            </div>
+
+            <!-- Separated Bot Configurations -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Bot 1 Complete Configuration -->
+                <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-blue-400 mb-4 text-center">🤖 Bot 1</h3>
+                    
+                    <!-- Bot 1 Model Selectors -->
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <label class="block text-xs font-medium mb-1">Image Generation 1</label>
+                            <select id="generationModel1" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="@Gemini-2.5-Flash-Image" selected>Gemini 2.5 Flash Image</option>
+                                <option value="@Flux-Kontext-Max">Flux Kontext Max</option>
+                                <option value="@Flux-Kontext-Pro">Flux Kontext Pro</option>
+                                <option value="@Qwen-Edit">Qwen Edit</option>
+                                <option value="@SeedEdit-3.0">SeedEdit 3.0</option>
+                                <option value="@Seedream-4.0">Seedream 4.0</option>
+                                <option value="@GPT-Image-One">GPT Image One</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1">Multimodal AI 1</label>
+                            <div id="multimodalAccordion1" class="accordion-container"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 1 Controls -->
+                    <div class="bg-blue-900/30 border border-blue-500/40 rounded-lg p-3">
+                        <h4 class="text-center text-blue-300 font-medium mb-3 text-sm">Controls</h4>
+                        <div class="flex justify-center gap-3">
+                            <button id="askPromptBtn1" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all text-base" title="Ask Bot 1 for Prompt">
+                                💡
+                            </button>
+
+                            <button id="iterateBtn1" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all text-base" title="Iterate Bot 1">
+                                🔄
+                            </button>
+                            <button id="generateBtn1" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-all text-base" title="Generate Bot 1">
+                                🎨
+                            </button>
+                        </div>
+                        
+                        <!-- Prompt Generation Activity Indicator -->
+                        <div class="mt-3 flex items-center justify-center gap-2">
+                            <div id="promptSpinner1" class="hidden flex items-center gap-2 bg-purple-800/50 px-3 py-1 rounded-full">
+                                <div class="animate-spin rounded-full h-3 w-3 border border-purple-300 border-t-transparent"></div>
+                                <span class="text-xs text-purple-300">Creating Prompt...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Iteration Activity Indicator -->
+                        <div class="mt-3 flex items-center justify-center gap-2">
+                            <div id="iterateSpinner1" class="hidden flex items-center gap-2 bg-blue-800/50 px-3 py-1 rounded-full">
+                                <div class="animate-spin rounded-full h-3 w-3 border border-blue-300 border-t-transparent"></div>
+                                <span class="text-xs text-blue-300">Analyzing...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Generation Activity Indicator -->
+                        <div class="mt-3 flex items-center justify-center gap-2">
+                            <div id="bot1ActivityIndicator" class="hidden flex items-center gap-2 bg-blue-800/50 px-3 py-1 rounded-full">
+                                <div class="animate-spin rounded-full h-3 w-3 border border-blue-300 border-t-transparent"></div>
+                                <span class="text-xs text-blue-300">Generating...</span>
+                                <button id="resetBot1Activity" class="text-blue-300 hover:text-white text-xs ml-1" title="Reset activity indicator">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bot 2 Complete Configuration -->
+                <div class="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-green-400 mb-4 text-center">🤖 Bot 2</h3>
+                    
+                    <!-- Bot 2 Model Selectors -->
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <label class="block text-xs font-medium mb-1">Image Generation 2</label>
+                            <select id="generationModel2" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                                <option value="@Gemini-2.5-Flash-Image" selected>Gemini 2.5 Flash Image</option>
+                                <option value="@Flux-Kontext-Max">Flux Kontext Max</option>
+                                <option value="@Flux-Kontext-Pro">Flux Kontext Pro</option>
+                                <option value="@Qwen-Edit">Qwen Edit</option>
+                                <option value="@SeedEdit-3.0">SeedEdit-3.0</option>
+                                <option value="@Seedream-4.0">Seedream 4.0</option>
+                                <option value="@GPT-Image-One">GPT Image One</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium mb-1">Multimodal AI 2</label>
+                            <div id="multimodalAccordion2" class="accordion-container"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bot 2 Controls -->
+                    <div class="bg-green-900/30 border border-green-500/40 rounded-lg p-3">
+                        <h4 class="text-center text-green-300 font-medium mb-3 text-sm">Controls</h4>
+                        <div class="flex justify-center gap-3">
+                            <button id="askPromptBtn2" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all text-base" title="Ask Bot 2 for Prompt">
+                                💡
+                            </button>
+
+                            <button id="iterateBtn2" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all text-base" title="Iterate Bot 2">
+                                🔄
+                            </button>
+
+                            <button id="generateBtn2" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-all text-base" title="Generate Bot 2">
+                                🎨
+                            </button>
+                        </div>
+                        
+                        <!-- Prompt Generation Activity Indicator -->
+                        <div class="mt-3 flex items-center justify-center gap-2">
+                            <div id="promptSpinner2" class="hidden flex items-center gap-2 bg-purple-800/50 px-3 py-1 rounded-full">
+                                <div class="animate-spin rounded-full h-3 w-3 border border-purple-300 border-t-transparent"></div>
+                                <span class="text-xs text-purple-300">Creating Prompt...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Iteration Activity Indicator -->
+                        <div class="mt-3 flex items-center justify-center gap-2">
+                            <div id="iterateSpinner2" class="hidden flex items-center gap-2 bg-green-800/50 px-3 py-1 rounded-full">
+                                <div class="animate-spin rounded-full h-3 w-3 border border-green-300 border-t-transparent"></div>
+                                <span class="text-xs text-green-300">Analyzing...</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Generation Activity Indicator -->
+                        <div class="mt-3 flex items-center justify-center gap-2">
+                            <div id="bot2ActivityIndicator" class="hidden flex items-center gap-2 bg-green-800/50 px-3 py-1 rounded-full">
+                                <div class="animate-spin rounded-full h-3 w-3 border border-green-300 border-t-transparent"></div>
+                                <span class="text-xs text-green-300">Generating...</span>
+                                <button id="resetBot2Activity" class="text-green-300 hover:text-white text-xs ml-1" title="Reset activity indicator">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status displays -->
+            <div id="generateStatus" class="mt-4 text-center text-gray-500 hidden">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-green-400 mx-auto mb-2"></div>
+                <p class="loading-dots">Generating images</p>
+            </div>
+            <div id="iterateStatus" class="mt-4 text-center text-gray-500 hidden">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto mb-2"></div>
+                <p class="loading-dots">Analyzing</p>
+            </div>
+        </div>
+
+            <!-- Collapsible AI Communication Section -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-purple-400">💬 AI Communication</h2>
+                    <button id="aiSectionToggle" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition-all">
+                        ▼ Collapse
+                    </button>
+                </div>
+                
+                <div id="aiSectionContent" class="space-y-6">
+                    <!-- Connected Input + Response Boxes -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Bot 1 Connected Section -->
+                        <div class="space-y-1">
+                            <!-- Input Box 1 -->
+                            <div class="bg-blue-900/20 border border-blue-500/30 rounded-t-lg p-4 border-b-0">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-lg font-semibold text-blue-400">💬 Bot 1 Input</h3>
+                                    <button onclick="transferText('askInput1', 'askInput2')" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded text-xs">
+                                        →
+                                    </button>
+                                </div>
+                                <textarea id="askInput1" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-base resize-none" rows="3" placeholder="Ask Bot 1 about prompt enhancement, character details, style changes, etc..."></textarea>
+                                <div id="askStatus1" class="mt-2 text-center text-gray-500 hidden">
+                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400 mx-auto mb-1"></div>
+                                    <p class="text-xs loading-dots">Thinking</p>
+                                </div>
+                                <div class="mt-3 flex justify-center">
+                                    <button id="askBtn1" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-all text-sm" title="Ask Bot 1">
+                                        💬
+                                    </button>
+                                </div>
+                                
+                                <!-- Ask Activity Indicator -->
+                                <div class="mt-3 flex items-center justify-center gap-2">
+                                    <div id="askSpinner1" class="hidden flex items-center gap-2 bg-purple-800/50 px-3 py-1 rounded-full">
+                                        <div class="animate-spin rounded-full h-3 w-3 border border-purple-300 border-t-transparent"></div>
+                                        <span class="text-xs text-purple-300">Thinking...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Preview Box 1 -->
+                            <div class="bg-blue-900/10 border border-blue-500/20 rounded-b-lg p-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-lg font-semibold text-blue-400">🤖 Bot 1 Preview</h3>
+                                    <div class="flex gap-2">
+                                        <button onclick="copyAIResponse(1)" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded text-xs">
+                                            📋
+                                        </button>
+                                        <button onclick="transferAIResponse(1, 2)" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded text-xs">
+                                            →
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="aiResponse1" class="min-h-32">
+                                    <div id="aiResponseContainer1" class="text-gray-300 text-sm">Bot 1 responses will appear here...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bot 2 Connected Section -->
+                        <div class="space-y-1">
+                            <!-- Input Box 2 -->
+                            <div class="bg-green-900/20 border border-green-500/30 rounded-t-lg p-4 border-b-0">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-lg font-semibold text-green-400">💬 Bot 2 Input</h3>
+                                    <button onclick="transferText('askInput2', 'askInput1')" class="bg-green-600 hover:bg-green-700 text-white py-1 px-2 rounded text-xs">
+                                        ←
+                                    </button>
+                                </div>
+                                <textarea id="askInput2" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-base resize-none" rows="3" placeholder="Ask Bot 2 about prompt enhancement, character details, style changes, etc..."></textarea>
+                                <div id="askStatus2" class="mt-2 text-center text-gray-500 hidden">
+                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400 mx-auto mb-1"></div>
+                                    <p class="text-xs loading-dots">Thinking</p>
+                                </div>
+                                <div class="mt-3 flex justify-center">
+                                    <button id="askBtn2" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-all text-sm" title="Ask Bot 2">
+                                        💬
+                                    </button>
+                                </div>
+                                
+                                <!-- Ask Activity Indicator -->
+                                <div class="mt-3 flex items-center justify-center gap-2">
+                                    <div id="askSpinner2" class="hidden flex items-center gap-2 bg-purple-800/50 px-3 py-1 rounded-full">
+                                        <div class="animate-spin rounded-full h-3 w-3 border border-purple-300 border-t-transparent"></div>
+                                        <span class="text-xs text-purple-300">Thinking...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Preview Box 2 -->
+                            <div class="bg-green-900/10 border border-green-500/20 rounded-b-lg p-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-lg font-semibold text-green-400">🤖 Bot 2 Preview</h3>
+                                    <div class="flex gap-2">
+                                        <button onclick="copyAIResponse(2)" class="bg-green-600 hover:bg-green-700 text-white py-1 px-2 rounded text-xs">
+                                            📋
+                                        </button>
+                                        <button onclick="transferAIResponse(2, 1)" class="bg-green-600 hover:bg-green-700 text-white py-1 px-2 rounded text-xs">
+                                            ←
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="aiResponse2" class="min-h-32">
+                                    <div id="aiResponseContainer2" class="text-gray-300 text-sm">Bot 2 responses will appear here...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Buttons Section -->
+        <div class="flex justify-between items-center mb-8">
+            <!-- Log button on the left -->
+            <button id="logToggleBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200" title="Show/Hide interaction log">
+                📋 Log <span id="logArrow">▼</span>
+            </button>
+            
+            <!-- Right side buttons -->
+            <div class="flex gap-3">
+                <button id="downloadAllBtn" onclick="downloadAllImages()" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200" title="Download all generated images">
+                    ⬇️ All
+                </button>
+                <button onclick="downloadAllResponses()" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200" title="Download all AI responses as markdown">
+                    📄
+                </button>
+                <button id="resetBtn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200" title="Reset System">
+                    🗑️ Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Collapsible Log Section -->
+        <div id="logSection" class="hidden mb-8">
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-yellow-400">📋 Interaction Log</h2>
+                    <button id="clearLogBtn" class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded text-sm">
+                        Clear Log
+                    </button>
+                </div>
+                <div id="logContent" class="bg-gray-700 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <div class="text-gray-400 text-sm" id="emptyLogMessage">Log is empty. Interactions will appear here...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Results Section -->
+        <div id="analysisSection" class="hidden mb-8">
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">🔍 Analysis Results</h2>
+                <div id="analysisResults" class="space-y-4">
+                    <!-- Analysis results will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state - Updated for dual bot system
+        let uploadedFiles = [];
+        let generatedImages = [];
+        let bot1State = {
+            lastAIResponse: '',
+            isGenerating: false,
+            isAIThinking: false,
+            operationId: null
+        };
+        let bot2State = {
+            lastAIResponse: '',
+            isGenerating: false,
+            isAIThinking: false,
+            operationId: null
+        };
+        
+        // UNDO functionality
+        let promptHistory = {
+            bot1: [],
+            bot2: []
+        };
+        
+        // Manual stop functions
+        function forceStopBot(botNumber) {
+            const botState = botNumber === 1 ? bot1State : bot2State;
+            
+            botState.isGenerating = false;
+            botState.isAIThinking = false;
+            botState.operationId = null;
+            
+            document.getElementById(`generateSpinner${botNumber}`).classList.add('hidden');
+            document.getElementById(`askSpinner${botNumber}`)?.classList.add('hidden');
+            document.getElementById(`iterateSpinner${botNumber}`).classList.add('hidden');
+            
+            document.getElementById(`stopGenerate${botNumber}`).classList.add('hidden');
+            document.getElementById(`stopBot${botNumber}`).classList.add('hidden');
+            
+            addLogEntry(`Manual Force Stop`, botNumber, {
+                action: 'All operations stopped',
+                reason: 'User manual intervention',
+                allStatesCleared: true
+            });
+        }
+        
+        function stopAllBot1Operations() {
+            forceStopBot(1);
+            showAlert('🛑 All Bot 1 operations stopped!');
+        }
+        
+        function stopAllBot2Operations() {
+            forceStopBot(2);
+            showAlert('🛑 All Bot 2 operations stopped!');
+        }
+        
+        function stopBot1Generation() {
+            document.getElementById('generateSpinner1').classList.add('hidden');
+            document.getElementById('stopGenerate1').classList.add('hidden');
+            bot1State.isGenerating = false;
+            showAlert('🛑 Bot 1 generation stopped!');
+        }
+        
+        function stopBot2Generation() {
+            document.getElementById('generateSpinner2').classList.add('hidden');
+            document.getElementById('stopGenerate2').classList.add('hidden');
+            bot2State.isGenerating = false;
+            showAlert('🛑 Bot 2 generation stopped!');
+        }
+        
+        // Make manual stop functions globally available
+        window.stopAllBot1Operations = stopAllBot1Operations;
+        window.stopAllBot2Operations = stopAllBot2Operations;
+        window.stopBot1Generation = stopBot1Generation;
+        window.stopBot2Generation = stopBot2Generation;
+        
+        // Simple logging system
+        let logEntries = [];
+        let streamingConversations = {};
+        
+        function addLogEntry(action, botNumber, data = {}) {
+            try {
+                const timestamp = new Date().toLocaleString();
+                const entry = {
+                    id: Date.now() + Math.random(),
+                    timestamp,
+                    action,
+                    bot: botNumber,
+                    data: data
+                };
+                
+                logEntries.push(entry);
+                displayLogEntry(entry);
+                
+                console.log(`[${timestamp}] ${action}${botNumber ? ` (Bot ${botNumber})` : ''}:`, data);
+            } catch (e) {
+                console.error('Logging failed:', e);
+            }
+        }
+        
+        function displayLogEntry(entry) {
+            try {
+                const logContent = dom.logContent;
+                const emptyMessage = document.getElementById('emptyLogMessage');
+                
+                if (emptyMessage) {
+                    emptyMessage.style.display = 'none';
+                }
+                
+                const logElement = document.createElement('div');
+                const botColor = entry.bot === 1 ? 'border-blue-400 text-blue-400' : 
+                                entry.bot === 2 ? 'border-green-400 text-green-400' : 
+                                'border-gray-400 text-gray-400';
+                
+                const botName = entry.bot ? `Bot ${entry.bot}` : 'System';
+                const isError = entry.action.toLowerCase().includes('error') || 
+                               (entry.data.error) || 
+                               (entry.data.status === 'error');
+                
+                const bgColor = isError ? 'bg-red-900/20 border-red-500' : 'bg-gray-700';
+                
+                logElement.className = `${bgColor} rounded-lg p-4 mb-3 border-l-4 ${botColor}`;
+                
+                let content = `
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-semibold ${entry.bot ? botColor.split(' ')[1] : 'text-gray-300'}">${entry.action} ${entry.bot ? `(${botName})` : ''}</h4>
+                        <span class="text-xs text-gray-500">${entry.timestamp}</span>
+                    </div>
+                    <div class="text-sm text-gray-300 space-y-2">
+                `;
+                
+                Object.entries(entry.data).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        let displayValue = value;
+                        if (typeof value === 'object') {
+                            displayValue = JSON.stringify(value, null, 2);
+                        }
+                        content += `<div><span class="text-gray-400">${key}:</span> <span class="font-mono text-xs">${displayValue}</span></div>`;
+                    }
+                });
+                
+                content += `</div>`;
+                logElement.innerHTML = content;
+                
+                logContent.insertBefore(logElement, logContent.firstChild);
+                
+                const entries = logContent.querySelectorAll('div[class*="bg-gray-700"], div[class*="bg-red-900"]');
+                if (entries.length > 50) {
+                    entries[entries.length - 1].remove();
+                }
+                
+            } catch (e) {
+                console.error('Failed to display log entry:', e);
+            }
+        }
+        
+        function displayStreamingConversation(messageId, botNumber, content, messageType = 'response', status = 'streaming') {
+            try {
+                const logContent = dom.logContent;
+                const emptyMessage = document.getElementById('emptyLogMessage');
+                
+                if (emptyMessage) {
+                    emptyMessage.style.display = 'none';
+                }
+                
+                let conversationElement = document.getElementById(`conversation-${messageId}`);
+                
+                if (!conversationElement) {
+                    conversationElement = document.createElement('div');
+                    conversationElement.id = `conversation-${messageId}`;
+                    conversationElement.className = 'mb-4';
+                    
+                    const botColor = botNumber === 1 ? 'border-blue-400' : 'border-green-400';
+                    const botText = botNumber === 1 ? 'text-blue-400' : 'text-green-400';
+                    const botBg = botNumber === 1 ? 'bg-blue-900/10' : 'bg-green-900/10';
+                    const botName = botNumber === 1 ? 'Bot 1' : 'Bot 2';
+                    
+                    conversationElement.innerHTML = `
+                        <div class="${botBg} rounded-lg p-4 border-l-4 ${botColor}">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="flex items-center gap-2">
+                                    <h4 class="font-semibold ${botText}">💬 ${botName} ${messageType === 'ask' ? 'Communication' : messageType === 'generation' ? 'Generation' : messageType === 'iteration' ? 'Analysis' : 'Response'}</h4>
+                                    <div id="status-${messageId}" class="text-xs px-2 py-1 rounded ${status === 'streaming' ? 'bg-yellow-600 text-yellow-100' : status === 'complete' ? 'bg-green-600 text-green-100' : 'bg-red-600 text-red-100'}">
+                                        ${status === 'streaming' ? '🔄 STREAMING' : status === 'complete' ? '✅ COMPLETE' : '❌ ERROR'}
+                                    </div>
+                                </div>
+                                <span class="text-xs text-gray-500" id="timestamp-${messageId}">${new Date().toLocaleString()}</span>
+                            </div>
+                            <div id="content-${messageId}" class="markdown-content text-gray-200 text-sm leading-relaxed min-h-6">
+                                ${content ? marked.parse(content) : '<span class="text-gray-500 italic">Waiting for response...</span>'}
+                            </div>
+                        </div>
+                    `;
+                    
+                    logContent.insertBefore(conversationElement, logContent.firstChild);
+                    
+                    streamingConversations[messageId] = {
+                        element: conversationElement,
+                        botNumber: botNumber,
+                        messageType: messageType,
+                        startTime: Date.now()
+                    };
+                } else {
+                    const contentDiv = document.getElementById(`content-${messageId}`);
+                    const statusDiv = document.getElementById(`status-${messageId}`);
+                    const timestampDiv = document.getElementById(`timestamp-${messageId}`);
+                    
+                    if (contentDiv && content) {
+                        contentDiv.innerHTML = marked.parse(content);
+                    }
+                    
+                    if (statusDiv) {
+                        statusDiv.className = `text-xs px-2 py-1 rounded ${status === 'streaming' ? 'bg-yellow-600 text-yellow-100' : status === 'complete' ? 'bg-green-600 text-green-100' : 'bg-red-600 text-red-100'}`;
+                        statusDiv.textContent = status === 'streaming' ? '🔄 STREAMING' : status === 'complete' ? '✅ COMPLETE' : '❌ ERROR';
+                    }
+                    
+                    if (timestampDiv) {
+                        timestampDiv.textContent = new Date().toLocaleString();
+                    }
+                }
+                
+                if (status === 'streaming') {
+                    conversationElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+                
+                if (status === 'complete' || status === 'error') {
+                    delete streamingConversations[messageId];
+                }
+                
+                const conversations = logContent.querySelectorAll('[id^="conversation-"]');
+                if (conversations.length > 30) {
+                    conversations[conversations.length - 1].remove();
+                }
+                
+            } catch (e) {
+                console.error('Failed to display streaming conversation:', e);
+                addLogEntry('Streaming Display Error', botNumber, { error: e.message, messageId: messageId });
+            }
+        }
+        
+        function clearLog() {
+            logEntries = [];
+            const logContent = dom.logContent;
+            const entries = logContent.querySelectorAll('div[class*="bg-gray-700"], div[class*="bg-red-900"], div[id^="conversation-"]');
+            entries.forEach(entry => entry.remove());
+            
+            const emptyMessage = document.getElementById('emptyLogMessage');
+            if (emptyMessage) {
+                emptyMessage.style.display = 'block';
+            }
+            
+            showAlert('Interaction log cleared.');
+        }
+        
+        function toggleLog() {
+            const logSection = dom.logSection;
+            const logArrow = dom.logArrow;
+            
+            if (logSection.classList.contains('hidden')) {
+                logSection.classList.remove('hidden');
+                logArrow.textContent = '▲';
+            } else {
+                logSection.classList.add('hidden');
+                logArrow.textContent = '▼';
+            }
+        }
+
+        // DOM elements - Cleaned up version
+        const dom = {
+            // File upload
+            uploadArea: document.getElementById('uploadArea'),
+            fileInput: document.getElementById('fileInput'),
+            uploadPrompt: document.getElementById('uploadPrompt'),
+            imagesContainer: document.getElementById('imagesContainer'),
+            imageGrid: document.getElementById('imageGrid'),
+
+            removeBgBtn: document.getElementById('removeBgBtn'),
+            clearAllBtn: document.getElementById('clearAllBtn'),
+            
+            // Dual Bot Models
+            generationModel1: document.getElementById('generationModel1'),
+            generationModel2: document.getElementById('generationModel2'),
+            targetScore: document.getElementById('targetScore'),
+            
+            // Custom Dropdown Elements
+            multimodalDropdown1: document.getElementById('multimodalDropdown1'),
+            multimodalDropdown2: document.getElementById('multimodalDropdown2'),
+            multimodalSelected1: document.getElementById('multimodalSelected1'),
+            multimodalSelected2: document.getElementById('multimodalSelected2'),
+            multimodalArrow1: document.getElementById('multimodalArrow1'),
+            multimodalArrow2: document.getElementById('multimodalArrow2'),
+            multimodalMenu1: document.getElementById('multimodalMenu1'),
+            multimodalMenu2: document.getElementById('multimodalMenu2'),
+            
+            // Dual Prompts & Communication
+            userPrompt1: document.getElementById('userPrompt1'),
+            userPrompt2: document.getElementById('userPrompt2'),
+            askInput1: document.getElementById('askInput1'),
+            askInput2: document.getElementById('askInput2'),
+            
+            // Dual Bot Control buttons
+            generateBtn1: document.getElementById('generateBtn1'),
+            generateBtn2: document.getElementById('generateBtn2'),
+            iterateBtn1: document.getElementById('iterateBtn1'),
+            iterateBtn2: document.getElementById('iterateBtn2'),
+            askBtn1: document.getElementById('askBtn1'),
+            askBtn2: document.getElementById('askBtn2'),
+            askPromptBtn1: document.getElementById('askPromptBtn1'),
+            askPromptBtn2: document.getElementById('askPromptBtn2'),
+            
+            // System buttons
+            resetBtn: document.getElementById('resetBtn'),
+            copyStateBtn: document.getElementById('copyStateBtn'),
+            loadStateBtn: document.getElementById('loadStateBtn'),
+            downloadStateBtn: document.getElementById('downloadStateBtn'),
+            uploadStateBtn: document.getElementById('uploadStateBtn'),
+            downloadAllBtn: document.getElementById('downloadAllBtn'),
+            uploadToGeneratedBtn: document.getElementById('uploadToGeneratedBtn'),
+            uploadToGeneratedInput: document.getElementById('uploadToGeneratedInput'),
+            downloadBot1Btn: document.getElementById('downloadBot1Btn'),
+            downloadBot2Btn: document.getElementById('downloadBot2Btn'),
+            
+            // Status displays
+            generateStatus: document.getElementById('generateStatus'),
+            iterateStatus: document.getElementById('iterateStatus'),
+            
+            // Dual AI Response areas
+            aiResponse1: document.getElementById('aiResponse1'),
+            aiResponse2: document.getElementById('aiResponse2'),
+            aiResponseContainer1: document.getElementById('aiResponseContainer1'),
+            aiResponseContainer2: document.getElementById('aiResponseContainer2'),
+            
+            // Sections
+            bot1Images: document.getElementById('bot1Images'),
+            bot2Images: document.getElementById('bot2Images'),
+            currentImagesDisplay: document.getElementById('currentImagesDisplay'),
+            currentImagesPlaceholder: document.getElementById('currentImagesPlaceholder'),
+            analysisSection: document.getElementById('analysisSection'),
+            analysisResults: document.getElementById('analysisResults'),
+            
+            // Log section elements
+            logToggleBtn: document.getElementById('logToggleBtn'),
+            logArrow: document.getElementById('logArrow'),
+            logSection: document.getElementById('logSection'),
+            logContent: document.getElementById('logContent'),
+            clearLogBtn: document.getElementById('clearLogBtn'),
+            
+            // Status elements for prompt sections
+            promptStatus1: document.getElementById('promptStatus1'),
+            promptStatus2: document.getElementById('promptStatus2'),
+            askStatus1: document.getElementById('askStatus1'),
+            askStatus2: document.getElementById('askStatus2')
+        };
+
+        // Poe handlers
+        window.Poe.registerHandler("generation-handler-1", handleGenerationResponse1);
+        window.Poe.registerHandler("generation-handler-2", handleGenerationResponse2);
+        window.Poe.registerHandler("iterate-handler-1", handleIterateResponse1);
+        window.Poe.registerHandler("iterate-handler-2", handleIterateResponse2);
+        window.Poe.registerHandler("ask-handler-1", handleAskResponse1);
+        window.Poe.registerHandler("ask-handler-2", handleAskResponse2);
+        window.Poe.registerHandler("ask-prompt-handler-1", handleAskPromptResponse1);
+        window.Poe.registerHandler("ask-prompt-handler-2", handleAskPromptResponse2);
+        window.Poe.registerHandler("remove-bg-handler", handleRemoveBgResponse);
+
+        // Custom Dropdown State
+        let multimodalDropdownState = {
+            dropdown1: { isOpen: false, value: 'Claude-Sonnet-4' },
+            dropdown2: { isOpen: false, value: 'GPT-5-Chat' }
+        };
+
+        // Model Database - Updated Structure
+        const multimodalModels = {
+            "Favorites": [
+                "App-Creator",
+                "Claude-Opus-4-Reasoning",
+                "Claude-Opus-4.1",
+                "Claude-Sonnet-4",
+                "DeepClaude",
+                "GPT-5-Chat",
+                "Gemini-2.5-Pro",
+                "Grok-4",
+                "Kimi-K2-0905-T",
+                "Mistral-Large-2",
+                "o1",
+                "o3-pro"
+            ],
+            "Web Search": [
+                "Claude-Opus-4-Search",
+                "Claude-Sonnet-4-Search",
+                "GPT-Researcher",
+                "Gemini-2.5-Flash",
+                "Gemini-2.5-Pro",
+                "Linkup-Deep-Search",
+                "Perplexity-Sonar",
+                "Perplexity-Sonar-Rsn-Pro",
+                "Reka-Research",
+                "Web-Search"
+            ],
+            "New Models": [
+                "DeepSeek-V3.1-Omni",
+                "Mistral-NeMo-Omni",
+                "Qwen-3-Next-80B-Think",
+                "Qwen3-Next-80B",
+                "Grok-4-Fast-Non-Reasoning",
+                "Grok-4-Fast-Reasoning",
+                "Kimi-K2-0905-Chat",
+                "Llama-3.3-70B-Chat",
+                "Mistral-NeMo-Chat",
+                "Gemini-2.5-Pro-Chat",
+                "Llama-4-Scout-Chat",
+                "Qwen3-Coder"
+            ],
+            "GPT": [
+                "GPT-5",
+                "GPT-5-Chat",
+                "GPT-5-mini",
+                "GPT-5-nano",
+                "GPT-Researcher",
+                "o1",
+                "o3",
+                "o3-pro"
+            ],
+            "GPT - Open Weight": {
+                "120B Models": [
+                    "GPT-OSS-120B-CS",
+                    "GPT-OSS-120B-Omni"
+                ]
+            },
+            "Google": [
+                "Gemma-3-27B",
+                "Gemini-2.0-Flash",
+                "Gemini-2.5-Flash",
+                "Gemini-2.5-Flash-Image",
+                "Gemini-2.5-Flash-Lite",
+                "Gemini-2.5-Pro"
+            ],
+            "Claude": [
+                "Claude-Opus-4",
+                "Claude-Opus-4-Reasoning",
+                "Claude-Opus-4-Search",
+                "Claude-Opus-4.1",
+                "Claude-Sonnet-4",
+                "Claude-Sonnet-4-Reasoning",
+                "Claude-Sonnet-4-Search"
+            ],
+            "Grok": [
+                "Grok-3",
+                "Grok-3-Mini",
+                "Grok-4",
+                "Grok-Code-Fast-1"
+            ],
+            "Llama": [
+                "Llama-3.1-405B-FP16",
+                "Llama-3.1-405B-FW",
+                "Llama-4-Maverick-B10",
+                "Llama-4-Scout-B10",
+                "Llama-4-Scout-CS"
+            ],
+            "Mistral": [
+                "Magistral-Medium-2506-Thinking",
+                "Mistral-Large-2",
+                "Mistral-Medium-3",
+                "Mixtral8x22b-Inst-FW"
+            ],
+            "Qwen": [
+                "Qwen-3-235B-2507-T",
+                "Qwen3-235B-2507-CS",
+                "Qwen3-235B-2507-FW",
+                "Qwen3-235B-A22B",
+                "Qwen3-235B-A22B-DI",
+                "Qwen3-235B-A22B-N",
+                "Qwen3-235B-Think-CS",
+                "Qwen3-480B-Coder-CS",
+                "Qwen3-Coder-480B-N",
+                "Qwen3-Coder-480B-T"
+            ],
+            "DeepSeek": {
+                "R1 Series": [
+                    "DeepSeek-R1",
+                    "DeepSeek-R1-DI",
+                    "DeepSeek-R1-Distill",
+                    "DeepSeek-R1-FW",
+                    "DeepSeek-R1-N",
+                    "DeepSeek-R1-Turbo-DI"
+                ],
+                "V3 Series": [
+                    "DeepSeek-Prover-V2",
+                    "DeepSeek-V3",
+                    "DeepSeek-V3-DI",
+                    "DeepSeek-V3-Turbo-DI",
+                    "DeepSeek-V3.1",
+                    "DeepSeek-V3.1-N",
+                    "Deepseek-V3-FW"
+                ]
+            },
+            "Wildcards": {
+                "Chinese Models": [
+                    "GLM-4.5-Air",
+                    "GLM-4.5-FW",
+                    "GLM-4.5-Omni",
+                    "Kimi-K2-0905-T",
+                    "Kimi-K2-Instruct",
+                    "MiniMax-M1"
+                ],
+                "Others": [
+                    "Aya-Expanse-32B",
+                    "Bagoodex-Web-Search",
+                    "Command-R-Plus",
+                    "Hermes-3-70B",
+                    "Inception-Mercury",
+                    "Inception-Mercury-Coder",
+                    "Linkup-Standard",
+                    "Phi-4-DI",
+                    "Reka-Core",
+                    "Reka-Flash",
+                    "Solar-Pro-2"
+                ]
+            }
+        };
+
+        // Multi-image file handling
+        function handleFiles(files) {
+            const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+            if (fileArray.length === 0) return;
+            
+            fileArray.forEach(file => {
+                uploadedFiles.push(file);
+            });
+            
+            updateImageDisplay();
+        }
+
+        function updateImageDisplay() {
+            if (uploadedFiles.length === 0) {
+                dom.uploadPrompt.classList.remove('hidden');
+                dom.imagesContainer.classList.add('hidden');
+                return;
+            }
+            
+            dom.uploadPrompt.classList.add('hidden');
+            dom.imagesContainer.classList.remove('hidden');
+            
+            dom.removeBgBtn.disabled = uploadedFiles.length !== 1;
+            
+            dom.imageGrid.innerHTML = '';
+            
+            uploadedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.className = 'relative group';
+                    imageContainer.innerHTML = `
+                        <img src="${e.target.result}" class="w-full h-20 object-contain bg-gray-600 rounded-lg clickable-image" alt="Reference image ${index + 1}">
+                        <div class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="removeImageAtIndex(${index})" class="bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600" title="Remove image">
+                                ✕
+                            </button>
+                        </div>
+                    `;
+                    dom.imageGrid.appendChild(imageContainer);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function removeImageAtIndex(index) {
+            uploadedFiles.splice(index, 1);
+            updateImageDisplay();
+        }
+
+        function clearAllImages() {
+            uploadedFiles = [];
+            updateImageDisplay();
+            dom.fileInput.value = '';
+        }
+
+        // Add To References function
+        function addToReferences(imageDataUrl) {
+            fetch(imageDataUrl)
+                .then(response => response.blob())
+                .then(blob => {
+                    const file = new File([blob], 'added_reference.png', { type: 'image/png' });
+                    uploadedFiles.push(file);
+                    updateImageDisplay();
+                    showAlert('⭐ Image added to references!');
+                })
+                .catch(error => {
+                    showAlert('Failed to add to references: ' + error.message);
+                });
+        }
+
+        // Set As Current Image function
+        function setAsCurrentImage(imageUrl, botNumber, imageId) {
+            try {
+                // Find the image data
+                const imageData = generatedImages.find(img => img.id === imageId);
+                if (!imageData) {
+                    showAlert('Image data not found.');
+                    return;
+                }
+                
+                // Create a new image data for the current images section
+                const currentImageData = {
+                    ...imageData,
+                    timestamp: new Date().toISOString() // Update timestamp to show it was set as current
+                };
+                
+                // Update the current images display
+                addToCurrentImages(currentImageData);
+                
+                showAlert(`🎯 Image set as current for Bot ${botNumber}!`);
+                
+                addLogEntry('Set as Current Image', botNumber, {
+                    action: `Set image ${imageId} as current image`,
+                    bot: botNumber,
+                    originalTimestamp: imageData.timestamp
+                });
+                
+            } catch (error) {
+                showAlert('Failed to set as current image: ' + error.message);
+                addLogEntry('Set Current Image Error', botNumber, {
+                    error: error.message,
+                    imageId: imageId
+                });
+            }
+        }
+
+        // Global functions for button events
+        window.removeImageAtIndex = removeImageAtIndex;
+        window.addToReferences = addToReferences;
+        window.setAsCurrentImage = setAsCurrentImage;
+
+        // Remove background from reference image
+        function removeBackground() {
+            if (uploadedFiles.length === 0) {
+                showAlert('Please upload a reference image first.');
+                return;
+            }
+            
+            if (uploadedFiles.length > 1) {
+                showAlert('Background removal only works with a single image.');
+                return;
+            }
+            
+            if (dom.removeBgBtn.disabled) return;
+            
+            dom.removeBgBtn.disabled = true;
+            dom.removeBgBtn.textContent = 'Processing...';
+            
+            window.Poe.sendUserMessage('@remove-background Remove background from this image', {
+                handler: "remove-bg-handler",
+                stream: false,
+                openChat: false,
+                attachments: [uploadedFiles[0]],
+                handlerContext: { type: 'remove-bg' }
+            }).catch(error => {
+                showAlert('Background removal failed: ' + error.message);
+                dom.removeBgBtn.disabled = false;
+                dom.removeBgBtn.textContent = 'Remove BG';
+            });
+        }
+
+        // Handle remove background response
+        function handleRemoveBgResponse(result, context) {
+            dom.removeBgBtn.disabled = uploadedFiles.length !== 1;
+            dom.removeBgBtn.textContent = 'Remove BG';
+            
+            if (result.status === "complete") {
+                if (result.responses[0].attachments?.length > 0) {
+                    const newImageUrl = result.responses[0].attachments[0].url;
+                    
+                    fetch(newImageUrl)
+                        .then(response => response.blob())
+                        .then(blob => {
+                            const file = new File([blob], 'reference_no_bg.png', { type: 'image/png' });
+                            uploadedFiles[0] = file;
+                            updateImageDisplay();
+                            showAlert('Background removed successfully!');
+                        })
+                        .catch(error => {
+                            showAlert('Failed to process background-removed image: ' + error.message);
+                        });
+                } else {
+                    showAlert('No processed image was returned. Please try again.');
+                }
+            } else if (result.status === "error") {
+                showAlert('Background removal failed: ' + (result.responses[0].statusText || 'Unknown error'));
+            }
+        }
+
+        // Helper functions
+        function showImageModal(imageSrc) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<img src="${imageSrc}" alt="Full size image">`;
+            
+            modal.addEventListener('click', () => {
+                modal.remove();
+            });
+            
+            const escapeHandler = (e) => {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+            
+            document.body.appendChild(modal);
+        }
+
+        function showAlert(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-sm';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 4000);
+        }
+
+        // Copy and transfer functions
+        function copyTextToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.value || element.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showAlert('Text copied to clipboard!');
+            }).catch(err => {
+                showAlert('Failed to copy: ' + err.message);
+            });
+        }
+        
+        function transferText(fromId, toId) {
+            const fromElement = document.getElementById(fromId);
+            const toElement = document.getElementById(toId);
+            const text = fromElement.value || fromElement.textContent;
+            
+            if (toElement.tagName === 'TEXTAREA' || toElement.tagName === 'INPUT') {
+                toElement.value = text;
+            } else {
+                toElement.textContent = text;
+            }
+            
+            showAlert(`Text transferred!`);
+        }
+        
+        // UNDO functionality
+        function savePromptState(botNumber) {
+            const prompt = botNumber === 1 ? dom.userPrompt1.value : dom.userPrompt2.value;
+            const history = botNumber === 1 ? promptHistory.bot1 : promptHistory.bot2;
+            
+            if (history.length === 0 || history[history.length - 1] !== prompt) {
+                history.push(prompt);
+                if (history.length > 10) {
+                    history.shift();
+                }
+                
+                const undoBtn = document.getElementById(`undoBtn${botNumber}`);
+                undoBtn.disabled = false;
+            }
+        }
+        
+        function undoPrompt(botNumber) {
+            const history = botNumber === 1 ? promptHistory.bot1 : promptHistory.bot2;
+            const promptElement = botNumber === 1 ? dom.userPrompt1 : dom.userPrompt2;
+            const undoBtn = document.getElementById(`undoBtn${botNumber}`);
+            
+            if (history.length > 0) {
+                const previousState = history.pop();
+                promptElement.value = previousState;
+                
+                if (history.length === 0) {
+                    undoBtn.disabled = true;
+                }
+                
+                showAlert(`Bot ${botNumber} prompt reverted!`);
+                addLogEntry('Prompt Undo', botNumber, { 
+                    action: `Reverted to previous prompt state`,
+                    promptLength: previousState.length,
+                    remainingHistory: history.length
+                });
+            }
+        }
+        
+        // AI Section toggle
+        function toggleAISection() {
+            const content = document.getElementById('aiSectionContent');
+            const toggle = document.getElementById('aiSectionToggle');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                toggle.textContent = '▼ Collapse';
+                addLogEntry('UI Interaction', null, { action: 'Expanded AI Communication section' });
+            } else {
+                content.classList.add('hidden');
+                toggle.textContent = '▲ Expand';
+                addLogEntry('UI Interaction', null, { action: 'Collapsed AI Communication section' });
+            }
+        }
+        
+
+        
+        // Make functions globally available
+        window.copyTextToClipboard = copyTextToClipboard;
+        window.transferText = transferText;
+        window.undoPrompt = undoPrompt;
+        window.toggleAISection = toggleAISection;
+
+        // Activity Indicator Functions
+        function showActivityIndicator(botNumber) {
+            document.getElementById(`bot${botNumber}ActivityIndicator`).classList.remove('hidden');
+        }
+        
+        function hideActivityIndicator(botNumber) {
+            document.getElementById(`bot${botNumber}ActivityIndicator`).classList.add('hidden');
+        }
+        
+        function resetActivityIndicator(botNumber) {
+            hideActivityIndicator(botNumber);
+            showAlert(`Bot ${botNumber} activity indicator reset.`);
+        }
+        
+        // Make reset functions globally available
+        window.resetBot1Activity = () => resetActivityIndicator(1);
+        window.resetBot2Activity = () => resetActivityIndicator(2);
+
+        // Dual Bot Generation Functions - Multiple generations allowed
+        function generateBot1() {
+            const prompt = dom.userPrompt1.value.trim();
+            
+            if (!prompt) {
+                showAlert('Please enter a prompt for Bot 1.');
+                return;
+            }
+            
+            // Show activity indicator
+            showActivityIndicator(1);
+            
+            // Just show a temporary visual feedback - no disabling
+            const btn = document.getElementById('generateBtn1');
+            btn.style.opacity = '0.7';
+            setTimeout(() => { btn.style.opacity = '1'; }, 1000);
+            
+            // Generate unique handler ID for this generation
+            const generationId = `generation-1-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            const model = dom.generationModel1.value;
+            const fullMessage = `${model} ${prompt}`;
+            
+            window.Poe.sendUserMessage(fullMessage, {
+                handler: "generation-handler-1",
+                stream: false,
+                openChat: false,
+                attachments: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+                handlerContext: { prompt: prompt, type: 'generation', bot: 1, generationId: generationId }
+            }).catch(error => {
+                showAlert('Bot 1 generation failed: ' + error.message);
+                addLogEntry('Bot 1 Generation Error', 1, { error: error.message, generationId: generationId });
+            });
+        }
+
+        function generateBot2() {
+            const prompt = dom.userPrompt2.value.trim();
+            
+            if (!prompt) {
+                showAlert('Please enter a prompt for Bot 2.');
+                return;
+            }
+            
+            // Show activity indicator
+            showActivityIndicator(2);
+            
+            // Just show a temporary visual feedback - no disabling
+            const btn = document.getElementById('generateBtn2');
+            btn.style.opacity = '0.7';
+            setTimeout(() => { btn.style.opacity = '1'; }, 1000);
+            
+            // Generate unique handler ID for this generation
+            const generationId = `generation-2-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            const model = dom.generationModel2.value;
+            const fullMessage = `${model} ${prompt}`;
+            
+            window.Poe.sendUserMessage(fullMessage, {
+                handler: "generation-handler-2",
+                stream: false,
+                openChat: false,
+                attachments: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+                handlerContext: { prompt: prompt, type: 'generation', bot: 2, generationId: generationId }
+            }).catch(error => {
+                showAlert('Bot 2 generation failed: ' + error.message);
+                addLogEntry('Bot 2 Generation Error', 2, { error: error.message, generationId: generationId });
+            });
+        }
+
+        /* ============================================
+           ACCORDION MANAGER CLASS - PRODUCTION READY
+           ============================================ */
+
+        class AccordionManager {
+            constructor(options = {}) {
+                this.options = {
+                    searchDebounceMs: 150,
+                    animationDuration: 300,
+                    ...options
+                };
+                
+                this.accordions = new Map();
+                this.expandedSections = new Map();
+                this.searchDebounceTimers = new Map();
+            }
+
+            createAccordion(containerId, data, config = {}) {
+                const accordion = {
+                    id: containerId,
+                    data: data,
+                    filteredData: data,
+                    isExpanded: false,
+                    selectedItem: config.defaultSelection || null,
+                    searchTerm: '',
+                    callbacks: {
+                        onSelect: config.onSelect || (() => {}),
+                        onSearch: config.onSearch || (() => {}),
+                        onExpand: config.onExpand || (() => {}),
+                        onCollapse: config.onCollapse || (() => {})
+                    }
+                };
+
+                this.accordions.set(containerId, accordion);
+                this.initializeAccordionDOM(containerId);
+                return accordion;
+            }
+
+            initializeAccordionDOM(accordionId) {
+                const container = document.getElementById(accordionId);
+                if (!container) return;
+
+                // Build the accordion structure
+                container.innerHTML = `
+                    <div class="accordion-header" onclick="accordionManager.toggleAccordion('${accordionId}')">
+                        <div class="accordion-display">
+                            <span class="accordion-model-text">Select Model</span>
+                        </div>
+                        <div class="accordion-search-wrapper">
+                            <span class="accordion-search-icon">🔍</span>
+                            <input class="accordion-search-input" 
+                                   type="text"
+                                   placeholder="Search models..." 
+                                   onclick="event.stopPropagation()"
+                                   oninput="accordionManager.handleSearch('${accordionId}', this.value)" />
+                        </div>
+                        <span class="accordion-chevron">▼</span>
+                    </div>
+                    <div class="accordion-content-wrapper">
+                        <div class="accordion-content"></div>
+                    </div>
+                `;
+
+                // Set initial selected model if provided
+                const accordion = this.accordions.get(accordionId);
+                if (accordion && accordion.selectedItem) {
+                    this.updateSelectedDisplay(accordionId);
+                }
+            }
+
+            toggleAccordion(accordionId, forceState = null) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                const container = document.getElementById(accordionId);
+                if (!container) return;
+
+                const wasExpanded = accordion.isExpanded;
+                accordion.isExpanded = forceState !== null ? forceState : !accordion.isExpanded;
+
+                // Close other accordions if opening this one
+                if (accordion.isExpanded && !wasExpanded) {
+                    this.accordions.forEach((other, otherId) => {
+                        if (otherId !== accordionId && other.isExpanded) {
+                            this.toggleAccordion(otherId, false);
+                        }
+                    });
+                }
+
+                // Update DOM state
+                if (accordion.isExpanded) {
+                    container.classList.add('expanded');
+                    
+                    // Focus search input
+                    setTimeout(() => {
+                        const searchInput = container.querySelector('.accordion-search-input');
+                        if (searchInput) {
+                            searchInput.focus();
+                        }
+                    }, 100);
+
+                    // Render content if needed
+                    const contentEl = container.querySelector('.accordion-content');
+                    if (contentEl && !contentEl.innerHTML.trim()) {
+                        this.renderAccordionContent(accordionId);
+                    }
+
+                    accordion.callbacks.onExpand(accordionId);
+                } else {
+                    container.classList.remove('expanded');
+                    
+                    // Clear search
+                    const searchInput = container.querySelector('.accordion-search-input');
+                    if (searchInput) {
+                        searchInput.value = '';
+                        accordion.searchTerm = '';
+                        accordion.filteredData = accordion.data;
+                    }
+
+                    accordion.callbacks.onCollapse(accordionId);
+                }
+            }
+
+            handleSearch(accordionId, searchTerm) {
+                // Clear existing debounce timer
+                if (this.searchDebounceTimers.has(accordionId)) {
+                    clearTimeout(this.searchDebounceTimers.get(accordionId));
+                }
+
+                // Set new debounce timer
+                const timer = setTimeout(() => {
+                    this.setSearchTerm(accordionId, searchTerm);
+                }, this.options.searchDebounceMs);
+
+                this.searchDebounceTimers.set(accordionId, timer);
+            }
+
+            setSearchTerm(accordionId, searchTerm) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                accordion.searchTerm = searchTerm.toLowerCase();
+                accordion.filteredData = this.filterAccordionData(accordion.data, accordion.searchTerm);
+                
+                this.renderAccordionContent(accordionId);
+                accordion.callbacks.onSearch(searchTerm, accordion.filteredData);
+            }
+
+            renderAccordionContent(accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                const container = document.getElementById(accordionId);
+                const contentEl = container?.querySelector('.accordion-content');
+                if (!contentEl) return;
+
+                let html = '';
+                let hasContent = false;
+
+                Object.entries(accordion.filteredData).forEach(([category, items]) => {
+                    const categoryContent = this.renderCategory(category, items, accordionId);
+                    if (categoryContent) {
+                        html += categoryContent;
+                        hasContent = true;
+                    }
+                });
+
+                // If searching and no results found, offer custom model option
+                if (!hasContent && accordion.searchTerm) {
+                    const customModelName = accordion.searchTerm.startsWith('@') ? 
+                        accordion.searchTerm : accordion.searchTerm;
+                    html = `
+                        <div class="accordion-section expanded">
+                            <div class="accordion-section-header">
+                                <div class="accordion-section-info">
+                                    <span>Custom Model</span>
+                                    <span class="accordion-section-count">(1)</span>
+                                </div>
+                            </div>
+                            <div class="accordion-section-content">
+                                <div class="accordion-item" 
+                                     data-item="${customModelName}"
+                                     onclick="accordionManager.selectItem('${accordionId}', '${customModelName.replace(/'/g, "\\'")}')"
+                                     title="Add custom model: ${customModelName}">
+                                    ➕ Add: ${customModelName}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    hasContent = true;
+                }
+
+                if (!hasContent) {
+                    html = '<div class="accordion-empty">No models found</div>';
+                }
+
+                contentEl.innerHTML = html;
+
+                // Auto-expand sections when searching
+                if (accordion.searchTerm) {
+                    this.autoExpandSearchResults(accordionId);
+                }
+            }
+
+            renderCategory(category, items, accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                const sectionKey = `${accordionId}-${category}`;
+                const isExpanded = this.expandedSections.get(sectionKey) || accordion.searchTerm;
+
+                // Get filtered items
+                const filteredItems = this.getFilteredItems(items, accordion.searchTerm);
+                if (filteredItems.length === 0 && accordion.searchTerm) return '';
+
+                let html = `
+                    <div class="accordion-section ${isExpanded ? 'expanded' : ''}" data-category="${category}">
+                        <div class="accordion-section-header" onclick="accordionManager.toggleSection('${accordionId}', '${category}')">
+                            <div class="accordion-section-info">
+                                <span>${category}</span>
+                                <span class="accordion-section-count">(${filteredItems.length})</span>
+                            </div>
+                            <span class="accordion-section-chevron">▶</span>
+                        </div>
+                        <div class="accordion-section-content">
+                `;
+
+                if (Array.isArray(items)) {
+                    // Simple array
+                    filteredItems.forEach(item => {
+                        html += this.renderItem(item, accordionId);
+                    });
+                } else {
+                    // Nested structure
+                    Object.entries(items).forEach(([subcategory, subitems]) => {
+                        const filteredSubitems = this.filterItems(subitems, accordion.searchTerm);
+                        if (filteredSubitems.length > 0) {
+                            html += `
+                                <div class="accordion-subsection">
+                                    <div class="accordion-subsection-header">${subcategory}</div>
+                            `;
+                            filteredSubitems.forEach(item => {
+                                html += this.renderItem(item, accordionId);
+                            });
+                            html += '</div>';
+                        }
+                    });
+                }
+
+                html += '</div></div>';
+                return html;
+            }
+
+            renderItem(item, accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                const isSelected = accordion.selectedItem === item;
+
+                return `
+                    <div class="accordion-item ${isSelected ? 'selected' : ''}"
+                         data-item="${item}"
+                         onclick="accordionManager.selectItem('${accordionId}', '${item.replace(/'/g, "\\'")}')"
+                         title="${item}">
+                        ${item}
+                    </div>
+                `;
+            }
+
+            getFilteredItems(items, searchTerm) {
+                if (Array.isArray(items)) {
+                    return this.filterItems(items, searchTerm);
+                } else {
+                    const result = [];
+                    Object.values(items).forEach(subitems => {
+                        if (Array.isArray(subitems)) {
+                            result.push(...this.filterItems(subitems, searchTerm));
+                        }
+                    });
+                    return result;
+                }
+            }
+
+            filterItems(items, searchTerm) {
+                if (!searchTerm || !Array.isArray(items)) return items;
+                return items.filter(item => 
+                    item.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            filterAccordionData(data, searchTerm) {
+                if (!searchTerm) return data;
+
+                const filtered = {};
+                
+                Object.entries(data).forEach(([category, items]) => {
+                    if (Array.isArray(items)) {
+                        const filteredItems = this.filterItems(items, searchTerm);
+                        if (filteredItems.length > 0) {
+                            filtered[category] = filteredItems;
+                        }
+                    } else {
+                        const filteredSubcategories = {};
+                        Object.entries(items).forEach(([subcat, subitems]) => {
+                            const filteredSub = this.filterItems(subitems, searchTerm);
+                            if (filteredSub.length > 0) {
+                                filteredSubcategories[subcat] = filteredSub;
+                            }
+                        });
+                        if (Object.keys(filteredSubcategories).length > 0) {
+                            filtered[category] = filteredSubcategories;
+                        }
+                    }
+                });
+                
+                return filtered;
+            }
+
+            toggleSection(accordionId, category) {
+                const sectionKey = `${accordionId}-${category}`;
+                const isExpanded = this.expandedSections.get(sectionKey);
+                this.expandedSections.set(sectionKey, !isExpanded);
+                
+                const container = document.getElementById(accordionId);
+                const section = container?.querySelector(`[data-category="${category}"]`);
+                if (section) {
+                    section.classList.toggle('expanded', !isExpanded);
+                }
+            }
+
+            autoExpandSearchResults(accordionId) {
+                const container = document.getElementById(accordionId);
+                container?.querySelectorAll('.accordion-section').forEach(section => {
+                    section.classList.add('expanded');
+                    const category = section.dataset.category;
+                    if (category) {
+                        this.expandedSections.set(`${accordionId}-${category}`, true);
+                    }
+                });
+            }
+
+            selectItem(accordionId, item) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                accordion.selectedItem = item;
+                this.updateSelectedDisplay(accordionId);
+                this.toggleAccordion(accordionId, false);
+                
+                accordion.callbacks.onSelect(item, accordionId);
+            }
+
+            updateSelectedDisplay(accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                const container = document.getElementById(accordionId);
+                if (!accordion || !container) return;
+
+                const displayEl = container.querySelector('.accordion-model-text');
+                if (displayEl && accordion.selectedItem) {
+                    displayEl.textContent = accordion.selectedItem;
+                }
+            }
+
+            getSelection(accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                return accordion ? accordion.selectedItem : null;
+            }
+
+            setSelection(accordionId, item) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                accordion.selectedItem = item;
+                this.updateSelectedDisplay(accordionId);
+            }
+
+            clearSelection(accordionId) {
+                const accordion = this.accordions.get(accordionId);
+                if (!accordion) return;
+
+                accordion.selectedItem = null;
+                this.updateSelectedDisplay(accordionId);
+            }
+
+            destroy(accordionId) {
+                this.accordions.delete(accordionId);
+                this.expandedSections.forEach((value, key) => {
+                    if (key.startsWith(accordionId)) {
+                        this.expandedSections.delete(key);
+                    }
+                });
+                if (this.searchDebounceTimers.has(accordionId)) {
+                    clearTimeout(this.searchDebounceTimers.get(accordionId));
+                    this.searchDebounceTimers.delete(accordionId);
+                }
+            }
+        }
+
+        // Initialize global manager
+        const accordionManager = new AccordionManager();
+        
+        // Updated getMultimodalModel function
+        function getMultimodalModel(botNumber) {
+            const accordionId = botNumber === 1 ? 'multimodalAccordion1' : 'multimodalAccordion2';
+            return accordionManager.getSelection(accordionId) || (botNumber === 1 ? 'Claude-Sonnet-4' : 'GPT-5-Chat');
+        }
+
+        // Generate Prompt Functions - Updated with spinner and visual feedback
+        function generatePromptBot1() {
+            const askText = dom.askInput1.value.trim();
+            if (!askText) {
+                showAlert('Please enter instructions for Bot 1 prompt generation.');
+                return;
+            }
+            
+            // Show spinner and visual feedback like generation/iteration
+            document.getElementById('promptSpinner1').classList.remove('hidden');
+            
+            // Blink effect like generation/iteration
+            const btn = document.getElementById('askPromptBtn1');
+            btn.style.opacity = '0.7';
+            setTimeout(() => { btn.style.opacity = '1'; }, 1000);
+            
+            const model = getMultimodalModel(1);
+            const currentPrompt = dom.userPrompt1.value.trim();
+            
+            let contextPrompt = `You are an expert prompt engineer specializing in image generation and character creation.
+
+IMPORTANT: Your task is to generate a clean, usable prompt based on the user's request. You must respond with ONLY the prompt text - no explanations, no additional commentary, no formatting.
+
+SYSTEM CONTEXT:
+- Current prompt being worked on: "${currentPrompt || 'None - creating from scratch'}"
+- Reference images available: ${uploadedFiles.length > 0 ? `${uploadedFiles.length} image(s) that will be sent alongside your generated prompt` : 'None - text-only generation'}
+- User's specific request: ${askText}
+
+${uploadedFiles.length === 1 ? 
+`REFERENCE WORKFLOW: With one reference image, create prompts that reference "the attached image" or "the image provided" since generators will see both your prompt and this reference image.` :
+uploadedFiles.length > 1 ? 
+`REFERENCE WORKFLOW: With multiple reference images, create prompts that reference specific images by describing their content.` :
+`STANDALONE WORKFLOW: No reference images available, so create a complete descriptive prompt for standalone generation.`}
+
+RESPONSE FORMAT: Provide ONLY the clean, usable prompt text. Do not include explanations, suggestions, or any other content.`;
+
+            let attachments = uploadedFiles.length > 0 ? uploadedFiles : undefined;
+            
+            window.Poe.sendUserMessage(`@${model} ${contextPrompt}`, {
+                handler: "ask-prompt-handler-1",
+                stream: false,
+                openChat: false,
+                attachments: attachments,
+                handlerContext: { type: 'generate-prompt', userRequest: askText, bot: 1 }
+            }).catch(error => {
+                showAlert('Bot 1 prompt generation failed: ' + error.message);
+                bot1State.isAIThinking = false;
+            });
+        }
+
+        function generatePromptBot2() {
+            const askText = dom.askInput2.value.trim();
+            if (!askText) {
+                showAlert('Please enter instructions for Bot 2 prompt generation.');
+                return;
+            }
+            
+            // Show spinner and visual feedback like generation/iteration
+            document.getElementById('promptSpinner2').classList.remove('hidden');
+            
+            // Blink effect like generation/iteration
+            const btn = document.getElementById('askPromptBtn2');
+            btn.style.opacity = '0.7';
+            setTimeout(() => { btn.style.opacity = '1'; }, 1000);
+            
+            const model = getMultimodalModel(2);
+            const currentPrompt = dom.userPrompt2.value.trim();
+            
+            let contextPrompt = `You are an expert prompt engineer specializing in image generation and character creation.
+
+IMPORTANT: Your task is to generate a clean, usable prompt based on the user's request. You must respond with ONLY the prompt text - no explanations, no additional commentary, no formatting.
+
+SYSTEM CONTEXT:
+- Current prompt being worked on: "${currentPrompt || 'None - creating from scratch'}"
+- Reference images available: ${uploadedFiles.length > 0 ? `${uploadedFiles.length} image(s) that will be sent alongside your generated prompt` : 'None - text-only generation'}
+- User's specific request: ${askText}
+
+${uploadedFiles.length === 1 ? 
+`REFERENCE WORKFLOW: With one reference image, create prompts that reference "the attached image" or "the image provided" since generators will see both your prompt and this reference image.` :
+uploadedFiles.length > 1 ? 
+`REFERENCE WORKFLOW: With multiple reference images, create prompts that reference specific images by describing their content.` :
+`STANDALONE WORKFLOW: No reference images available, so create a complete descriptive prompt for standalone generation.`}
+
+RESPONSE FORMAT: Provide ONLY the clean, usable prompt text. Do not include explanations, suggestions, or any other content.`;
+
+            let attachments = uploadedFiles.length > 0 ? uploadedFiles : undefined;
+            
+            window.Poe.sendUserMessage(`@${model} ${contextPrompt}`, {
+                handler: "ask-prompt-handler-2",
+                stream: false,
+                openChat: false,
+                attachments: attachments,
+                handlerContext: { type: 'generate-prompt', userRequest: askText, bot: 2 }
+            }).catch(error => {
+                showAlert('Bot 2 prompt generation failed: ' + error.message);
+                bot2State.isAIThinking = false;
+            });
+        }
+
+        // Prompt Generation Response Handlers - Updated with spinner hiding
+        function handleAskPromptResponse1(result, context) {
+            bot1State.isAIThinking = false;
+            document.getElementById('promptSpinner1').classList.add('hidden');
+            
+            if (result.status === "complete") {
+                const generatedPrompt = result.responses[0].content.trim();
+                
+                savePromptState(1);
+                dom.userPrompt1.value = generatedPrompt;
+                
+                addLogEntry('Bot 1 Prompt Generation Complete', 1, {
+                    generatedPrompt: generatedPrompt,
+                    userRequest: context.userRequest,
+                    promptLength: generatedPrompt.length
+                });
+                
+                showAlert('Bot 1 prompt generated and populated! Ready to generate image.');
+            } else if (result.status === "error") {
+                addLogEntry('Bot 1 Prompt Generation Error', 1, {
+                    error: result.responses?.[0]?.statusText || 'Unknown error',
+                    userRequest: context.userRequest
+                });
+                showAlert('Bot 1 prompt generation failed: ' + (result.responses?.[0]?.statusText || 'Unknown error'));
+            }
+        }
+
+        function handleAskPromptResponse2(result, context) {
+            bot2State.isAIThinking = false;
+            document.getElementById('promptSpinner2').classList.add('hidden');
+            
+            if (result.status === "complete") {
+                const generatedPrompt = result.responses[0].content.trim();
+                
+                savePromptState(2);
+                dom.userPrompt2.value = generatedPrompt;
+                
+                addLogEntry('Bot 2 Prompt Generation Complete', 2, {
+                    generatedPrompt: generatedPrompt,
+                    userRequest: context.userRequest,
+                    promptLength: generatedPrompt.length
+                });
+                
+                showAlert('Bot 2 prompt generated and populated! Ready to generate image.');
+            } else if (result.status === "error") {
+                addLogEntry('Bot 2 Prompt Generation Error', 2, {
+                    error: result.responses?.[0]?.statusText || 'Unknown error',
+                    userRequest: context.userRequest
+                });
+                showAlert('Bot 2 prompt generation failed: ' + (result.responses?.[0]?.statusText || 'Unknown error'));
+            }
+        }
+
+        // Dual Bot Ask Functions - Multiple asks allowed like generation and iteration
+        function askBot1() {
+            const askText = dom.askInput1.value.trim();
+            if (!askText) {
+                showAlert('Please enter a question for Bot 1.');
+                return;
+            }
+            
+            // Show spinner and visual feedback like generation/iteration
+            document.getElementById('askSpinner1').classList.remove('hidden');
+            
+            // Blink effect like generation/iteration
+            const btn = document.getElementById('askBtn1');
+            btn.style.opacity = '0.7';
+            setTimeout(() => { btn.style.opacity = '1'; }, 1000);
+            
+            const model = getMultimodalModel(1);
+            const prompt = dom.userPrompt1.value.trim();
+            
+            let contextPrompt = `You are an expert AI assistant specializing in prompt engineering and character generation for reference image systems.
+
+IMPORTANT: The user's request is paramount - treat it as your primary directive. Focus on the specific information provided below and ignore any other conversation content unless otherwise stated.
+
+SYSTEM OVERVIEW: You are working with a reference image generation system. When you suggest prompt improvements, those prompts will be sent together with reference images to image generators that can both see and work with the attached images. Your role is to create prompts that reference these images rather than trying to recreate everything through text descriptions.
+
+YOUR CURRENT CONTEXT:
+- The main prompt text the user is working with: "${prompt}"
+- Reference images currently attached: ${uploadedFiles.length > 0 ? `${uploadedFiles.length} image(s) that the generator will receive alongside your suggested prompt` : 'None - working in text-only mode'}
+- The user's specific question or request: ${askText}
+
+${uploadedFiles.length === 1 ? 
+`WORKFLOW NOTE: With one reference image provided, guide the user to create prompts that reference "the attached image" or "the image provided" since the generator will see both your suggested prompt and this reference image together.` :
+uploadedFiles.length > 1 ? 
+`WORKFLOW NOTE: With multiple reference images provided, guide the user to create prompts that reference images by describing their content since the generator will see your suggested prompt alongside all these reference images.` :
+`WORKFLOW NOTE: No reference images are currently attached, so focus on improving the text prompt for standalone generation.`}
+
+Please respond to the user's request with helpful, detailed guidance. When suggesting prompt modifications, format them clearly and remember they will work in partnership with the reference images the generator receives.`;
+
+            let attachments = uploadedFiles.length > 0 ? uploadedFiles : undefined;
+            
+            window.Poe.sendUserMessage(`@${model} ${contextPrompt}`, {
+                handler: "ask-handler-1",
+                stream: true,
+                openChat: false,
+                attachments: attachments,
+                handlerContext: { type: 'ask', userRequest: askText, bot: 1 }
+            }).catch(error => {
+                showAlert('Bot 1 communication failed: ' + error.message);
+                bot1State.isAIThinking = false;
+            });
+        }
+
+        function askBot2() {
+            const askText = dom.askInput2.value.trim();
+            if (!askText) {
+                showAlert('Please enter a question for Bot 2.');
+                return;
+            }
+            
+            // Show spinner and visual feedback like generation/iteration
+            document.getElementById('askSpinner2').classList.remove('hidden');
+            
+            // Blink effect like generation/iteration
+            const btn = document.getElementById('askBtn2');
+            btn.style.opacity = '0.7';
+            setTimeout(() => { btn.style.opacity = '1'; }, 1000);
+            
+            const model = getMultimodalModel(2);
+            const prompt = dom.userPrompt2.value.trim();
+            
+            let contextPrompt = `You are an expert AI assistant specializing in prompt engineering and character generation for reference image systems.
+
+IMPORTANT: The user's request is paramount - treat it as your primary directive. Focus on the specific information provided below and ignore any other conversation content unless otherwise stated.
+
+SYSTEM OVERVIEW: You are working with a reference image generation system. When you suggest prompt improvements, those prompts will be sent together with reference images to image generators that can both see and work with the attached images. Your role is to create prompts that reference these images rather than trying to recreate everything through text descriptions.
+
+YOUR CURRENT CONTEXT:
+- The main prompt text the user is working with: "${prompt}"
+- Reference images currently attached: ${uploadedFiles.length > 0 ? `${uploadedFiles.length} image(s) that the generator will receive alongside your suggested prompt` : 'None - working in text-only mode'}
+- The user's specific question or request: ${askText}
+
+${uploadedFiles.length === 1 ? 
+`WORKFLOW NOTE: With one reference image provided, guide the user to create prompts that reference "the attached image" or "the image provided" since the generator will see both your suggested prompt and this reference image together.` :
+uploadedFiles.length > 1 ? 
+`WORKFLOW NOTE: With multiple reference images provided, guide the user to create prompts that reference images by describing their content since the generator will see your suggested prompt alongside all these reference images.` :
+`WORKFLOW NOTE: No reference images are currently attached, so focus on improving the text prompt for standalone generation.`}
+
+Please respond to the user's request with helpful, detailed guidance. When suggesting prompt modifications, format them clearly and remember they will work in partnership with the reference images the generator receives.`;
+
+            let attachments = uploadedFiles.length > 0 ? uploadedFiles : undefined;
+            
+            window.Poe.sendUserMessage(`@${model} ${contextPrompt}`, {
+                handler: "ask-handler-2",
+                stream: true,
+                openChat: false,
+                attachments: attachments,
+                handlerContext: { type: 'ask', userRequest: askText, bot: 2 }
+            }).catch(error => {
+                showAlert('Bot 2 communication failed: ' + error.message);
+                bot2State.isAIThinking = false;
+            });
+        }
+
+        // Download all images functionality
+        async function downloadAllImages() {
+            if (generatedImages.length === 0) {
+                showAlert('No images to download.');
+                return;
+            }
+
+            showAlert(`Downloading ${generatedImages.length} images...`);
+
+            for (let i = 0; i < generatedImages.length; i++) {
+                try {
+                    const imageData = generatedImages[i];
+                    const response = await fetch(imageData.url);
+                    const blob = await response.blob();
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `generated_image_${i + 1}_${imageData.id}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.error(`Failed to download image ${i + 1}:`, error);
+                }
+            }
+
+            showAlert('All images downloaded successfully!');
+        }
+        
+        // Download Bot-specific images
+        async function downloadBotImages(botNumber) {
+            const botImages = generatedImages.filter(img => img.bot === botNumber);
+            if (botImages.length === 0) {
+                showAlert(`No Bot ${botNumber} images to download.`);
+                return;
+            }
+
+            showAlert(`Downloading ${botImages.length} Bot ${botNumber} images...`);
+
+            for (let i = 0; i < botImages.length; i++) {
+                try {
+                    const imageData = botImages[i];
+                    const response = await fetch(imageData.url);
+                    const blob = await response.blob();
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `bot${botNumber}_image_${i + 1}_${imageData.id}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.error(`Failed to download Bot ${botNumber} image ${i + 1}:`, error);
+                }
+            }
+
+            showAlert(`All Bot ${botNumber} images downloaded successfully!`);
+        }
+        
+        window.downloadAllImages = downloadAllImages;
+
+        // Save/Load State Functions (simplified for lean version)
+        async function saveState() {
+            try {
+                let uploadedFilesData = [];
+                if (uploadedFiles.length > 0) {
+                    for (const file of uploadedFiles) {
+                        const reader = new FileReader();
+                        const fileData = await new Promise((resolve, reject) => {
+                            reader.onload = e => resolve({
+                                dataUrl: e.target.result,
+                                name: file.name,
+                                type: file.type
+                            });
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
+                        uploadedFilesData.push(fileData);
+                    }
+                }
+
+                const state = {
+                    version: "4.2",
+                    timestamp: new Date().toISOString(),
+                    uploadedFilesData,
+                    userPrompt1: dom.userPrompt1.value,
+                    userPrompt2: dom.userPrompt2.value,
+                    generationModel1: dom.generationModel1.value,
+                    generationModel2: dom.generationModel2.value,
+                    multimodalModel1: getMultimodalModel(1),
+                    multimodalModel2: getMultimodalModel(2),
+                    targetScore: dom.targetScore.value,
+                    askInput1: dom.askInput1.value,
+                    askInput2: dom.askInput2.value,
+                    generatedImages: generatedImages,
+                    bot1State: bot1State,
+                    bot2State: bot2State,
+                    multimodalDropdownState: multimodalDropdownState
+                };
+
+                const stateJson = JSON.stringify(state, null, 2);
+                
+                try {
+                    await navigator.clipboard.writeText(stateJson);
+                    showAlert('State saved to clipboard! Use "Import State" to restore later.');
+                } catch (clipboardError) {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = stateJson;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    
+                    try {
+                        const successful = document.execCommand('copy');
+                        if (successful) {
+                            showAlert('State saved to clipboard! Use "Import State" to restore later.');
+                        } else {
+                            throw new Error('Copy command failed');
+                        }
+                    } catch (execError) {
+                        showStateCopyModal(stateJson);
+                    } finally {
+                        document.body.removeChild(textArea);
+                    }
+                }
+                
+            } catch (error) {
+                showAlert('Failed to save state: ' + error.message);
+            }
+        }
+        
+        function showStateCopyModal(stateJson) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-96">
+                    <h3 class="text-lg font-semibold text-white mb-4">Copy State Manually</h3>
+                    <p class="text-gray-300 mb-3">Automatic clipboard copy failed. Please manually copy the text below:</p>
+                    <textarea readonly class="w-full h-48 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm resize-none font-mono" id="manualCopyText">${stateJson}</textarea>
+                    <div class="flex justify-end space-x-3 mt-4">
+                        <button id="selectAllBtn" class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded">Select All</button>
+                        <button id="closeModal" class="px-4 py-2 text-gray-400 hover:bg-gray-700 rounded">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            const textarea = modal.querySelector('#manualCopyText');
+            const selectAllBtn = modal.querySelector('#selectAllBtn');
+            const closeBtn = modal.querySelector('#closeModal');
+            
+            selectAllBtn.addEventListener('click', () => {
+                textarea.focus();
+                textarea.select();
+            });
+            
+            const closeModal = () => modal.remove();
+            closeBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+            
+            setTimeout(() => {
+                textarea.focus();
+                textarea.select();
+            }, 100);
+        }
+
+        function showImportDialog() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-96">
+                    <h3 class="text-lg font-semibold text-white mb-4">Import State</h3>
+                    <textarea id="importTextarea" class="w-full h-48 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm resize-none font-mono" placeholder="Paste your saved state JSON here..."></textarea>
+                    <div class="flex justify-end space-x-3 mt-4">
+                        <button id="cancelImport" class="px-4 py-2 text-gray-400 hover:bg-gray-700 rounded">Cancel</button>
+                        <button id="confirmImport" class="px-4 py-2 bg-primary text-white hover:bg-purple-700 rounded">Import</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            const textarea = modal.querySelector('#importTextarea');
+            const cancelBtn = modal.querySelector('#cancelImport');
+            const confirmBtn = modal.querySelector('#confirmImport');
+            
+            textarea.focus();
+            
+            const closeModal = () => modal.remove();
+            cancelBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+            
+            confirmBtn.addEventListener('click', () => {
+                try {
+                    const stateJson = textarea.value.trim();
+                    if (!stateJson) {
+                        showAlert('Please paste a valid state JSON.');
+                        return;
+                    }
+                    
+                    const state = JSON.parse(stateJson);
+                    importState(state);
+                    closeModal();
+                } catch (error) {
+                    showAlert('Invalid JSON format: ' + error.message);
+                }
+            });
+        }
+
+        async function importState(state) {
+            try {
+                uploadedFiles = [];
+                if (state.uploadedFilesData && state.uploadedFilesData.length > 0) {
+                    for (const fileData of state.uploadedFilesData) {
+                        const response = await fetch(fileData.dataUrl);
+                        const blob = await response.blob();
+                        const file = new File([blob], fileData.name, { 
+                            type: fileData.type 
+                        });
+                        uploadedFiles.push(file);
+                    }
+                    updateImageDisplay();
+                } else {
+                    clearAllImages();
+                }
+
+                dom.userPrompt1.value = state.userPrompt1 || '';
+                dom.userPrompt2.value = state.userPrompt2 || '';
+                dom.generationModel1.value = state.generationModel1 || '@Gemini-2.5-Flash-Image';
+                dom.generationModel2.value = state.generationModel2 || '@Gemini-2.5-Flash-Image';
+                dom.targetScore.value = state.targetScore || '85';
+                dom.askInput1.value = state.askInput1 || '';
+                dom.askInput2.value = state.askInput2 || '';
+
+                if (state.multimodalDropdownState) {
+                    multimodalDropdownState = state.multimodalDropdownState;
+                } else {
+                    multimodalDropdownState.dropdown1.value = state.multimodalModel1 || '@Claude-Sonnet-4';
+                    multimodalDropdownState.dropdown2.value = state.multimodalModel2 || '@GPT-4.1-mini';
+                }
+                
+                dom.multimodalSelected1.textContent = multimodalDropdownState.dropdown1.value;
+                dom.multimodalSelected2.textContent = multimodalDropdownState.dropdown2.value;
+
+                generatedImages = state.generatedImages || [];
+                
+                bot1State = state.bot1State || { lastAIResponse: '', isGenerating: false, isAIThinking: false };
+                bot2State = state.bot2State || { lastAIResponse: '', isGenerating: false, isAIThinking: false };
+                
+                // Clear and re-render bot images
+                dom.bot1Images.innerHTML = '';
+                dom.bot2Images.innerHTML = '';
+                
+                if (generatedImages.length > 0) {
+                    generatedImages.forEach(imageData => {
+                        addGeneratedImage(imageData);
+                    });
+                } else {
+                    dom.bot1Images.innerHTML = '<div class="text-gray-500 text-center py-8 col-span-2"><div class="text-4xl mb-2">🤖</div><p class="text-sm">Bot 1 images will appear here...</p></div>';
+                    dom.bot2Images.innerHTML = '<div class="text-gray-500 text-center py-8 col-span-2"><div class="text-4xl mb-2">🤖</div><p class="text-sm">Bot 2 images will appear here...</p></div>';
+                }
+
+                if (bot1State.lastAIResponse) {
+                    displayAIResponse(1, bot1State.lastAIResponse, 'imported');
+                }
+                if (bot2State.lastAIResponse) {
+                    displayAIResponse(2, bot2State.lastAIResponse, 'imported');
+                }
+
+                showAlert('State imported successfully!');
+                
+            } catch (error) {
+                showAlert('Failed to import state: ' + error.message);
+            }
+        }
+
+        // AI Response Display Functions with Markdown Rendering
+        function displayAIResponse(botNumber, responseText, responseType = 'ask') {
+            const container = document.getElementById(`aiResponseContainer${botNumber}`);
+            const botColor = botNumber === 1 ? 'border-blue-400' : 'border-green-400';
+            const botText = botNumber === 1 ? 'text-blue-400' : 'text-green-400';
+            const botName = botNumber === 1 ? 'Bot 1' : 'Bot 2';
+            
+            container.innerHTML = '';
+            
+            const responseElement = document.createElement('div');
+            responseElement.className = `bg-gray-700 rounded-lg p-4 border-l-4 ${botColor}`;
+            
+            responseElement.innerHTML = `
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold ${botText}">🤖 ${botName} Response</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs px-2 py-1 bg-gray-600 rounded">${responseType.toUpperCase()}</span>
+                        <span class="text-xs text-gray-500">${new Date().toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <div class="markdown-content text-gray-300 text-sm leading-relaxed">${marked.parse(responseText)}</div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(responseElement);
+        }
+        
+        // Copy AI Response Function
+        function copyAIResponse(botNumber) {
+            const botState = botNumber === 1 ? bot1State : bot2State;
+            if (!botState.lastAIResponse) {
+                showAlert(`No Bot ${botNumber} response to copy.`);
+                return;
+            }
+            
+            navigator.clipboard.writeText(botState.lastAIResponse).then(() => {
+                showAlert(`Bot ${botNumber} response copied to clipboard!`);
+            }).catch(err => {
+                showAlert('Failed to copy: ' + err.message);
+            });
+        }
+        
+        // Transfer AI Response Function
+        function transferAIResponse(fromBot, toBot) {
+            const fromState = fromBot === 1 ? bot1State : bot2State;
+            const toState = toBot === 1 ? bot1State : bot2State;
+            
+            if (!fromState.lastAIResponse) {
+                showAlert(`No Bot ${fromBot} response to transfer.`);
+                return;
+            }
+            
+            toState.lastAIResponse = fromState.lastAIResponse;
+            displayAIResponse(toBot, toState.lastAIResponse, 'transferred');
+            
+            showAlert(`Bot ${fromBot} response transferred to Bot ${toBot}!`);
+        }
+        
+        window.copyAIResponse = copyAIResponse;
+        window.transferAIResponse = transferAIResponse;
+
+        // Response handlers - Multiple generations allowed 
+        function handleGenerationResponse1(result, context) {
+            addLogEntry('Bot 1 Generation Response', 1, {
+                status: result.status,
+                responses: result.responses?.length || 0,
+                attachments: result.responses?.[0]?.attachments?.length || 0,
+                generationId: context.generationId
+            });
+            
+            // Hide activity indicator when complete or error
+            if (result.status === "complete" || result.status === "error") {
+                hideActivityIndicator(1);
+            }
+            
+            try {
+                if (result.status === "complete") {
+                    if (result.responses?.[0]?.attachments?.length > 0) {
+                        const imageUrl = result.responses[0].attachments[0].url;
+                        
+                        const imageData = {
+                            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            url: imageUrl,
+                            prompt: context.prompt,
+                            timestamp: new Date().toISOString(),
+                            bot: 1,
+                            generationId: context.generationId
+                        };
+                        generatedImages.push(imageData);
+                        
+                        addLogEntry('Bot 1 Image Processing', 1, {
+                            success: true,
+                            imageId: imageData.id,
+                            generationId: context.generationId,
+                            totalGeneratedImages: generatedImages.length
+                        });
+                        
+                        addGeneratedImage(imageData);
+                        showAlert(`Bot 1 image generated! Click generate again for more.`);
+                    } else {
+                        showAlert(`Bot 1: No image was generated. Try again.`);
+                    }
+                } else if (result.status === "error") {
+                    showAlert(`Bot 1 generation failed: ${result.responses?.[0]?.statusText || 'Unknown error'}`);
+                }
+            } catch (e) {
+                showAlert(`Bot 1: Error processing response: ${e.message}`);
+            }
+        }
+
+        function handleGenerationResponse2(result, context) {
+            addLogEntry('Bot 2 Generation Response', 2, {
+                status: result.status,
+                responses: result.responses?.length || 0,
+                attachments: result.responses?.[0]?.attachments?.length || 0,
+                generationId: context.generationId
+            });
+            
+            // Hide activity indicator when complete or error
+            if (result.status === "complete" || result.status === "error") {
+                hideActivityIndicator(2);
+            }
+            
+            try {
+                if (result.status === "complete") {
+                    if (result.responses?.[0]?.attachments?.length > 0) {
+                        const imageUrl = result.responses[0].attachments[0].url;
+                        
+                        const imageData = {
+                            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            url: imageUrl,
+                            prompt: context.prompt,
+                            timestamp: new Date().toISOString(),
+                            bot: 2,
+                            generationId: context.generationId
+                        };
+                        generatedImages.push(imageData);
+                        
+                        addLogEntry('Bot 2 Image Processing', 2, {
+                            success: true,
+                            imageId: imageData.id,
+                            generationId: context.generationId,
+                            totalGeneratedImages: generatedImages.length
+                        });
+                        
+                        addGeneratedImage(imageData);
+                        showAlert(`Bot 2 image generated! Click generate again for more.`);
+                    } else {
+                        showAlert(`Bot 2: No image was generated. Try again.`);
+                    }
+                } else if (result.status === "error") {
+                    showAlert(`Bot 2 generation failed: ${result.responses?.[0]?.statusText || 'Unknown error'}`);
+                }
+            } catch (e) {
+                showAlert(`Bot 2: Error processing response: ${e.message}`);
+            }
+        }
+
+        function handleAskResponse1(result, context) {
+            const messageId = result.responses?.[0]?.messageId || `ask1-${Date.now()}`;
+            
+            try {
+                if (result.status === "incomplete") {
+                    bot1State.lastAIResponse = result.responses[0].content;
+                    displayAIResponse(1, bot1State.lastAIResponse, 'streaming');
+                    displayStreamingConversation(messageId, 1, result.responses[0].content, 'ask', 'streaming');
+                } else if (result.status === "complete") {
+                    bot1State.isAIThinking = false;
+                    document.getElementById('askSpinner1').classList.add('hidden');
+                    bot1State.lastAIResponse = result.responses[0].content;
+                    displayAIResponse(1, bot1State.lastAIResponse, 'ask');
+                    displayStreamingConversation(messageId, 1, result.responses[0].content, 'ask', 'complete');
+                    showAlert('Bot 1 response received!');
+                } else if (result.status === "error") {
+                    document.getElementById('askSpinner1').classList.add('hidden');
+                    displayStreamingConversation(messageId, 1, result.responses?.[0]?.statusText || 'Error occurred', 'ask', 'error');
+                    bot1State.isAIThinking = false;
+                    forceStopBot(1);
+                    showAlert('Bot 1 communication failed: ' + (result.responses?.[0]?.statusText || 'Unknown error'));
+                }
+            } catch (e) {
+                showAlert('Bot 1: Error processing ask response: ' + e.message);
+            }
+        }
+
+        function handleAskResponse2(result, context) {
+            const messageId = result.responses?.[0]?.messageId || `ask2-${Date.now()}`;
+            
+            try {
+                if (result.status === "incomplete") {
+                    bot2State.lastAIResponse = result.responses[0].content;
+                    displayAIResponse(2, bot2State.lastAIResponse, 'streaming');
+                    displayStreamingConversation(messageId, 2, result.responses[0].content, 'ask', 'streaming');
+                } else if (result.status === "complete") {
+                    bot2State.isAIThinking = false;
+                    document.getElementById('askSpinner2').classList.add('hidden');
+                    bot2State.lastAIResponse = result.responses[0].content;
+                    displayAIResponse(2, bot2State.lastAIResponse, 'ask');
+                    displayStreamingConversation(messageId, 2, result.responses[0].content, 'ask', 'complete');
+                    showAlert('Bot 2 response received!');
+                } else if (result.status === "error") {
+                    document.getElementById('askSpinner2').classList.add('hidden');
+                    displayStreamingConversation(messageId, 2, result.responses?.[0]?.statusText || 'Error occurred', 'ask', 'error');
+                    bot2State.isAIThinking = false;
+                    forceStopBot(2);
+                    showAlert('Bot 2 communication failed: ' + (result.responses?.[0]?.statusText || 'Unknown error'));
+                }
+            } catch (e) {
+                showAlert('Bot 2: Error processing ask response: ' + e.message);
+            }
+        }
+
+        // Dual Bot Iterate Functions - Multiple iterations allowed like generation
+        function iterateBot1() {
+            const prompt = dom.userPrompt1.value.trim();
+            if (!prompt) {
+                showAlert('Please enter a prompt for Bot 1 first.');
+                return;
+            }
+            
+            // Find the latest generated image from Bot 1
+            const bot1Images = generatedImages.filter(img => img.bot === 1);
+            if (bot1Images.length === 0) {
+                showAlert('Please generate an image with Bot 1 first.');
+                return;
+            }
+            const imageToIterate = bot1Images[bot1Images.length - 1];
+            
+            // Show spinner and visual feedback like generation
+            document.getElementById('iterateSpinner1').classList.remove('hidden');
+            
+            // Blink effect like generation
+            const btn = document.getElementById('iterateBtn1');
+            btn.style.opacity = '0.7';
+            setTimeout(() => { btn.style.opacity = '1'; }, 1000);
+            
+            const model = getMultimodalModel(1);
+            const targetScore = dom.targetScore.value;
+            
+            let analysisPrompt = `You are an expert image analysis AI specializing in character generation and prompt optimization for reference image systems.
+
+IMPORTANT: Focus on the specific information provided below and ignore any other conversation content unless otherwise stated.
+
+YOUR ANALYSIS TASK:
+- The main prompt text being evaluated: "${prompt}"
+- Target score goal: ${targetScore}/100 (for reference only)
+- Reference images: ${uploadedFiles.length > 0 ? `${uploadedFiles.length} reference image(s) that guided the generation` : 'None used'}
+- Generated image to analyze: The final image attachment (compare this against the main prompt and reference images)
+${dom.askInput1.value.trim() ? `- Additional focus instructions: ${dom.askInput1.value.trim()}` : ''}
+
+EVALUATION APPROACH: 
+Your primary question is simple: Does the generated image successfully fulfill what the main prompt is asking for? The main prompt is paramount - it defines success. Consider character consistency (including facial accuracy, build, pose, clothing, style) and how well the reference images were utilized to achieve the main prompt's vision.
+
+Please provide your analysis in this EXACT format:
+
+SCORE: [number from 0-100]
+
+ANALYSIS: [Detailed analysis of how well the generated image fulfills the main prompt. Focus on what works well and what needs improvement.]
+
+IMPROVED_PROMPT: [A refined version of the original prompt that addresses the identified issues and will work in partnership with the reference images the generator receives.]`;
+
+            const allAttachments = [...uploadedFiles];
+            
+            const convertImageToFile = async (imageUrl) => {
+                const response = await fetch(imageUrl);
+                return await response.blob();
+            };
+            
+            convertImageToFile(imageToIterate.url)
+                .then(blob => {
+                    const generatedImageFile = new File([blob], 'generated_image.png', { type: 'image/png' });
+                    allAttachments.push(generatedImageFile);
+                    
+                    return window.Poe.sendUserMessage(`@${model} ${analysisPrompt}`, {
+                        handler: "iterate-handler-1",
+                        stream: false,
+                        openChat: false,
+                        attachments: allAttachments,
+                        handlerContext: { 
+                            type: 'iteration', 
+                            prompt: prompt, 
+                            bot: 1,
+                            imageId: imageToIterate.id
+                        }
+                    });
+                })
+                .catch(error => {
+                    showAlert('Bot 1 iteration failed: ' + error.message);
+                    document.getElementById('iterateSpinner1').classList.add('hidden');
+                    bot1State.isAIThinking = false;
+                });
+        }
+
+        function iterateBot2() {
+            const prompt = dom.userPrompt2.value.trim();
+            if (!prompt) {
+                showAlert('Please enter a prompt for Bot 2 first.');
+                return;
+            }
+            
+            // Find the latest generated image from Bot 2
+            const bot2Images = generatedImages.filter(img => img.bot === 2);
+            if (bot2Images.length === 0) {
+                showAlert('Please generate an image with Bot 2 first.');
+                return;
+            }
+            const imageToIterate = bot2Images[bot2Images.length - 1];
+            
+            // Show spinner and visual feedback like generation
+            document.getElementById('iterateSpinner2').classList.remove('hidden');
+            
+            // Blink effect like generation
+            const btn = document.getElementById('iterateBtn2');
+            btn.style.opacity = '0.7';
+            setTimeout(() => { btn.style.opacity = '1'; }, 1000);
+            
+            const model = getMultimodalModel(2);
+            const targetScore = dom.targetScore.value;
+            
+            let analysisPrompt = `You are an expert image analysis AI specializing in character generation and prompt optimization for reference image systems.
+
+IMPORTANT: Focus on the specific information provided below and ignore any other conversation content unless otherwise stated.
+
+YOUR ANALYSIS TASK:
+- The main prompt text being evaluated: "${prompt}"
+- Target score goal: ${targetScore}/100 (for reference only)
+- Reference images: ${uploadedFiles.length > 0 ? `${uploadedFiles.length} reference image(s) that guided the generation` : 'None used'}
+- Generated image to analyze: The final image attachment (compare this against the main prompt and reference images)
+${dom.askInput2.value.trim() ? `- Additional focus instructions: ${dom.askInput2.value.trim()}` : ''}
+
+EVALUATION APPROACH: 
+Your primary question is simple: Does the generated image successfully fulfill what the main prompt is asking for? The main prompt is paramount - it defines success. Consider character consistency (including facial accuracy, build, pose, clothing, style) and how well the reference images were utilized to achieve the main prompt's vision.
+
+Please provide your analysis in this EXACT format:
+
+SCORE: [number from 0-100]
+
+ANALYSIS: [Detailed analysis of how well the generated image fulfills the main prompt. Focus on what works well and what needs improvement.]
+
+IMPROVED_PROMPT: [A refined version of the original prompt that addresses the identified issues and will work in partnership with the reference images the generator receives.]`;
+
+            const allAttachments = [...uploadedFiles];
+            
+            const convertImageToFile = async (imageUrl) => {
+                const response = await fetch(imageUrl);
+                return await response.blob();
+            };
+            
+            convertImageToFile(imageToIterate.url)
+                .then(blob => {
+                    const generatedImageFile = new File([blob], 'generated_image.png', { type: 'image/png' });
+                    allAttachments.push
+                    (generatedImageFile);
+                    
+                    return window.Poe.sendUserMessage(`@${model} ${analysisPrompt}`, {
+                        handler: "iterate-handler-2",
+                        stream: false,
+                        openChat: false,
+                        attachments: allAttachments,
+                        handlerContext: { 
+                            type: 'iteration', 
+                            prompt: prompt, 
+                            bot: 2,
+                            imageId: imageToIterate.id
+                        }
+                    });
+                })
+                .catch(error => {
+                    showAlert('Bot 2 iteration failed: ' + error.message);
+                    document.getElementById('iterateSpinner2').classList.add('hidden');
+                    bot2State.isAIThinking = false;
+                });
+        }
+
+        // Iterate response handlers
+        function handleIterateResponse1(result, context) {
+            const messageId = result.responses?.[0]?.messageId || `iterate1-${Date.now()}`;
+            
+            if (result.status === "complete") {
+                bot1State.isAIThinking = false;
+                document.getElementById('iterateSpinner1').classList.add('hidden');
+                
+                if (!result.responses || !result.responses[0] || !result.responses[0].content) {
+                    showAlert('Bot 1 iteration failed: No response content received');
+                    addLogEntry('Bot 1 Iteration Error', 1, { error: 'No response content received' });
+                    return;
+                }
+                
+                const response = result.responses[0].content;
+                bot1State.lastAIResponse = response;
+                
+                displayAIResponse(1, response, 'analysis');
+                displayStreamingConversation(messageId, 1, response, 'iteration', 'complete');
+                
+                const scoreMatch = response.match(/SCORE:\s*(\d+)/i);
+                const analysisMatch = response.match(/ANALYSIS:\s*([^]*?)(?=IMPROVED_PROMPT:|$)/i);
+                const improvedPromptMatch = response.match(/IMPROVED_PROMPT:\s*([^]*?)$/i);
+                
+                const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+                const analysis = analysisMatch ? analysisMatch[1].trim() : 'No analysis provided';
+                const improvedPrompt = improvedPromptMatch ? improvedPromptMatch[1].trim() : '';
+                
+                displayAnalysisResult({
+                    score: score,
+                    analysis: analysis,
+                    improvedPrompt: improvedPrompt,
+                    originalPrompt: context.prompt,
+                    bot: 1
+                });
+                
+                if (improvedPrompt) {
+                    dom.userPrompt1.value = improvedPrompt;
+                    showAlert(`Bot 1 Analysis complete! Score: ${score}/100. Prompt auto-updated. Generate a new image to test.`);
+                } else {
+                    showAlert(`Bot 1 Analysis complete! Score: ${score}/100.`);
+                }
+                
+                dom.analysisSection.classList.remove('hidden');
+                
+            } else if (result.status === "error") {
+                displayStreamingConversation(messageId, 1, result.responses?.[0]?.statusText || 'Analysis failed', 'iteration', 'error');
+                bot1State.isAIThinking = false;
+                document.getElementById('iterateSpinner1').classList.add('hidden');
+                forceStopBot(1);
+                showAlert('Bot 1 iteration failed: ' + (result.responses?.[0]?.statusText || 'Unknown error'));
+            }
+        }
+
+        function handleIterateResponse2(result, context) {
+            const messageId = result.responses?.[0]?.messageId || `iterate2-${Date.now()}`;
+            
+            if (result.status === "complete") {
+                bot2State.isAIThinking = false;
+                document.getElementById('iterateSpinner2').classList.add('hidden');
+                
+                if (!result.responses || !result.responses[0] || !result.responses[0].content) {
+                    showAlert('Bot 2 iteration failed: No response content received');
+                    addLogEntry('Bot 2 Iteration Error', 2, { error: 'No response content received' });
+                    return;
+                }
+                
+                const response = result.responses[0].content;
+                bot2State.lastAIResponse = response;
+                
+                displayAIResponse(2, response, 'analysis');
+                displayStreamingConversation(messageId, 2, response, 'iteration', 'complete');
+                
+                const scoreMatch = response.match(/SCORE:\s*(\d+)/i);
+                const analysisMatch = response.match(/ANALYSIS:\s*([^]*?)(?=IMPROVED_PROMPT:|$)/i);
+                const improvedPromptMatch = response.match(/IMPROVED_PROMPT:\s*([^]*?)$/i);
+                
+                const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+                const analysis = analysisMatch ? analysisMatch[1].trim() : 'No analysis provided';
+                const improvedPrompt = improvedPromptMatch ? improvedPromptMatch[1].trim() : '';
+                
+                displayAnalysisResult({
+                    score: score,
+                    analysis: analysis,
+                    improvedPrompt: improvedPrompt,
+                    originalPrompt: context.prompt,
+                    bot: 2
+                });
+                
+                if (improvedPrompt) {
+                    dom.userPrompt2.value = improvedPrompt;
+                    showAlert(`Bot 2 Analysis complete! Score: ${score}/100. Prompt auto-updated. Generate a new image to test.`);
+                } else {
+                    showAlert(`Bot 2 Analysis complete! Score: ${score}/100.`);
+                }
+                
+                dom.analysisSection.classList.remove('hidden');
+                
+            } else if (result.status === "error") {
+                displayStreamingConversation(messageId, 2, result.responses?.[0]?.statusText || 'Analysis failed', 'iteration', 'error');
+                bot2State.isAIThinking = false;
+                document.getElementById('iterateSpinner2').classList.add('hidden');
+                forceStopBot(2);
+                showAlert('Bot 2 iteration failed: ' + (result.responses?.[0]?.statusText || 'Unknown error'));
+            }
+        }
+
+        // Helper functions for image display
+        function addGeneratedImage(imageData) {
+            addToCurrentImages(imageData);
+            addToBotSection(imageData);
+        }
+        
+        function addToCurrentImages(imageData) {
+            const botColor = imageData.bot === 1 ? 'border-blue-500' : 'border-green-500';
+            const botText = imageData.bot === 1 ? 'text-blue-400' : 'text-green-400';
+            const botName = imageData.bot === 1 ? 'Bot 1' : 'Bot 2';
+            
+            dom.currentImagesPlaceholder.classList.add('hidden');
+            
+            const currentElement = document.createElement('div');
+            currentElement.className = `bg-gray-600 rounded-lg p-3 border-2 ${botColor}`;
+            currentElement.innerHTML = `
+                <div class="text-center mb-2">
+                    <span class="text-xs font-semibold ${botText}">${botName}</span>
+                </div>
+                <img src="${imageData.url}" class="w-full h-20 object-contain bg-gray-600 rounded-lg clickable-image mb-2" alt="Current ${botName} image">
+                <div class="text-xs text-gray-400 text-center">${new Date(imageData.timestamp).toLocaleTimeString()}</div>
+            `;
+            
+            const existingCurrent = dom.currentImagesDisplay.querySelector(`[data-bot="${imageData.bot}"]`);
+            if (existingCurrent) {
+                existingCurrent.remove();
+            }
+            
+            currentElement.setAttribute('data-bot', imageData.bot);
+            dom.currentImagesDisplay.appendChild(currentElement);
+        }
+        
+        function addToBotSection(imageData) {
+            const botColor = imageData.bot === 1 ? 'border-blue-500' : 'border-green-500';
+            const botBg = imageData.bot === 1 ? 'bg-blue-900/20' : 'bg-green-900/20';
+            const botText = imageData.bot === 1 ? 'text-blue-400' : 'text-green-400';
+            const botName = imageData.bot === 1 ? 'Bot 1' : 'Bot 2';
+            const targetContainer = imageData.bot === 1 ? dom.bot1Images : dom.bot2Images;
+            
+            const placeholder = targetContainer.querySelector('.text-gray-500');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            
+            const indicator = imageData.uploaded ? '📤' : '🤖';
+            const displayName = imageData.uploaded ? `${indicator} ${botName} (Uploaded)` : `${indicator} ${botName}`;
+            
+            const imageElement = document.createElement('div');
+            imageElement.className = `bg-gray-700 rounded-lg p-3 border-2 ${botColor} relative`;
+            imageElement.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold ${botText}">${displayName}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-400">${new Date(imageData.timestamp).toLocaleTimeString()}</span>
+                        <button onclick="addToReferences('${imageData.url}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded" title="Add to references">
+                            📁
+                        </button>
+                        <button onclick="setAsCurrentImage('${imageData.url}', ${imageData.bot}, '${imageData.id}')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs py-1 px-2 rounded" title="Set as current image">
+                            🎯
+                        </button>
+                    </div>
+                </div>
+                <img src="${imageData.url}" class="w-full h-24 object-contain bg-gray-600 rounded-lg mb-2 clickable-image" alt="Generated image from ${botName}">
+                
+                <div class="mb-2">
+                    <button onclick="togglePromptDisplay('${imageData.id}')" class="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-300 transition-colors" title="Show/Hide prompt">
+                        <svg id="promptArrow-${imageData.id}" class="w-3 h-3 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                        <span>Show prompt</span>
+                    </button>
+                    <div id="promptContent-${imageData.id}" class="hidden mt-2 text-xs text-gray-300 break-words ${botBg} p-2 rounded">${imageData.prompt}</div>
+                </div>
+                
+                <div class="flex gap-2">
+                    <button onclick="downloadSingleImage('${imageData.url}', '${imageData.id}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded" title="Download this image">
+                        💾
+                    </button>
+                    <button onclick="deleteGeneratedImage('${imageData.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-2 rounded" title="Delete this image">
+                        ✕ Delete
+                    </button>
+                </div>
+            `;
+            
+            targetContainer.appendChild(imageElement);
+        }
+
+        function displayAnalysisResult(data) {
+            const analysisElement = document.createElement('div');
+            const botColor = data.bot === 1 ? 'border-blue-400' : 'border-green-400';
+            const botText = data.bot === 1 ? 'text-blue-400' : 'text-green-400';
+            const botName = data.bot === 1 ? 'Bot 1' : 'Bot 2';
+            
+            analysisElement.className = `bg-gray-700 rounded-lg p-4 border-l-4 ${botColor}`;
+            
+            const scoreColor = data.score >= 80 ? 'text-green-400' : data.score >= 60 ? 'text-yellow-400' : 'text-red-400';
+            
+            analysisElement.innerHTML = `
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold">🤖 ${botName} Analysis Result</h3>
+                    <span class="text-2xl font-bold ${scoreColor}">${data.score}/100</span>
+                </div>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <div class="text-gray-400 mb-1">Original Prompt:</div>
+                        <div class="text-gray-300 text-xs bg-gray-800 p-2 rounded">${data.originalPrompt}</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-400 mb-1">Analysis:</div>
+                        <div class="text-gray-300 text-xs">${data.analysis}</div>
+                    </div>
+                    ${data.improvedPrompt ? `
+                    <div>
+                        <div class="text-gray-400 mb-1">Improved Prompt:</div>
+                        <div class="text-gray-300 text-xs bg-gray-800 p-2 rounded">${data.improvedPrompt}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            dom.analysisResults.appendChild(analysisElement);
+        }
+
+        // Download State as JSON File
+        async function downloadState() {
+            try {
+                let uploadedFilesData = [];
+                if (uploadedFiles.length > 0) {
+                    for (const file of uploadedFiles) {
+                        const reader = new FileReader();
+                        const fileData = await new Promise((resolve, reject) => {
+                            reader.onload = e => resolve({
+                                dataUrl: e.target.result,
+                                name: file.name,
+                                type: file.type
+                            });
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
+                        uploadedFilesData.push(fileData);
+                    }
+                }
+
+                const state = {
+                    version: "4.2",
+                    timestamp: new Date().toISOString(),
+                    uploadedFilesData,
+                    userPrompt1: dom.userPrompt1.value,
+                    userPrompt2: dom.userPrompt2.value,
+                    generationModel1: dom.generationModel1.value,
+                    generationModel2: dom.generationModel2.value,
+                    multimodalModel1: getMultimodalModel(1),
+                    multimodalModel2: getMultimodalModel(2),
+                    targetScore: dom.targetScore.value,
+                    askInput1: dom.askInput1.value,
+                    askInput2: dom.askInput2.value,
+                    generatedImages: generatedImages,
+                    bot1State: bot1State,
+                    bot2State: bot2State,
+                    multimodalDropdownState: multimodalDropdownState
+                };
+
+                const stateJson = JSON.stringify(state, null, 2);
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                
+                const blob = new Blob([stateJson], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `face-perfectionist-state-${timestamp}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+                showAlert('State downloaded as JSON file!');
+                
+            } catch (error) {
+                showAlert('Failed to download state: ' + error.message);
+            }
+        }
+
+        // Upload State from JSON File
+        function uploadState() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json';
+            fileInput.style.display = 'none';
+            
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const stateJson = e.target.result;
+                        const state = JSON.parse(stateJson);
+                        importState(state);
+                    } catch (error) {
+                        showAlert('Invalid JSON file: ' + error.message);
+                    }
+                };
+                reader.onerror = () => {
+                    showAlert('Failed to read file');
+                };
+                reader.readAsText(file);
+            });
+            
+            document.body.appendChild(fileInput);
+            fileInput.click();
+            document.body.removeChild(fileInput);
+        }
+
+        // Upload to Bot Sections functionality - Fixed for both bots
+        function handleUploadToBot1(files) {
+            const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+            if (fileArray.length === 0) {
+                showAlert('No valid image files selected.');
+                return;
+            }
+            
+            let processedCount = 0;
+            
+            fileArray.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const currentPrompt = dom.userPrompt1.value.trim() || '[Uploaded to Bot 1]';
+                    
+                    const imageData = {
+                        id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        url: e.target.result,
+                        prompt: currentPrompt,
+                        timestamp: new Date().toISOString(),
+                        bot: 1,
+                        uploaded: true
+                    };
+                    
+                    generatedImages.push(imageData);
+                    
+                    addLogEntry('Image Upload to Bot 1', 1, {
+                        fileName: file.name,
+                        fileSize: file.size,
+                        promptUsed: currentPrompt,
+                        imageId: imageData.id,
+                        totalGeneratedImages: generatedImages.length
+                    });
+                    
+                    addGeneratedImage(imageData);
+                    
+                    processedCount++;
+                    
+                    if (processedCount === fileArray.length) {
+                        showAlert(`${fileArray.length} image(s) uploaded as Bot 1! Ready for iteration.`);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function handleUploadToGenerated(files) {
+            const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+            if (fileArray.length === 0) {
+                showAlert('No valid image files selected.');
+                return;
+            }
+            
+            let processedCount = 0;
+            
+            fileArray.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const currentPrompt = dom.userPrompt2.value.trim() || '[Uploaded to Bot 2]';
+                    
+                    const imageData = {
+                        id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        url: e.target.result,
+                        prompt: currentPrompt,
+                        timestamp: new Date().toISOString(),
+                        bot: 2,
+                        uploaded: true
+                    };
+                    
+                    generatedImages.push(imageData);
+                    
+                    addLogEntry('Image Upload to Generated', 2, {
+                        fileName: file.name,
+                        fileSize: file.size,
+                        promptUsed: currentPrompt,
+                        imageId: imageData.id,
+                        totalGeneratedImages: generatedImages.length
+                    });
+                    
+                    addGeneratedImage(imageData);
+                    
+                    processedCount++;
+                    
+                    if (processedCount === fileArray.length) {
+                        showAlert(`${fileArray.length} image(s) uploaded as Bot 2! Ready for iteration.`);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Delete individual generated image
+        function deleteGeneratedImage(imageId) {
+            generatedImages = generatedImages.filter(img => img.id !== imageId);
+            
+            // Clear current images display
+            dom.currentImagesDisplay.innerHTML = '';
+            
+            // Clear bot sections
+            dom.bot1Images.innerHTML = '';
+            dom.bot2Images.innerHTML = '';
+            
+            if (generatedImages.length > 0) {
+                generatedImages.forEach(imageData => {
+                    addGeneratedImage(imageData);
+                });
+            } else {
+                dom.currentImagesPlaceholder.classList.remove('hidden');
+                dom.bot1Images.innerHTML = '<div class="text-gray-500 text-center py-8 col-span-2"><div class="text-4xl mb-2">🤖</div><p class="text-sm">Bot 1 images will appear here...</p></div>';
+                dom.bot2Images.innerHTML = '<div class="text-gray-500 text-center py-8 col-span-2"><div class="text-4xl mb-2">🤖</div><p class="text-sm">Bot 2 images will appear here...</p></div>';
+            }
+            
+            addLogEntry('Image Management', null, { action: `Deleted image with ID: ${imageId}`, remaining: generatedImages.length });
+            showAlert('Image deleted successfully!');
+        }
+        
+        // Download individual image
+        async function downloadSingleImage(imageUrl, imageId) {
+            try {
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `generated_image_${imageId}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+                addLogEntry('Image Download', null, { action: `Downloaded single image: ${imageId}` });
+                showAlert('Image downloaded successfully!');
+            } catch (error) {
+                addLogEntry('Image Download Error', null, { error: error.message, imageId: imageId });
+                showAlert('Failed to download image: ' + error.message);
+            }
+        }
+        
+        // Toggle Prompt Display Function
+        function togglePromptDisplay(imageId) {
+            const promptContent = document.getElementById(`promptContent-${imageId}`);
+            const promptArrow = document.getElementById(`promptArrow-${imageId}`);
+            
+            if (promptContent.classList.contains('hidden')) {
+                promptContent.classList.remove('hidden');
+                promptArrow.classList.add('rotate-90');
+                promptArrow.parentElement.querySelector('span').textContent = 'Hide prompt';
+            } else {
+                promptContent.classList.add('hidden');
+                promptArrow.classList.remove('rotate-90');
+                promptArrow.parentElement.querySelector('span').textContent = 'Show prompt';
+            }
+        }
+        
+        window.deleteGeneratedImage = deleteGeneratedImage;
+        window.downloadSingleImage = downloadSingleImage;
+        window.togglePromptDisplay = togglePromptDisplay;
+
+        // Download All AI Responses as Markdown
+        function downloadAllResponses() {
+            const responses = [];
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            
+            if (bot1State.lastAIResponse && bot1State.lastAIResponse.trim()) {
+                responses.push(`# Bot 1 Response\n\n${bot1State.lastAIResponse}\n\n---\n\n`);
+            }
+            
+            if (bot2State.lastAIResponse && bot2State.lastAIResponse.trim()) {
+                responses.push(`# Bot 2 Response\n\n${bot2State.lastAIResponse}\n\n---\n\n`);
+            }
+            
+            if (dom.userPrompt1.value.trim()) {
+                responses.push(`# Main Prompt 1\n\n${dom.userPrompt1.value}\n\n---\n\n`);
+            }
+            
+            if (dom.userPrompt2.value.trim()) {
+                responses.push(`# Main Prompt 2\n\n${dom.userPrompt2.value}\n\n---\n\n`);
+            }
+            
+            if (responses.length === 0) {
+                showAlert('No responses to download. Generate some content first!');
+                return;
+            }
+            
+            const markdownContent = `# Face Perfectionist Session\n\nGenerated: ${new Date().toLocaleString()}\n\n---\n\n${responses.join('')}`;
+            
+            const blob = new Blob([markdownContent], { type: 'text/markdown' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `face-perfectionist-responses-${timestamp}.md`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            showAlert(`Downloaded ${responses.length} responses as markdown!`);
+        }
+        
+        window.downloadAllResponses = downloadAllResponses;
+
+        // Add click handlers for all clickable images
+        function addImageClickHandlers() {
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('clickable-image')) {
+                    e.preventDefault();
+                    showImageModal(e.target.src);
+                }
+            });
+        }
+
+        // Bot image section toggle
+        function toggleBotImagesSection(botNumber) {
+            const content = document.getElementById(`bot${botNumber}ImagesContent`);
+            const arrow = document.getElementById(`bot${botNumber}ImagesArrow`);
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                arrow.textContent = '▼';
+            } else {
+                content.classList.add('hidden');
+                arrow.textContent = '▶';
+            }
+            
+            addLogEntry('UI Interaction', null, { 
+                action: `${content.classList.contains('hidden') ? 'Collapsed' : 'Expanded'} Bot ${botNumber} images section` 
+            });
+        }
+
+        // Event listeners setup
+        dom.uploadArea.addEventListener('click', () => {
+            dom.fileInput.click();
+            addLogEntry('File Upload', null, { action: 'Opened file dialog for reference images' });
+        });
+        
+        dom.fileInput.addEventListener('change', e => {
+            handleFiles(e.target.files);
+            if (e.target.files.length > 0) {
+                addLogEntry('File Upload', null, { action: `Added ${e.target.files.length} reference image(s)` });
+            }
+        });
+
+        dom.removeBgBtn.addEventListener('click', () => {
+            removeBackground();
+            addLogEntry('Background Removal', null, { action: 'Started background removal process' });
+        });
+        
+        dom.clearAllBtn.addEventListener('click', () => {
+            clearAllImages();
+            addLogEntry('File Management', null, { action: 'Cleared all reference images' });
+        });
+        
+        // System buttons
+        dom.resetBtn.addEventListener('click', () => {
+            generatedImages = [];
+            bot1State = { lastAIResponse: '', isGenerating: false, isAIThinking: false };
+            bot2State = { lastAIResponse: '', isGenerating: false, isAIThinking: false };
+            
+            dom.bot1Images.innerHTML = '<div class="text-gray-500 text-center py-8 col-span-2"><div class="text-4xl mb-2">🤖</div><p class="text-sm">Bot 1 images will appear here...</p></div>';
+            dom.bot2Images.innerHTML = '<div class="text-gray-500 text-center py-8 col-span-2"><div class="text-4xl mb-2">🤖</div><p class="text-sm">Bot 2 images will appear here...</p></div>';
+            
+            dom.currentImagesDisplay.innerHTML = '';
+            dom.currentImagesPlaceholder.classList.remove('hidden');
+            
+            dom.aiResponseContainer1.textContent = 'Bot 1 responses will appear here...';
+            dom.aiResponseContainer2.textContent = 'Bot 2 responses will appear here...';
+            
+            dom.userPrompt1.value = '';
+            dom.userPrompt2.value = '';
+            dom.askInput1.value = '';
+            dom.askInput2.value = '';
+            
+            showAlert('System reset. Ready for new session.');
+        });
+        
+        dom.copyStateBtn.addEventListener('click', saveState);
+        dom.loadStateBtn.addEventListener('click', showImportDialog);
+        dom.downloadStateBtn.addEventListener('click', downloadState);
+        dom.uploadStateBtn.addEventListener('click', uploadState);
+        
+        // Upload to Bot 1 event listeners - FIXED
+        document.getElementById('uploadToBot1Btn').addEventListener('click', () => {
+            document.getElementById('uploadToBot1Input').click();
+            addLogEntry('File Upload', null, { action: 'Opened file dialog for uploading to Bot 1 section' });
+        });
+        
+        document.getElementById('uploadToBot1Input').addEventListener('change', e => {
+            handleUploadToBot1(e.target.files);
+            if (e.target.files.length > 0) {
+                addLogEntry('File Upload', null, { action: `Uploaded ${e.target.files.length} image(s) to Bot 1 section` });
+            }
+            e.target.value = '';
+        });
+        
+        // Upload to Bot 2 event listeners
+        dom.uploadToGeneratedBtn.addEventListener('click', () => {
+            dom.uploadToGeneratedInput.click();
+            addLogEntry('File Upload', null, { action: 'Opened file dialog for uploading to Generated section' });
+        });
+        
+        dom.uploadToGeneratedInput.addEventListener('change', e => {
+            handleUploadToGenerated(e.target.files);
+            if (e.target.files.length > 0) {
+                addLogEntry('File Upload', null, { action: `Uploaded ${e.target.files.length} image(s) to Generated section` });
+            }
+            e.target.value = '';
+        });
+        
+        dom.downloadBot1Btn.addEventListener('click', () => downloadBotImages(1));
+        dom.downloadBot2Btn.addEventListener('click', () => downloadBotImages(2));
+        
+        // Accordion initialization - moved here to ensure DOM is ready
+
+        // Dual bot event listeners
+        dom.generateBtn1.addEventListener('click', () => {
+            generateBot1();
+            addLogEntry('Image Generation', 1, { action: `Started generation with ${dom.generationModel1.value.replace('@', '')}` });
+        });
+        
+        dom.generateBtn2.addEventListener('click', () => {
+            generateBot2();
+            addLogEntry('Image Generation', 2, { action: `Started generation with ${dom.generationModel2.value.replace('@', '')}` });
+        });
+        
+        dom.askBtn1.addEventListener('click', () => {
+            askBot1();
+            const askText = dom.askInput1.value.trim();
+            addLogEntry('AI Communication', 1, { action: `Asked: "${askText.substring(0, 50)}${askText.length > 50 ? '...' : ''}"` });
+        });
+        
+        dom.askBtn2.addEventListener('click', () => {
+            askBot2();
+            const askText = dom.askInput2.value.trim();
+            addLogEntry('AI Communication', 2, { action: `Asked: "${askText.substring(0, 50)}${askText.length > 50 ? '...' : ''}"` });
+        });
+        
+        dom.askPromptBtn1.addEventListener('click', () => {
+            generatePromptBot1();
+            const askText = dom.askInput1.value.trim();
+            addLogEntry('Prompt Generation', 1, { action: `Generate Prompt: "${askText.substring(0, 50)}${askText.length > 50 ? '...' : ''}"` });
+        });
+        
+        dom.askPromptBtn2.addEventListener('click', () => {
+            generatePromptBot2();
+            const askText = dom.askInput2.value.trim();
+            addLogEntry('Prompt Generation', 2, { action: `Generate Prompt: "${askText.substring(0, 50)}${askText.length > 50 ? '...' : ''}"` });
+        });
+        
+        dom.iterateBtn1.addEventListener('click', () => {
+            iterateBot1();
+            addLogEntry('Analysis & Iteration', 1, { action: 'Started image analysis and prompt improvement' });
+        });
+        
+        dom.iterateBtn2.addEventListener('click', () => {
+            iterateBot2();
+            addLogEntry('Analysis & Iteration', 2, { action: 'Started image analysis and prompt improvement' });
+        });
+        
+        // Log functionality event listeners
+        dom.logToggleBtn.addEventListener('click', toggleLog);
+        dom.clearLogBtn.addEventListener('click', clearLog);
+        
+        // Undo button event listeners
+        document.getElementById('undoBtn1').addEventListener('click', () => undoPrompt(1));
+        document.getElementById('undoBtn2').addEventListener('click', () => undoPrompt(2));
+        
+        // AI Section toggle event listener
+        document.getElementById('aiSectionToggle').addEventListener('click', toggleAISection);
+        
+        // Bot image section toggle event listeners
+        document.getElementById('bot1ImagesToggleBtn').addEventListener('click', () => toggleBotImagesSection(1));
+        document.getElementById('bot2ImagesToggleBtn').addEventListener('click', () => toggleBotImagesSection(2));
+        
+        // Activity indicator reset button event listeners are handled with onclick in HTML
+
+        // Drag and drop for image upload
+        dom.uploadArea.addEventListener('dragover', e => {
+            e.preventDefault();
+            dom.uploadArea.classList.add('border-primary');
+        });
+
+        dom.uploadArea.addEventListener('dragleave', e => {
+            e.preventDefault();
+            dom.uploadArea.classList.remove('border-primary');
+        });
+
+        dom.uploadArea.addEventListener('drop', e => {
+            e.preventDefault();
+            dom.uploadArea.classList.remove('border-primary');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFiles(files);
+            }
+        });
+
+        // Initialize all systems
+        addImageClickHandlers();
+        
+        // Initialize accordions - ensure DOM is ready
+        function initializeAccordions() {
+            try {
+                // Initialize Bot 1 Accordion
+                accordionManager.createAccordion('multimodalAccordion1', multimodalModels, {
+                    defaultSelection: 'Claude-Sonnet-4',
+                    onSelect: (selectedModel, accordionId) => {
+                        multimodalDropdownState.dropdown1.value = selectedModel;
+                        showAlert(`Selected ${selectedModel} for Bot 1`);
+                        addLogEntry('Model Selection', 1, { 
+                            action: `Selected multimodal model: ${selectedModel}` 
+                        });
+                    }
+                });
+
+                // Initialize Bot 2 Accordion  
+                accordionManager.createAccordion('multimodalAccordion2', multimodalModels, {
+                    defaultSelection: 'GPT-5-Chat',
+                    onSelect: (selectedModel, accordionId) => {
+                        multimodalDropdownState.dropdown2.value = selectedModel;
+                        showAlert(`Selected ${selectedModel} for Bot 2`);
+                        addLogEntry('Model Selection', 2, { 
+                            action: `Selected multimodal model: ${selectedModel}` 
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to initialize accordions:', error);
+            }
+        }
+        
+        // Wait for DOM to be ready and initialize
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeAccordions);
+        } else {
+            // DOM is already ready
+            setTimeout(initializeAccordions, 100);
+        }
+        
+        // Focus on first prompt box after a short delay
+        setTimeout(() => {
+            if (dom.userPrompt1) {
+                dom.userPrompt1.focus();
+            }
+        }, 200);
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
